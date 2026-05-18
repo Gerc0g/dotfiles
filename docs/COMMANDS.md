@@ -1,75 +1,93 @@
-# Commands Reference
+# Personal Platform Commands
 
-Single source of truth for all custom commands.
+Single source of truth for custom commands.
 
 Format:
 <command-name>
 Что: короткое описание
 Запуск: как вызывать
-Файлы: какие файлы трогает (опц.)
-Env: какие env vars (опц.)
-См. также: связанные команды (опц.)
+Примеры: (опц.)
+Файлы: (опц.)
+Env: (опц.)
+См. также: (опц.)
+Категории через `### Section`.
+
 ---
+
+### Discovery
 
 ## help
 **Что:** Список или детали custom commands
-**Запуск:** `help` (список) / `help <cmd>` (детали)
+**Запуск:** `help [<cmd>]`
 
 ## ?
 **Что:** Alias для help (короткая запись)
 **Запуск:** `?` / `? <cmd>`
 
+---
+
+### Profiles
+
 ## agent
 **Что:** Переключает codex/claude профиль в текущей shell
 **Запуск:** `agent {legacy|fresh|wiki|status}`
 **Env vars:** `CODEX_HOME`, `CLAUDE_CONFIG_DIR`
-**См. также:** `wikipedik`
+
+---
+
+### Workspaces
 
 ## wikipedik
-**Что:** Открывает tmux session с двумя codex (dev + research vaults)
+**Что:** tmux session с двумя codex для wiki (dev + research vaults)
 **Запуск:** `wikipedik`
 **Файлы:** `~/Desktop/WikiPedik/{dev,research}/`
-**Env:** Использует профиль `~/.codex-wiki/`
-**См. также:** `agent wiki`
+**Env:** Профиль `~/.codex-wiki/`
 
+---
+
+### Bootstrap (новые компании/проекты)
 
 ## new-company
-**Что:** Bootstrap новой компании (one-time setup): AGENTS.md, .envrc template, .company-config
-**Запуск:** `new-company <slug> <vcs> <namespace>`
+**Что:** Создаёт компанию: папка + AGENTS.md + SSH key + SSH config alias + 1Password vault + .envrc + git identity
+**Запуск:** `new-company <slug> <vcs[:host]> <namespace> [git-email]`
 **Примеры:**
-  - `new-company acme gitlab acme-engineering`
-  - `new-company beta github beta-org`
-  - `new-company personal local local`
-**Файлы:** Создаёт `~/work/<slug>/` со скелетом
-**См. также:** `new-project` (добавление продуктов в компанию)
+- `new-company acme gitlab acme-engineering egor@acme.com`
+- `new-company acme gitlab:gitlab.acme.io acme-eng egor@acme.io` (self-hosted)
+- `new-company beta github beta-org`
+- `new-company personal local local`
+**Файлы:** `~/work/<slug>/`, `~/.ssh/<slug>_id_ed25519`, `~/.ssh/config`
+**См. также:** `new-project`, `secret add`
 
 ## new-project
-**Что:** Bootstrap нового проекта внутри существующей компании
+**Что:** Создаёт продукт в существующей компании: клонит репы через SSH alias, ставит AGENTS.md на 3 уровнях, добавляет tmux launcher
 **Запуск:** `new-project <company> <product> [repo1] [repo2] ...`
 **Примеры:**
-  - `new-project acme payments backend frontend shared-schemas`
-  - `new-project beta auth api workers`
-**Файлы:** Создаёт `~/work/<company>/<product>/`, обновляет `shell/30-projects.zsh` и `COMMANDS.md`
+- `new-project acme payments backend frontend shared-schemas`
+- `new-project beta auth api workers`
 **Зависит от:** company должна быть создана через `new-company`
 **См. также:** `new-company`
 
-## bootstrap.sh
-**Что:** Полная установка platform на свежем Mac (brew, packages, configs, dirs, loader)
-**Запуск:** `~/dotfiles/bootstrap.sh`
-**Когда использовать:** Первый раз на новом компе после `git clone`
-**Файлы:** Brewfile, ghostty/config, tmux/tmux.conf, ~/.zshrc, ~/.codex-*/, ~/Desktop/WikiPedik/
-**Notes:** Идемпотентный — можно запускать повторно, не сломает существующий setup
+---
+
+### Secrets (1Password)
 
 ## secret
-**Что:** Wrapper над 1Password CLI с auto-helper'ами для секретов
+**Что:** Wrapper над 1Password CLI: создание items, чтение, авто-добавление в .envrc
 **Запуск:**
-  - `secret signin` — войти в 1Password
-  - `secret add <VAR> <VALUE>` — создать item + добавить в .envrc (company auto-detect из cwd)
-  - `secret add <VAR> <VALUE> <company>` — для конкретной компании
-  - `secret edit <VAR> <NEW_VALUE>` — обновить существующий
-  - `secret get <op://path>` — прочитать
-  - `secret list <vault>` — items в vault
-**Auto-uppercase:** имя переменной автоматически приводится к UPPER_CASE
-**Auto-detect company:** ищет ближайший `.company-config` walking up from cwd
+- `secret signin` — login to 1Password
+- `secret add <VAR> <VALUE> [company]` — создать item + добавить в .envrc
+- `secret edit <VAR> <NEW_VALUE>` — обновить существующий
+- `secret get <op://path>` — прочитать
+- `secret list <vault>` — items в vault
+**Auto-detect:** company определяется по `.company-config` walking up from cwd
 **Зависит от:** `op` CLI, 1Password app signed in
-**См. также:** `new-company` (создаёт пустой vault), direnv
+
+---
+
+### Setup (one-time)
+
+## bootstrap.sh
+**Что:** Полная установка platform на свежем Mac (Brew, packages, configs, dirs, loader)
+**Запуск:** `~/dotfiles/bootstrap.sh`
+**Когда:** Первый раз на новом компе после `git clone`
+**Notes:** Идемпотентный — можно перезапускать
