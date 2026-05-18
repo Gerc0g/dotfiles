@@ -1,0 +1,22 @@
+# Company AGENTS.md — ${CO}
+
+## Context
+- Company: ${CO}
+- VCS: ${VCS}
+- Namespace: ${NS}
+
+## Workflow rules (company-level)
+- ALL work on feature branches, NEVER directly to main/master
+- Atomic commits: `git commit -m "..." -- path/to/file1 path/to/file2` (explicit paths only)
+- Conventional Commits: feat|fix|refactor|chore|docs|test
+- NEVER push without my explicit ask
+- NEVER `git reset --hard`, `git restore`, `rm -rf` without my written approval
+- `.env`, secrets: read-only, never modify
+
+## Code review
+- Run tests before opening MR/PR
+- Self-review the diff before requesting human review
+- For destructive changes: ask before, not after
+
+## Lessons (organic)
+- (агент добавляет заметки после факапов)
