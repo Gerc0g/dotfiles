@@ -63,8 +63,8 @@ if [ ! -d ~/Desktop/WikiPedik ]; then
 fi
 
 # === 8. ~/work directory ===
-mkdir -p ~/work
-echo "✓ ~/work/ ready"
+mkdir -p ~/Desktop/Prokectfiles
+echo "✓ ~/Desktop/Prokectfiles/ ready"
 
 # === 9. Подключить loader в .zshrc ===
 if ! grep -q "dotfiles/shell/_loader.zsh" ~/.zshrc 2>/dev/null; then

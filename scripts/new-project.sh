@@ -1,23 +1,32 @@
 #!/bin/bash
-# Bootstrap project within existing company
+# Bootstrap project at ~/Desktop/Prokectfiles/<company>/<product>/
+# Usage: new-project <company> <product> [--ns=<override>] [repo1] [repo2] ...
 set -e
 
 if [ "$#" -lt 2 ]; then
   cat <<'USAGE'
-Usage: new-project <company-slug> <product> [repo1] [repo2] ...
+Usage: new-project <company> <product> [--ns=<override>] [repo1] [repo2] ...
 
 Examples:
-  new-project acme payments backend frontend
-  new-project beta auth api workers
+  new-project justchimera aetheria Aetheria-App aetheria-frontend
+  new-project neurodesk agents --ns=dev/nrdsk_ai/agents barrier cerebellum
 USAGE
   exit 1
 fi
 
 CO="$1"; PROD="$2"
 shift 2
+
+NS_OVERRIDE=""
+if [[ "$1" == --ns=* ]]; then
+  NS_OVERRIDE="${1#--ns=}"
+  shift
+fi
+
 REPOS=("$@")
 
-DIR=~/work/$CO
+WORK_ROOT="$HOME/Desktop/Prokectfiles"
+DIR="$WORK_ROOT/$CO"
 PDIR="$DIR/$PROD"
 TPL=~/dotfiles/templates
 CFG="$DIR/.company-config"
@@ -29,16 +38,21 @@ fi
 
 VCS=$(awk '/^vcs:/ {print $2}' "$CFG")
 HOST=$(awk '/^host:/ {print $2}' "$CFG")
-NS=$(awk '/^namespace:/ {print $2}' "$CFG")
+NS_DEFAULT=$(awk '/^namespace:/ {print $2}' "$CFG")
 SSH_HOST=$(awk '/^ssh_host:/ {print $2}' "$CFG")
+
+NS="${NS_OVERRIDE:-$NS_DEFAULT}"
 
 mkdir -p "$PDIR"
 
-# Product-level AGENTS.md
 CO="$CO" PROD="$PROD" REPOS="${REPOS[*]}" envsubst < "$TPL/AGENTS.md.product.tmpl" > "$PDIR/AGENTS.md"
 echo "✓ $PDIR/AGENTS.md"
 
-# Remote URL: prefer SSH alias if set, fallback to direct host
+cat > "$PDIR/.product-config" <<EOF
+slug: $PROD
+namespace: $NS
+EOF
+
 if [ -n "$SSH_HOST" ] && [ "$SSH_HOST" != "local" ]; then
   REMOTE="git@${SSH_HOST}:${NS}"
 elif [ "$VCS" = "local" ]; then
@@ -47,11 +61,10 @@ else
   REMOTE="git@${HOST}:${NS}"
 fi
 
-# Clone + per-repo AGENTS.md
 for repo in "${REPOS[@]}"; do
   if [ ! -d "$PDIR/$repo" ]; then
     if [ -n "$REMOTE" ]; then
-      git clone "$REMOTE/$repo.git" "$PDIR/$repo" || { echo "✗ Failed to clone $repo"; continue; }
+      git clone "$REMOTE/$repo.git" "$PDIR/$repo" || { echo "✗ Failed: $repo (URL: $REMOTE/$repo.git)"; continue; }
     else
       mkdir -p "$PDIR/$repo" && (cd "$PDIR/$repo" && git init)
     fi
@@ -62,7 +75,6 @@ for repo in "${REPOS[@]}"; do
   fi
 done
 
-# tmux launcher
 LAUNCHER=~/dotfiles/shell/30-projects.zsh
 [ ! -f "$LAUNCHER" ] && echo "# Project tmux launchers" > "$LAUNCHER"
 
@@ -82,7 +94,6 @@ EOF
   echo "✓ added '${PROD}' launcher"
 fi
 
-# COMMANDS.md
 DOC=~/dotfiles/docs/COMMANDS.md
 if ! grep -q "^## ${PROD}$" "$DOC"; then
   cat >> "$DOC" <<EOF
@@ -96,7 +107,7 @@ EOF
 fi
 
 echo ""
-echo "✅ ${CO}/${PROD} bootstrapped"
+echo "✅ ${CO}/${PROD} bootstrapped (ns: $NS)"
 ls "$PDIR"
 echo ""
 echo "Next: source ~/.zshrc && ${PROD}"

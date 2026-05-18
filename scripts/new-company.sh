@@ -1,5 +1,5 @@
 #!/bin/bash
-# Bootstrap company: folder + AGENTS.md + 1Password vault + SSH + git identity
+# Bootstrap company workspace at ~/Desktop/Prokectfiles/<slug>/
 # Usage: new-company <slug> <vcs[:host]> <namespace> [git-email]
 set -e
 
@@ -8,24 +8,15 @@ if [ "$#" -lt 3 ]; then
 Usage: new-company <slug> <vcs[:host]> <namespace> [git-email]
 
 Examples:
-  new-company acme gitlab acme-engineering egor@acme.com
-  new-company acme gitlab:gitlab.acme.io acme-eng egor@acme.io
-  new-company beta github beta-org
-  new-company beta github:ghe.beta.io beta-org
-  new-company personal local local
-
-Args:
-  slug:       short id (folder, vault, SSH alias)
-  vcs[:host]: gitlab | github | bitbucket | local
-              with optional :host for self-hosted (gitlab:gitlab.acme.io)
-  namespace:  org/group name
-  git-email:  (optional) email for commits in this company
+  new-company neurodesk gitlab:nrdsk.gitlab.yandexcloud.net dev your@email.com
+  new-company justchimera github JustChimera gerc0g@justchimera.com
 USAGE
   exit 1
 fi
 
 CO="$1"; VCS_FULL="$2"; NS="$3"; EMAIL="${4:-}"
-DIR=~/work/$CO
+WORK_ROOT="$HOME/Desktop/Prokectfiles"
+DIR="$WORK_ROOT/$CO"
 TPL=~/dotfiles/templates
 
 # Parse vcs:host syntax
@@ -41,6 +32,8 @@ if [ "$HOST" = "$VCS" ]; then
   esac
 fi
 
+mkdir -p "$WORK_ROOT"
+
 if [ -d "$DIR" ]; then
   echo "⚠ Company '$CO' already exists at $DIR"
   exit 1
@@ -48,11 +41,11 @@ fi
 
 mkdir -p "$DIR"
 
-# === AGENTS.md ===
+# AGENTS.md
 CO="$CO" VCS="$VCS" NS="$NS" envsubst < "$TPL/AGENTS.md.company.tmpl" > "$DIR/AGENTS.md"
 echo "✓ $DIR/AGENTS.md"
 
-# === SSH ключ + config (если не local) ===
+# SSH key + config alias (если не local)
 SSH_HOST=""
 if [ "$VCS" != "local" ]; then
   KEY_PATH=~/.ssh/${CO}_id_ed25519
@@ -62,7 +55,7 @@ if [ "$VCS" != "local" ]; then
     ssh-keygen -t ed25519 -f "$KEY_PATH" -N "" -C "${EMAIL:-$CO-machine}" >/dev/null
     echo "✓ SSH key generated: $KEY_PATH"
   else
-    echo "→ SSH key already exists at $KEY_PATH"
+    echo "→ SSH key exists at $KEY_PATH"
   fi
   
   SSH_CONFIG=~/.ssh/config
@@ -77,11 +70,11 @@ Host $SSH_HOST
   IdentityFile $KEY_PATH
   IdentitiesOnly yes
 EOF
-    echo "✓ SSH config alias '$SSH_HOST' → $HOST"
+    echo "✓ SSH alias '$SSH_HOST' → $HOST"
   fi
 fi
 
-# === .company-config (теперь с host) ===
+# .company-config
 cat > "$DIR/.company-config" <<EOF
 slug: $CO
 vcs: $VCS
@@ -92,11 +85,10 @@ git_email: ${EMAIL:-}
 EOF
 echo "✓ $DIR/.company-config"
 
-# === .envrc ===
+# .envrc
 cat > "$DIR/.envrc" <<EOF
-# direnv config for company '$CO'
+# direnv config for '$CO'
 
-# Git identity
 ${EMAIL:+export GIT_AUTHOR_EMAIL=$EMAIL}
 ${EMAIL:+export GIT_COMMITTER_EMAIL=$EMAIL}
 
@@ -104,44 +96,35 @@ ${EMAIL:+export GIT_COMMITTER_EMAIL=$EMAIL}
 EOF
 echo "✓ $DIR/.envrc"
 
-# === README ===
+# README
 cat > "$DIR/README.md" <<EOF
 # $CO
 
 **VCS:** $VCS @ $HOST
 **Namespace:** $NS
-**SSH alias:** ${SSH_HOST:-(none, local)}
-**Git email:** ${EMAIL:-(not set)}
+**SSH alias:** ${SSH_HOST:-(none)}
+**Email:** ${EMAIL:-(not set)}
 **1Password vault:** Work-$CO
 
 ## Products
-(добавляются автоматически через \`new-project $CO <product> ...\`)
-
-## Setup secrets
-\`\`\`bash
-cd ~/work/$CO
-secret add OPENAI_API_KEY <value>
-secret add GITLAB_TOKEN <value>
-direnv allow
-\`\`\`
+(добавляются через \`new-project $CO <product> ...\`)
 EOF
 echo "✓ $DIR/README.md"
 
-# === Auto-create 1Password vault ===
+# 1Password vault
 if command -v op >/dev/null 2>&1 && op account list >/dev/null 2>&1; then
   op vault create "Work-$CO" >/dev/null 2>&1 && echo "✓ 1Password vault 'Work-$CO' created" \
     || echo "→ 1Password vault 'Work-$CO' already exists"
 fi
 
-# === Manual steps ===
 echo ""
-echo "✅ Company '$CO' bootstrapped"
+echo "✅ Company '$CO' bootstrapped at $DIR"
 echo ""
 echo "━━━ Manual steps ━━━"
 echo ""
 
 if [ "$VCS" != "local" ]; then
-  echo "1. Добавь публичный ключ в $VCS аккаунт на $HOST:"
+  echo "1. Добавь публичный ключ в $VCS account на $HOST:"
   echo ""
   cat "$KEY_PATH.pub"
   echo ""
@@ -151,21 +134,19 @@ if [ "$VCS" != "local" ]; then
     bitbucket) echo "   → https://$HOST/account/settings/ssh-keys/" ;;
   esac
   echo ""
-  echo "2. Тест SSH:"
-  echo "   ssh -T git@$SSH_HOST"
+  echo "2. Тест SSH:  ssh -T git@$SSH_HOST"
   echo ""
   
   case "$VCS" in
-    gitlab) echo "3. Login glab CLI:"; echo "   glab auth login --hostname $HOST" ;;
-    github) echo "3. Login gh CLI:"; echo "   gh auth login --hostname $HOST --git-protocol ssh" ;;
+    gitlab) echo "3. Login glab CLI:  glab auth login --hostname $HOST" ;;
+    github) echo "3. Login gh CLI:    gh auth login --hostname $HOST --git-protocol ssh" ;;
   esac
   echo ""
 fi
 
-echo "4. Добавь секреты + активируй direnv:"
+echo "4. Секреты + direnv:"
 echo "   cd $DIR"
-echo "   secret add OPENAI_API_KEY <value>"
-echo "   secret add ${VCS^^}_TOKEN <value>"
+echo "   secret add OPENAI_API_KEY <value>  # опц."
 echo "   direnv allow"
 echo ""
 echo "5. Создавай продукты:"
