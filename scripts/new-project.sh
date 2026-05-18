@@ -1,5 +1,5 @@
 #!/bin/bash
-# Bootstrap project within existing company, using per-company SSH alias
+# Bootstrap project within existing company
 set -e
 
 if [ "$#" -lt 2 ]; then
@@ -9,7 +9,6 @@ Usage: new-project <company-slug> <product> [repo1] [repo2] ...
 Examples:
   new-project acme payments backend frontend
   new-project beta auth api workers
-  new-project personal sandbox mini-tool
 USAGE
   exit 1
 fi
@@ -29,6 +28,7 @@ if [ ! -f "$CFG" ]; then
 fi
 
 VCS=$(awk '/^vcs:/ {print $2}' "$CFG")
+HOST=$(awk '/^host:/ {print $2}' "$CFG")
 NS=$(awk '/^namespace:/ {print $2}' "$CFG")
 SSH_HOST=$(awk '/^ssh_host:/ {print $2}' "$CFG")
 
@@ -38,19 +38,16 @@ mkdir -p "$PDIR"
 CO="$CO" PROD="$PROD" REPOS="${REPOS[*]}" envsubst < "$TPL/AGENTS.md.product.tmpl" > "$PDIR/AGENTS.md"
 echo "✓ $PDIR/AGENTS.md"
 
-# Remote prefix через SSH alias (если есть) или fallback
+# Remote URL: prefer SSH alias if set, fallback to direct host
 if [ -n "$SSH_HOST" ] && [ "$SSH_HOST" != "local" ]; then
   REMOTE="git@${SSH_HOST}:${NS}"
+elif [ "$VCS" = "local" ]; then
+  REMOTE=""
 else
-  case "$VCS" in
-    gitlab)    REMOTE="git@gitlab.com:$NS" ;;
-    github)    REMOTE="git@github.com:$NS" ;;
-    bitbucket) REMOTE="git@bitbucket.org:$NS" ;;
-    local)     REMOTE="" ;;
-  esac
+  REMOTE="git@${HOST}:${NS}"
 fi
 
-# Clone repos + per-repo AGENTS.md
+# Clone + per-repo AGENTS.md
 for repo in "${REPOS[@]}"; do
   if [ ! -d "$PDIR/$repo" ]; then
     if [ -n "$REMOTE" ]; then
@@ -85,7 +82,7 @@ EOF
   echo "✓ added '${PROD}' launcher"
 fi
 
-# Document in COMMANDS.md
+# COMMANDS.md
 DOC=~/dotfiles/docs/COMMANDS.md
 if ! grep -q "^## ${PROD}$" "$DOC"; then
   cat >> "$DOC" <<EOF
