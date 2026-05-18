@@ -28,7 +28,8 @@ _help_list() {
     /^\*\*Что:\*\*/ {
       gsub(/\*\*Что:\*\* */, "")
       gsub(/\*\*/, "")
-      printf "   %s%-15s%s %s\n", C, name, R, $0
+      gsub(/`/, "")
+      printf "   %s%-22s%s %s\n", C, name, R, $0
     }
   ' "$doc"
   
@@ -44,23 +45,20 @@ _help_detail() {
   
   if [ -z "$section" ]; then
     echo ""
-    echo " Command '$cmd' not found. Available:"
-    _help_list
+    echo " Command '$cmd' not found."
     return 1
   fi
   
-  # Render without markdown noise — strip ##, **, `code`, ---, bullets
   echo "$section" | awk \
     -v B=$'\033[1m' \
     -v C=$'\033[36m' \
-    -v Y=$'\033[33m' \
     -v D=$'\033[2m' \
     -v R=$'\033[0m' '
-    function highlight(s) {
+    function highlight(s,    out, n, p, k) {
       gsub(/`/, "\x01", s)
       n = split(s, p, "\x01")
       out = p[1]
-      for (k=2; k<=n; k++) {
+      for (k = 2; k <= n; k++) {
         if (k % 2 == 0) out = out C p[k] R
         else out = out p[k]
       }
@@ -69,15 +67,16 @@ _help_detail() {
     
     /^---$/ { next }
     
-    # Title
     /^## / {
       sub(/^## /, "")
-      printf "\n %s%s%s\n", B, $0, R
-      printf " %s%s%s\n", D, gensub(/./, "─", "g", $0), R
+      title = $0
+      printf "\n %s%s%s\n", B, title, R
+      bar = ""
+      for (i = 0; i < length(title); i++) bar = bar "─"
+      printf " %s%s%s\n", D, bar, R
       next
     }
     
-    # **Label:** value
     /^\*\*[^*]+:\*\*/ {
       line = $0
       sub(/^\*\*/, "", line)
@@ -94,17 +93,14 @@ _help_detail() {
       next
     }
     
-    # Bullets
     /^- / {
       sub(/^- /, "")
       printf "       %s•%s %s\n", D, R, highlight($0)
       next
     }
     
-    # Empty line
     /^$/ { print ""; next }
     
-    # Plain text
     { printf "   %s\n", highlight($0) }
   '
   
