@@ -1,21 +1,133 @@
-# AGENTS.md — ${REPO}
+# Repo — ${REPO}
 
-## Context
-Part of product `${PROD}` from company `${CO}`.
-See parent `../AGENTS.md` and `../../AGENTS.md` for product/company-level rules.
+
+## Context hierarchy (load on demand)
+
+This repo is part of `${PROD}` product in `${CO}` company. Parent context
+files exist at higher levels. **Don't bulk-read them at session start.** Read
+only when current task requires.
+
+| Path | What's inside | Read when |
+|---|---|---|
+| `../AGENTS.md` | Product (`${PROD}`): architecture, repos+roles map, cross-repo conventions, data flow | Cross-repo work · understanding this repo's role · finding sibling repos that consume/produce data here |
+| `../../AGENTS.md` | Company (`${CO}`): VCS host, namespace map, MR conventions, vault location, network rules | Preparing MR/PR · setting up new env vars · choosing commit scope · onboarding to company workflow |
+| `~/dotfiles/agent-profiles/PLATFORM.md` | Universal: dev-stack, git protocol, branch/merge policy, tooling defaults | Already loaded via profile (`~/.codex-new/AGENTS.md`). Read directly only if profile missing or override needed. |
+
+Rule: read parent only when task explicitly requires it. Don't load all three
+just because they exist — that defeats the purpose of hierarchy.
+
+## What this repo does (one line)
+
+<TODO: ONE sentence — what is this service / library / app>
 
 ## Stack
-TBD (заполняется по факту)
+
+<TODO: real versions. Codex bootstrap fills from manifest.>
+
+- Language: <e.g. Python 3.11>
+- Framework: <e.g. FastAPI 0.110>
+- Key deps: <top 3-5 from manifest>
+- Database: <Postgres via dev-stack? Redis? None?>
+- Runtime: <uvicorn / gunicorn / node / go>
+
+## Commands
+
+<TODO: real commands from Makefile / package.json / pyproject scripts>
+
+- Install: `<command>`
+- Dev (hot reload): `<command>`
+- Build: `<command>`
+- Test all: `<command>`
+- Test one: `<command e.g. uv run pytest tests/path/file.py::test_name>`
+- Lint: `<command>`
+- Format: `<command>`
+- Typecheck: `<command>`
+- Full verify (run before commit): `<lint && test && typecheck>`
 
 ## Key files / entry points
-TBD
 
-## Tests
-- Run: TBD
+<TODO: 5-10 files codex should know exists>
 
-## Lessons (organic)
-- (агент добавляет заметки после факапов)
+- Entry point: `<src/main.py | cmd/server/main.go | src/index.ts>`
+- API routes / handlers: `<path>`
+- Config: `<path>`
+- Models / schemas: `<path>`
+- Tests: `<path>`
+
+## Local development
+
+<TODO: how to actually run it>
+
+Required env (from `.envrc`):
+- `<VAR_1>` — <what it's for>
+- `<VAR_2>` — <what it's for>
+
+Uses dev-stack:
+- Postgres DB: `<db-name>` (create: `dev-stack db-create <db-name>`)
+- Redis: yes/no
+- Port: `<default port>`
+
+To run:
+1. `cd ~/Desktop/Prokectfiles/${CO}/${PROD}/${REPO}`
+2. `direnv allow` (if first time / .envrc edited)
+3. `<install command>` (if deps changed)
+4. `<dev command>`
+
+Verify healthy: `curl http://localhost:<port>/health` (or repo-specific check)
+
+## Conventions (only non-obvious)
+
+<TODO: ONE 3-10 line code snippet showing the canonical pattern in this repo>
+
+```<language>
+<paste real snippet from this repo>
+```
+
+Notes only on counterintuitive patterns (skip if Claude would guess right):
+- <TODO: e.g. "All API methods return Result<T>, NEVER throw">
+- <TODO: e.g. "Migrations are handwritten, NEVER alembic --autogenerate">
+
+## When Writing Code
+
+- Run `<lint command>` after each file change
+- Type hints on new public functions
+- Test in same session as feature (don't defer to "later")
+- New dep: ASK before adding (then `<add command>`)
+
+## When Reviewing
+
+- `git diff` of staged before commit
+- Run full verify command above
+- For backend: integration test or curl evidence in MR description
+
+## Definition of Done
+
+ALL of:
+1. `<lint command>` exits 0
+2. `<test command>` exits 0
+3. `<typecheck command>` exits 0
+4. Changes staged with explicit paths: `git commit -m "..." -- path/to/f1 path/to/f2`
+5. Commit Conventional Commits format
+6. (If MR) Description has Summary / Why / How tested
 
 ## Boundaries
-- Don't touch: `migrations/` без явного approval, `.env*`, `infra/`
-- Branch: всегда working branch, never main/master
+
+✅ Allowed without ask: read files, run tests, lint, format, edit in scope
+⚠️ Ask first:
+   - Add new dependency
+   - Modify `migrations/` (handwritten only)
+   - Touch `<TODO: any repo-specific dangerous areas>`
+🚫 NEVER:
+   - Commit secrets / `.env*`
+   - Force push to `main`
+   - `git reset --hard`, `git restore`, `rm` on tracked files (without ask)
+   - Modify `vendor/`
+
+## Lessons (organic)
+
+(Agent appends `- YYYY-MM-DD: <rule from failure>` after fuckups.)
+
+- (no entries yet)
+
+---
+

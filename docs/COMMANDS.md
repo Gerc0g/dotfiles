@@ -52,6 +52,13 @@ Env: (опц.)
 **Env:** Использует профиль `~/.codex-wiki/` (auto)
 **См. также:** `agent wiki`
 
+
+## agents
+**Что:** Open tmux session for neurodesk/agents
+**Запуск:** `agents`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/agents/`
+**Repos:** barrier cerebellum cortex nerve synapse vox
+
 ---
 
 ### Bootstrap (новые компании/проекты)
@@ -191,3 +198,27 @@ Env: (опц.)
 **Идемпотентно:** stack можно держать постоянно или поднимать только когда работаешь — ~500 MB RAM в idle
 **Зависит от:** Docker (OrbStack)
 **Файлы:** `~/dotfiles/services/dev-stack/`
+
+## legacy
+**Что:** Open tmux session for neurodesk/legacy
+**Запуск:** `legacy`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/legacy/`
+**Repos:** agent_core intent_srv photo_handler vector_ingest
+
+## saas
+**Что:** Open tmux session for neurodesk/saas
+**Запуск:** `saas`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/saas/`
+**Repos:** backend frontend watchtower widget
+
+## infra
+**Что:** Open tmux session for neurodesk/infra
+**Запуск:** `infra`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/infra/`
+**Repos:** infra
+
+## wiki
+**Что:** Open tmux session for neurodesk/wiki
+**Запуск:** `wiki`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/wiki/`
+**Repos:** nrdsk_wiki

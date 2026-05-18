@@ -1,22 +1,101 @@
-# Company AGENTS.md — ${CO}
+# Company — ${CO}
 
-## Context
-- Company: ${CO}
-- VCS: ${VCS}
-- Namespace: ${NS}
 
-## Workflow rules (company-level)
-- ALL work on feature branches, NEVER directly to main/master
-- Atomic commits: `git commit -m "..." -- path/to/file1 path/to/file2` (explicit paths only)
-- Conventional Commits: feat|fix|refactor|chore|docs|test
-- NEVER push without my explicit ask
-- NEVER `git reset --hard`, `git restore`, `rm -rf` without my written approval
-- `.env`, secrets: read-only, never modify
+## Context hierarchy
 
-## Code review
-- Run tests before opening MR/PR
-- Self-review the diff before requesting human review
-- For destructive changes: ask before, not after
+Universal rules + git protocol live in `~/dotfiles/agent-profiles/PLATFORM.md`
+(already loaded via profile). This file = **${CO} specifics only**.
+
+Subdirectories with additional context (load on demand, not bulk):
+
+| Path | What's inside | Read when |
+|---|---|---|
+| `<product>/AGENTS.md` | Product-level: architecture, repos+roles, cross-repo conventions | Cross-repo work · understanding product layout |
+| `<product>/<repo>/AGENTS.md` | Repo-level: stack, commands, entry points | Working in specific repo |
+
+Rule: read product/repo AGENTS.md only when task involves them. Don't bulk-read.
+
+## Coordinates
+
+- **Company:** ${CO_TITLE} (slug: `${CO}`)
+- **VCS:** ${VCS}
+- **Host:** `${HOST}`
+- **SSH alias:** `${SSH_HOST}`
+- **Default namespace:** `${NS}`
+- **1Password vault:** `${VAULT}`
+- **Git identity email:** `${EMAIL}`
+- **Network:** <!-- TODO: VPN required? other network constraints? --> TODO
+
+## Stance
+
+
+TODO: choose `Willison-school` | `Steinberger-style` | hybrid.
+
+## Stack defaults (company-level overrides)
+
+Из PLATFORM по умолчанию: Python 3.11+ via `uv`, Node 20+ via `pnpm`,
+OrbStack, Alembic, ruff + black, pytest. Override только если ${CO} требует
+другого.
+
+| Layer | Tool | Override vs PLATFORM |
+|---|---|---|
+| Python | <!-- TODO: matches default uv? else fill --> | — |
+| Node | <!-- TODO: matches default pnpm? else fill --> | — |
+| CI/CD | <!-- TODO: GitHub Actions / GitLab CI / Jenkins / ... --> | — |
+| Container registry | <!-- TODO: ghcr / gitlab registry / docker hub / harbor / ... --> | — |
+| Deployment | <!-- TODO: Vercel / k8s / serverless / VMs / ... --> | — |
+
+## Product → namespace map (если non-default paths)
+
+Не у всех компаний продукты лежат в одной namespace. Если есть разделение:
+
+
+| Product | Namespace (used with `--ns=`) |
+|---|---|
+| <product1> | `${NS}/<sub>/...` |
+| <product2> | `${NS}` |
+
+## MR / PR conventions
+
+Базовые правила (Conventional Commits, русские описания) — в PLATFORM.
+${CO}-specific:
+
+- <!-- TODO: issue ID prefix в title? напр. `feat(NRDSK-123): ...` --> TODO
+- <!-- TODO: MR description sections (Summary / Why / How tested / Risks)? --> TODO
+- <!-- TODO: required approvers / groups? --> TODO
+
+## Secrets & sensitive data
+
+- All secrets via `secret add` → `${VAULT}` vault. Never plaintext в `.env`
+- <!-- TODO: PII / sensitive data flow в репах? specific rules? --> TODO
+- <!-- TODO: что нельзя коммитить помимо .env (e.g. .env*, fixtures с реальными ID)? --> TODO
+
+## Communication
+
+- <!-- TODO: ключевые люди / GitLab handles / Slack mentions --> TODO
+- <!-- TODO: кого тегать на code review по типу изменения --> TODO
+- <!-- TODO: escalation path (security / infra / release) --> TODO
+
+## Cross-repo coordination
+
+When changing API contract in repo A:
+1. Update consumers in repos B, C in same MR/PR series
+2. Merge order: schema/types repo first, then producers, then consumers
+3. Run tests in each affected repo separately
+4. Don't merge breaking change without consumer updates ready
+
+If unsure which repos consume the API → ask user before changing.
+
+## External references
+
+- <!-- TODO: Documentation URL (Confluence / Notion / GitLab Wiki) --> TODO
+- <!-- TODO: Issue tracker URL --> TODO
+- <!-- TODO: Production URLs / dashboards / monitoring --> TODO
+- <!-- TODO: Staging URLs --> TODO
+- <!-- TODO: incident runbook location --> TODO
 
 ## Lessons (organic)
-- (агент добавляет заметки после факапов)
+
+(Agent appends `- YYYY-MM-DD: <rule learned from failure>` after factual fuckups.)
+
+- (no entries yet)
