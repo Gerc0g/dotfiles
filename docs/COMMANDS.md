@@ -59,3 +59,17 @@ Env: какие env vars (опц.)
 **Когда использовать:** Первый раз на новом компе после `git clone`
 **Файлы:** Brewfile, ghostty/config, tmux/tmux.conf, ~/.zshrc, ~/.codex-*/, ~/Desktop/WikiPedik/
 **Notes:** Идемпотентный — можно запускать повторно, не сломает существующий setup
+
+## secret
+**Что:** Wrapper над 1Password CLI с auto-helper'ами для секретов
+**Запуск:**
+  - `secret signin` — войти в 1Password
+  - `secret add <VAR> <VALUE>` — создать item + добавить в .envrc (company auto-detect из cwd)
+  - `secret add <VAR> <VALUE> <company>` — для конкретной компании
+  - `secret edit <VAR> <NEW_VALUE>` — обновить существующий
+  - `secret get <op://path>` — прочитать
+  - `secret list <vault>` — items в vault
+**Auto-uppercase:** имя переменной автоматически приводится к UPPER_CASE
+**Auto-detect company:** ищет ближайший `.company-config` walking up from cwd
+**Зависит от:** `op` CLI, 1Password app signed in
+**См. также:** `new-company` (создаёт пустой vault), direnv

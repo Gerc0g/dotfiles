@@ -1,5 +1,5 @@
 #!/bin/bash
-# Bootstrap company workspace
+# Bootstrap company workspace + auto-create 1Password vault
 # Usage: new-company <slug> <vcs> <namespace>
 set -e
 
@@ -11,11 +11,6 @@ Examples:
   new-company acme gitlab acme-engineering
   new-company beta github beta-org
   new-company personal local local
-
-Args:
-  slug:      short identifier (e.g. "acme")
-  vcs:       gitlab | github | bitbucket | local
-  namespace: org/group name on VCS
 USAGE
   exit 1
 fi
@@ -35,7 +30,7 @@ mkdir -p "$DIR"
 CO="$CO" VCS="$VCS" NS="$NS" envsubst < "$TPL/AGENTS.md.company.tmpl" > "$DIR/AGENTS.md"
 echo "✓ $DIR/AGENTS.md"
 
-# .company-config (machine-readable metadata used by new-project)
+# .company-config (metadata)
 cat > "$DIR/.company-config" <<EOF
 slug: $CO
 vcs: $VCS
@@ -43,17 +38,9 @@ namespace: $NS
 EOF
 echo "✓ $DIR/.company-config"
 
-# .envrc template (закомментирован, ты раскомментишь когда нужно)
-cat > "$DIR/.envrc" <<ENVEOF
-# direnv config for company '$CO'
-# Раскоментируй и заполни. Secrets через 1Password (op CLI):
-# export OPENAI_API_KEY="\$(op read 'op://Work-$CO/OpenAI/credential')"
-# export DATABASE_URL="\$(op read 'op://Work-$CO/Postgres/connection_string')"
-
-# Простые env vars без secrets:
-# export AWS_PROFILE=$CO-dev
-ENVEOF
-echo "✓ $DIR/.envrc (template — закомментирован)"
+# .envrc from template
+CO="$CO" envsubst < "$TPL/envrc.tmpl" > "$DIR/.envrc"
+echo "✓ $DIR/.envrc (раскомментируй нужные строки или используй: secret add VAR VALUE)"
 
 # README
 cat > "$DIR/README.md" <<EOF
@@ -61,19 +48,40 @@ cat > "$DIR/README.md" <<EOF
 
 **VCS:** $VCS
 **Namespace:** $NS
+**1Password vault:** Work-$CO
 
 ## Products
-
 (добавляются автоматически через \`new-project $CO <product> ...\`)
 
-## Notes
-
-- Подружить с 1Password: открой .envrc, раскомментируй нужные строки
-- После заполнения .envrc: \`direnv allow\` один раз в этой папке
+## Setup secrets
+\`\`\`bash
+cd ~/work/$CO
+secret add OPENAI_API_KEY sk-...          # auto: создаёт item в vault + добавляет в .envrc
+secret add GITLAB_TOKEN glpat-...
+direnv allow                              # один раз
+\`\`\`
 EOF
 echo "✓ $DIR/README.md"
+
+# === АВТОСОЗДАНИЕ 1PASSWORD VAULT ===
+if command -v op >/dev/null 2>&1; then
+  if op account list >/dev/null 2>&1; then
+    if op vault create "Work-$CO" >/dev/null 2>&1; then
+      echo "✓ 1Password vault 'Work-$CO' создан"
+    else
+      echo "→ 1Password vault 'Work-$CO' уже существует"
+    fi
+  else
+    echo "⚠ op CLI не signed in. Чтобы создать vault: eval \$(op signin) && op vault create 'Work-$CO'"
+  fi
+else
+  echo "⚠ op CLI не установлен. Vault не создан. Установи: brew install --cask 1password-cli"
+fi
 
 echo ""
 echo "✅ Company '$CO' bootstrapped at $DIR"
 echo ""
-echo "Next: new-project $CO <product> [repo1] [repo2] ..."
+echo "Next steps:"
+echo "  1. Добавь секреты:    secret add OPENAI_API_KEY <value>"
+echo "  2. Активируй direnv:  cd $DIR && direnv allow"
+echo "  3. Создай продукты:   new-project $CO <product> [repos...]"
