@@ -52,3 +52,10 @@ Env: какие env vars (опц.)
 **Файлы:** Создаёт `~/work/<company>/<product>/`, обновляет `shell/30-projects.zsh` и `COMMANDS.md`
 **Зависит от:** company должна быть создана через `new-company`
 **См. также:** `new-company`
+
+## bootstrap.sh
+**Что:** Полная установка platform на свежем Mac (brew, packages, configs, dirs, loader)
+**Запуск:** `~/dotfiles/bootstrap.sh`
+**Когда использовать:** Первый раз на новом компе после `git clone`
+**Файлы:** Brewfile, ghostty/config, tmux/tmux.conf, ~/.zshrc, ~/.codex-*/, ~/Desktop/WikiPedik/
+**Notes:** Идемпотентный — можно запускать повторно, не сломает существующий setup

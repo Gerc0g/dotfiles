@@ -1,0 +1,35 @@
+# === Font ===
+font-family = IosevkaTerm Nerd Font Mono
+font-size = 14
+font-feature = -liga
+font-feature = -calt
+font-thicken = true
+
+# === Theme ===
+theme = Catppuccin Mocha
+
+# === Window — стеклянный модерн ===
+background-opacity = 1.0
+window-padding-x = 18
+window-padding-y = 18
+macos-titlebar-style = tabs
+macos-option-as-alt = true
+
+# === Cursor ===
+cursor-style = block
+cursor-style-blink = false
+
+# === Behavior ===
+copy-on-select = clipboard
+mouse-hide-while-typing = true
+confirm-close-surface = false
+scrollback-limit = 100000
+shell-integration-features = cursor,sudo,title
+
+# === Splits & tabs (macOS-native когда без tmux) ===
+keybind = cmd+t=new_tab
+keybind = cmd+d=new_split:right
+keybind = cmd+shift+d=new_split:down
+
+# === Fullscreen — non-native чтобы прозрачность работала ===
+macos-non-native-fullscreen = visible-menu
