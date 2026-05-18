@@ -30,3 +30,6 @@ cask "font-jetbrains-mono-nerd-font"
 # === AI agents (uncomment if available in your brew taps) ===
 # cask "codex"
 # cask "claude-code"
+
+# === Docker runtime (lightweight, Apple Silicon native) ===
+cask "orbstack"

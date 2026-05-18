@@ -1,0 +1,56 @@
+# Shared local dev stack
+# Управление: dev-stack up/down/status/logs/psql
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dev-postgres
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev"]
+      interval: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: dev-redis
+    ports: ["6379:6379"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: dev-prometheus
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: dev-grafana
+    ports: ["3030:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: dev
+      GF_SECURITY_ADMIN_PASSWORD: dev
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:

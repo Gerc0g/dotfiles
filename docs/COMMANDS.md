@@ -167,3 +167,27 @@ Env: (опц.)
 - Публичный ключ добавлен в GitLab/GitHub?
 - Тест: `ssh -T git@<vcs>-<co>` (alias из company config)
 - Если alias не работает: `cat ~/.ssh/config | grep <vcs>-<co>`
+
+### Local infrastructure
+
+## dev-stack
+**Что:** Shared local dev stack (Postgres + Redis + Grafana + Prometheus) через Docker Compose
+**Запуск:**
+- `dev-stack up` — поднять все сервисы
+- `dev-stack down` — остановить (данные сохраняются)
+- `dev-stack status` — что запущено
+- `dev-stack logs [service]` — логи
+- `dev-stack psql [db]` — открыть psql
+- `dev-stack redis-cli` — открыть redis-cli
+- `dev-stack db-create <name>` — создать БД
+- `dev-stack db-drop <name>` — удалить БД (с подтверждением)
+- `dev-stack nuke` — снести всё с данными (с подтверждением)
+**Сервисы:**
+- Postgres `localhost:5432` (dev/dev)
+- Redis `localhost:6379`
+- Prometheus `http://localhost:9090`
+- Grafana `http://localhost:3030` (dev/dev)
+**Подключение из проектов:** в `.envrc` пиши `export DATABASE_URL=postgresql://dev:dev@localhost:5432/<db>`
+**Идемпотентно:** stack можно держать постоянно или поднимать только когда работаешь — ~500 MB RAM в idle
+**Зависит от:** Docker (OrbStack)
+**Файлы:** `~/dotfiles/services/dev-stack/`
