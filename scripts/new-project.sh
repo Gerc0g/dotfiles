@@ -1,6 +1,5 @@
 #!/bin/bash
-# Bootstrap a project within an existing company
-# Usage: new-project <company-slug> <product> [repo1] [repo2] ...
+# Bootstrap project within existing company, using per-company SSH alias
 set -e
 
 if [ "$#" -lt 2 ]; then
@@ -8,11 +7,9 @@ if [ "$#" -lt 2 ]; then
 Usage: new-project <company-slug> <product> [repo1] [repo2] ...
 
 Examples:
-  new-project acme payments backend frontend shared-schemas
+  new-project acme payments backend frontend
   new-project beta auth api workers
   new-project personal sandbox mini-tool
-
-Company must exist first. Run: new-company <slug> <vcs> <namespace>
 USAGE
   exit 1
 fi
@@ -26,15 +23,14 @@ PDIR="$DIR/$PROD"
 TPL=~/dotfiles/templates
 CFG="$DIR/.company-config"
 
-# Check company exists
 if [ ! -f "$CFG" ]; then
   echo "⚠ Company '$CO' not found. Run: new-company $CO <vcs> <namespace>"
   exit 1
 fi
 
-# Read company config
 VCS=$(awk '/^vcs:/ {print $2}' "$CFG")
 NS=$(awk '/^namespace:/ {print $2}' "$CFG")
+SSH_HOST=$(awk '/^ssh_host:/ {print $2}' "$CFG")
 
 mkdir -p "$PDIR"
 
@@ -42,16 +38,19 @@ mkdir -p "$PDIR"
 CO="$CO" PROD="$PROD" REPOS="${REPOS[*]}" envsubst < "$TPL/AGENTS.md.product.tmpl" > "$PDIR/AGENTS.md"
 echo "✓ $PDIR/AGENTS.md"
 
-# Remote URL prefix
-case "$VCS" in
-  gitlab)    REMOTE="git@gitlab.com:$NS" ;;
-  github)    REMOTE="git@github.com:$NS" ;;
-  bitbucket) REMOTE="git@bitbucket.org:$NS" ;;
-  local)     REMOTE="" ;;
-  *)         echo "Unknown VCS: $VCS"; exit 1 ;;
-esac
+# Remote prefix через SSH alias (если есть) или fallback
+if [ -n "$SSH_HOST" ] && [ "$SSH_HOST" != "local" ]; then
+  REMOTE="git@${SSH_HOST}:${NS}"
+else
+  case "$VCS" in
+    gitlab)    REMOTE="git@gitlab.com:$NS" ;;
+    github)    REMOTE="git@github.com:$NS" ;;
+    bitbucket) REMOTE="git@bitbucket.org:$NS" ;;
+    local)     REMOTE="" ;;
+  esac
+fi
 
-# Clone repos + repo AGENTS.md
+# Clone repos + per-repo AGENTS.md
 for repo in "${REPOS[@]}"; do
   if [ ! -d "$PDIR/$repo" ]; then
     if [ -n "$REMOTE" ]; then
@@ -68,7 +67,7 @@ done
 
 # tmux launcher
 LAUNCHER=~/dotfiles/shell/30-projects.zsh
-[ ! -f "$LAUNCHER" ] && echo "# Project tmux launchers (auto-generated)" > "$LAUNCHER"
+[ ! -f "$LAUNCHER" ] && echo "# Project tmux launchers" > "$LAUNCHER"
 
 if ! grep -q "^${PROD}() {" "$LAUNCHER"; then
   FIRST="${REPOS[0]:-}"
@@ -83,7 +82,7 @@ ${PROD}() {
   tmux attach -t ${PROD}
 }
 EOF
-  echo "✓ added '${PROD}' launcher to shell/30-projects.zsh"
+  echo "✓ added '${PROD}' launcher"
 fi
 
 # Document in COMMANDS.md
@@ -101,7 +100,6 @@ fi
 
 echo ""
 echo "✅ ${CO}/${PROD} bootstrapped"
-echo ""
 ls "$PDIR"
 echo ""
 echo "Next: source ~/.zshrc && ${PROD}"
