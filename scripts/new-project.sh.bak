@@ -45,7 +45,9 @@ NS="${NS_OVERRIDE:-$NS_DEFAULT}"
 
 mkdir -p "$PDIR"
 
-CO="$CO" PROD="$PROD" REPOS="${REPOS[*]}" envsubst < "$TPL/AGENTS.md.product.tmpl" > "$PDIR/AGENTS.md"
+# Product AGENTS.md (envsubst with strict variable list)
+CO="$CO" PROD="$PROD" envsubst '$CO $PROD' \
+  < "$TPL/AGENTS.md.product.tmpl" > "$PDIR/AGENTS.md"
 echo "✓ $PDIR/AGENTS.md"
 
 cat > "$PDIR/.product-config" <<EOF
@@ -71,7 +73,8 @@ for repo in "${REPOS[@]}"; do
     echo "✓ cloned $repo"
   fi
   if [ ! -f "$PDIR/$repo/AGENTS.md" ]; then
-    REPO="$repo" CO="$CO" PROD="$PROD" envsubst < "$TPL/AGENTS.md.repo.tmpl" > "$PDIR/$repo/AGENTS.md"
+    REPO="$repo" CO="$CO" PROD="$PROD" envsubst '$CO $PROD $REPO' \
+      < "$TPL/AGENTS.md.repo.tmpl" > "$PDIR/$repo/AGENTS.md"
   fi
 done
 
@@ -95,8 +98,9 @@ EOF
 fi
 
 DOC=~/dotfiles/docs/COMMANDS.md
-if ! grep -q "^## ${PROD}$" "$DOC"; then
-  cat >> "$DOC" <<EOF
+if [ -f "$DOC" ] && ! grep -q "^## ${PROD}$" "$DOC"; then
+  ENTRY_FILE=$(mktemp)
+  cat > "$ENTRY_FILE" <<EOF
 
 ## ${PROD}
 **Что:** Open tmux session for ${CO}/${PROD}
@@ -104,6 +108,27 @@ if ! grep -q "^## ${PROD}$" "$DOC"; then
 **Файлы:** \`${PDIR}/\`
 **Repos:** ${REPOS[*]}
 EOF
+
+  TMP=$(mktemp)
+  awk -v entry_file="$ENTRY_FILE" '
+    function load_entry(    line, content) {
+      content = ""
+      while ((getline line < entry_file) > 0) content = content line "\n"
+      close(entry_file)
+      return content
+    }
+    BEGIN { entry = load_entry(); in_ws = 0; inserted = 0 }
+    /^### Workspaces$/ { in_ws = 1 }
+    /^---$/ && in_ws && !inserted {
+      printf "%s", entry
+      inserted = 1
+      in_ws = 0
+    }
+    { print }
+    END { if (!inserted) printf "%s", entry }
+  ' "$DOC" > "$TMP" && mv "$TMP" "$DOC"
+  rm -f "$ENTRY_FILE"
+  echo "✓ added '${PROD}' to COMMANDS.md (Workspaces)"
 fi
 
 echo ""
