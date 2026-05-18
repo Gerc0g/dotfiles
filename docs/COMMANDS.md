@@ -32,12 +32,23 @@ Env: какие env vars (опц.)
 **Env:** Использует профиль `~/.codex-wiki/`
 **См. также:** `agent wiki`
 
-## new-project
-**Что:** Онбоардит новый проект: создаёт AGENTS.md, клонит репы, добавляет tmux launcher
-**Запуск:** `new-project <company> <product> <vcs> <namespace> [repo1] [repo2] ...`
+
+## new-company
+**Что:** Bootstrap новой компании (one-time setup): AGENTS.md, .envrc template, .company-config
+**Запуск:** `new-company <slug> <vcs> <namespace>`
 **Примеры:**
-  - `new-project acme payments gitlab acme-group backend frontend`
-  - `new-project beta auth github beta-org api workers`
-  - `new-project personal sandbox local local mini-tool`
-**Файлы:** Создаёт `~/work/<company>/<product>/`, обновляет `shell/30-projects.zsh` и `docs/COMMANDS.md`
-**См. также:** Запускает launcher функцию `<product>` после bootstrap
+  - `new-company acme gitlab acme-engineering`
+  - `new-company beta github beta-org`
+  - `new-company personal local local`
+**Файлы:** Создаёт `~/work/<slug>/` со скелетом
+**См. также:** `new-project` (добавление продуктов в компанию)
+
+## new-project
+**Что:** Bootstrap нового проекта внутри существующей компании
+**Запуск:** `new-project <company> <product> [repo1] [repo2] ...`
+**Примеры:**
+  - `new-project acme payments backend frontend shared-schemas`
+  - `new-project beta auth api workers`
+**Файлы:** Создаёт `~/work/<company>/<product>/`, обновляет `shell/30-projects.zsh` и `COMMANDS.md`
+**Зависит от:** company должна быть создана через `new-company`
+**См. также:** `new-company`
