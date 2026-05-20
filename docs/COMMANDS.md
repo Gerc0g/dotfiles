@@ -2,223 +2,220 @@
 
 Single source of truth для custom commands.
 
-Format:
-<command-name>
-Что: короткое описание
-Запуск: как вызывать
-Примеры: (опц.)
-Файлы: (опц.)
-Env: (опц.)
-Зависит от: (опц.)
-См. также: (опц.)
-Группируется по `### Category`.
+Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc.
+Группируется по `### Category` (порядок секций определяет порядок в `?`).
 
 ---
 
 ### Discovery
 
 ## help
-**Что:** Список или детали custom commands
-**Запуск:** `help` (список) или `help <cmd>` (детали)
+**Что:** Список команд по категориям. `help <cmd>` для деталей.
+**Запуск:** `help` или `help <cmd>`
 
 ## ?
-**Что:** Alias для help (короткая запись)
+**Что:** Короткий alias для `help`.
 **Запуск:** `?` или `? <cmd>`
+
+---
+
+### Main flow
+
+## setup-context
+**Что:** End-to-end pipeline: refresh-templates → batch-setup (codex анализ кода → docs/design.md + docs/ARCHITECTURE.md + ADRs) → batch-fill-agents (codex сжимает доки в AGENTS.md). ETA для компании из 5 продуктов: ~25-50 мин в параллели.
+**Запуск:**
+- `setup-context <co>` — вся компания, все продукты параллельно
+- `setup-context <co> <prod>` — один продукт
+- `setup-context <co> <prod> <repo>` — один репо
+**Зависит от:** codex CLI, skills/{analyze-product, analyze-repo, fill-agents-md}
+
+## complete-onboard
+**Что:** Interactive Q&A wizard для TODO которые setup-context не может вывести из кода — Stance, PII, Network policy, Docs URL (company-level). Запускать ПОСЛЕ setup-context. ETA ~15-30 мин.
+**Запуск:**
+- `complete-onboard <co>` — все уровни (но фактически работы только на company после setup-context)
+- `complete-onboard <co> <prod>` — продукт-уровень
+- `complete-onboard <co> <prod> <repo>` — репо-уровень
+**Зависит от:** codex CLI, skills/onboard-agents-md
+
+## batch-fill-agents
+**Что:** Перегенерить AGENTS.md из готовых `docs/design.md` / `docs/ARCHITECTURE.md` без повторного анализа кода. Параллельно для всех product/repo. ETA ~5-15 мин.
+**Запуск:**
+- `batch-fill-agents <co>` — вся компания
+- `batch-fill-agents <co> <prod>` — один продукт
+**Используй:** когда руками поправил design.md/ARCHITECTURE.md и хочешь обновить AGENTS.md, без перезапуска setup-context.
+**Логи:** `~/dotfiles/logs/fill-agents-<co>-<ts>.log`
+**См. также:** `fill-agents-md`, `setup-context`
+
+---
+
+### Workspaces
+
+## launch
+**Что:** Запустить tmux session для одного репо с 4-pane layout (Steinberger pattern). Атомарность работы = repo (по ресерчу).
+**Запуск:**
+- `launch` — interactive picker: company → product → repo
+- `launch <co>` — указал компанию, пикер для product + repo
+- `launch <co> <prod>` — пикер для repo
+- `launch <co> <prod> <repo>` — direct
+**Panes:**
+- 🧠 **plan** — codex gpt-5.4 high reasoning (architect / planner)
+- 💻 **code** — claude code (implementer)
+- 🧪 **test** — `test-tui`: reads `Makefile`, `.agents/commands.toml`, and package manifests; saves run logs to `.agents/test-runs/`
+- 🔮 **oracle** — `oracle-tui`: prompt + local answer history in `.agents/oracle/`, backed by `@steipete/oracle`
+**Зависит от:** tmux, codex, claude, oracle (`npm i -g @steipete/oracle`)
+
+## wikipedik
+**Что:** tmux с двумя codex: dev + research wiki vaults параллельно. (Obsidian vaults, не код-репы.)
+**Запуск:** `wikipedik`
+
+## wiki
+**Что:** WikiPedik project-memory commands. Без аргументов запускает wiki product repo, с подкомандами управляет curator flow.
+**Запуск:**
+- `wiki` — открыть `neurodesk/wiki/nrdsk_wiki` через стандартный launch layout.
+- `wiki sync <company[/product[/repo]]>` — curator drain: `_inbox.md` → `lessons.md` / `gotchas.md` / etc. через `inbox-drain`.
+- `wiki sync --commit <scope>` — drain + локальный commit WikiPedik changes. Заранее dirty файлы разрешены только внутри указанного scope.
+- `wiki sync --push <scope>` — drain + commit + push.
+- `wiki status <company[/product[/repo]]>` — отчёт по pending inbox, curated pages, synthesis candidates.
+- `wiki synthesize <company/product>` — найти повторяющиеся lessons/gotchas и предложить product shared patterns.
+- `wiki bootstrap <company> [product] [repo]` — создать WikiPedik skeleton + repo symlinks.
+- `wiki-commit [scope]` — вручную закоммитить текущие WikiPedik changes.
+- `wiki-git <args...>` — выполнить `git` внутри `~/Desktop/WikiPedik/dev`.
+**Примеры:**
+- `wiki sync neurodesk/wiki/nrdsk_wiki`
+- `wiki sync --commit neurodesk/wiki/nrdsk_wiki`
+- `wiki-git status`
+- `wiki status neurodesk`
+- `wiki synthesize neurodesk/agents`
+
+---
+
+### Bootstrap
+
+## new-company
+**Что:** Создать компанию: workspace + SSH key + 1Password vault + AGENTS.md заготовка.
+**Запуск:** `new-company <slug> <vcs[:host]> <namespace> [email]`
+**См. также:** `new-project`
+
+## new-project
+**Что:** Создать продукт в компании: клонит репы + AGENTS.md заготовки + tmux launcher.
+**Запуск:** `new-project <company> <product> [--ns=<override>] [repo1 repo2 ...]`
+**См. также:** `new-company`, `setup-context`
+
+---
+
+### Agent context setup
+
+## refresh-templates
+**Что:** Перегенерить AGENTS.md из шаблонов (~5 сек, envsubst подставляет имена, без codex).
+**Запуск:** `refresh-templates <co> [<prod>] [<repo>]`
+**Используй:** когда изменил templates в `~/dotfiles/templates/`.
+
+## analyze-repo
+**Что:** Codex анализирует код одного репа → пишет `docs/design.md` + ADRs. ~5-15 мин.
+**Запуск:** `analyze-repo [<co> <prod> <repo>]` или из cwd репа.
+
+## analyze-product
+**Что:** Codex анализирует все репы продукта → пишет `docs/ARCHITECTURE.md` + ADRs. ~10-20 мин. Запускать ПОСЛЕ analyze-repo на всех репах.
+**Запуск:** `analyze-product [<co> <prod>]` или из cwd продукта.
+
+## fill-agents-md
+**Что:** Codex читает `docs/design.md` (репо) или `docs/ARCHITECTURE.md` (продукт) и сжимает в `AGENTS.md`. AUTO-SAVE. ~30-60 сек на файл.
+**Запуск:** `fill-agents-md` (cwd) | `fill-agents-md <co> <prod>` | `fill-agents-md <co> <prod> <repo>`
+**Зависит от:** существующий `docs/design.md` или `docs/ARCHITECTURE.md`.
+**См. также:** `batch-fill-agents`, `analyze-repo`
+
+## onboard
+**Что:** Q&A wizard для одного уровня — заполняет TODO которые код не покажет (Stance, PII, Network, Docs URL).
+**Запуск:**
+- `onboard <co>` — company
+- `onboard <co> <prod>` — product
+- `onboard <co> <prod> <repo>` — repo
+**См. также:** `complete-onboard`, `fill-agents-md`
+
+## batch-setup
+**Что:** Параллельно: analyze-repo × N репов + analyze-product. Per-product batch. ~30-60 мин.
+**Запуск:** `batch-setup [<co> <prod>]` или из cwd продукта.
+**См. также:** `setup-context`
+
+## agents-status
+**Что:** Snapshot состояния анализа: активные codex, последний лог, прогресс по docs/.
+**Запуск:** `agents-status` или `agents-status <co>`
+**См. также:** `agents-watch`, `agents-sessions`
+
+## agents-watch
+**Что:** Live мониторинг status — refresh каждые 10 сек.
+**Запуск:** `agents-watch` или `agents-watch <co>`. Выход — Ctrl+C.
+**См. также:** `agents-status`
+
+## agents-tail
+**Что:** Stream последнего batch-setup/batch-fill-agents лога (tool calls, reasoning, edits).
+**Запуск:** `agents-tail` или `agents-tail <co>`. Выход — Ctrl+C (batch продолжит работать в фоне).
+**См. также:** `agents-sessions`
+
+## agents-sessions
+**Что:** Live dashboard ВСЕХ codex сессий — PID, skill, репо, elapsed, прогресс. Сессии гаснут по мере завершения.
+**Запуск:** `agents-sessions` или `agents-sessions <co>`. Refresh каждые 3 сек.
+**См. также:** `agents-tail`, `agents-watch`
 
 ---
 
 ### Profiles
 
 ## agent
-**Что:** Переключает codex/claude профиль в текущей shell (env vars)
-**Запуск:** `agent {legacy|fresh|wiki|status}`
-**Примеры:**
-- `agent fresh` — основной dev профиль (по умолчанию)
-- `agent wiki` — dedicated wiki профиль (используется автоматически в wikipedik)
-- `agent legacy` — старый профиль с истории
-- `agent status` — показать активные env vars
-**Env vars:** `CODEX_HOME`, `CLAUDE_CONFIG_DIR`
-**Файлы:** `~/.codex`, `~/.codex-new`, `~/.codex-wiki`, `~/.claude`, `~/.claude-new`
+**Что:** Переключить codex/claude профиль (legacy / new / wiki) в текущей shell.
+**Запуск:** `agent <profile>` или `agent status`
 
 ---
 
-### Workspaces
+### Local infrastructure
 
-## wikipedik
-**Что:** tmux session с двумя codex для wiki работы (dev + research vaults параллельно)
-**Запуск:** `wikipedik`
-**Layout:** верх — dev vault, низ — research vault
-**Файлы:** `~/Desktop/WikiPedik/{dev,research}/`
-**Env:** Использует профиль `~/.codex-wiki/` (auto)
-**См. также:** `agent wiki`
-
-
-## agents
-**Что:** Open tmux session for neurodesk/agents
-**Запуск:** `agents`
-**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/agents/`
-**Repos:** barrier cerebellum cortex nerve synapse vox
+## dev-stack
+**Что:** Локальный Docker stack: Postgres :5432, Redis :6379, Prometheus :9090, Grafana :3030, MinIO :9000, MLflow :5000.
+**Запуск:**
+- `dev-stack up` / `dev-stack down` / `dev-stack status`
+- `dev-stack psql [db]` / `dev-stack redis-cli`
+- `dev-stack db-create <name>` / `dev-stack db-drop <name>`
 
 ---
 
-### Bootstrap (новые компании/проекты)
-
-## new-company
-**Что:** Создаёт компанию: папка + AGENTS.md + SSH ключ + SSH config alias + 1Password vault + .envrc template + git identity
-**Запуск:** `new-company <slug> <vcs[:host]> <namespace> [git-email]`
-**Примеры:**
-- `new-company acme gitlab acme-engineering egor@acme.com` — обычный gitlab.com
-- `new-company acme gitlab:gitlab.acme.io acme-eng egor@acme.io` — self-hosted GitLab
-- `new-company beta github beta-org` — GitHub
-- `new-company beta github:ghe.beta.io beta-org` — GitHub Enterprise
-- `new-company personal local local` — local-only, без VCS
-**Создаёт:**
-- `~/work/<slug>/` со скелетом
-- `~/.ssh/<slug>_id_ed25519` (SSH ключ)
-- SSH config alias `<vcs>-<slug>` в `~/.ssh/config`
-- 1Password vault `Work-<slug>` (если op signed in)
-- `.envrc` с git identity и закомментированными секретами
-**Manual после:** добавь публичный ключ в VCS web UI, `secret add` нужные токены, `direnv allow`
-**См. также:** `new-project`, `secret add`
-
-## new-project
-**Что:** Создаёт продукт в существующей компании: клонит репы через SSH alias, ставит AGENTS.md на 3 уровнях (company → product → repo), добавляет tmux launcher и документирует
-**Запуск:** `new-project <company> <product> [repo1] [repo2] ...`
-**Примеры:**
-- `new-project acme payments backend frontend shared-schemas`
-- `new-project beta auth api workers`
-- `new-project personal sandbox mini-tool`
-**Создаёт:**
-- `~/work/<company>/<product>/` со скелетом
-- AGENTS.md в product и в каждом репе
-- Shell function `<product>` в `~/dotfiles/shell/30-projects.zsh`
-- Запись в COMMANDS.md
-**Зависит от:** company должна быть создана через `new-company`
-**Использует:** SSH alias из `.company-config` для git clone
-
----
-
-### Secrets (1Password)
+### Secrets
 
 ## secret
-**Что:** Wrapper над 1Password CLI с auto-helper'ами: создание items, чтение, авто-добавление export строк в .envrc
+**Что:** 1Password wrapper. `secret add VAR value` создаёт item в vault и добавляет export в `.envrc` (company auto-detect).
 **Запуск:**
-- `secret signin` — войти в 1Password
-- `secret add <VAR> <VALUE>` — создать item + auto-append в .envrc (company auto-detect)
-- `secret add <VAR> <VALUE> <company>` — для конкретной компании
-- `secret edit <VAR> <NEW_VALUE>` — обновить существующий item
-- `secret get <op://path>` — прочитать секрет
-- `secret list <vault>` — items в vault
-**Auto-uppercase:** имя VAR автоматически → UPPER_CASE
-**Auto-detect company:** ищет ближайший `.company-config` walking up from cwd
-**Хранение:** items в 1Password vault `Work-<company>` (создаётся автоматически в new-company)
-**Зависит от:** `op` CLI, 1Password app signed in (Settings → Developer → Integrate with CLI)
-**См. также:** `new-company` (auto-vault), direnv в `.envrc`
+- `secret signin` — login
+- `secret add <VAR> <VALUE>` — create item + append .envrc
+- `secret get op://<vault>/<VAR>/password`
+- `secret list <vault>`
 
 ---
 
-### Direnv (env auto-loading)
+### Direnv
 
 ## direnv
-**Что:** Автоматически подгружает env vars из `.envrc` при `cd` в папку
-**Hook активен:** да (в `shell/40-direnv.zsh`)
-**Чтобы активировать .envrc в папке:** `direnv allow` (один раз)
-**Чтобы перезагрузить после правки:** `direnv reload`
-**Чтобы отключить:** `direnv deny`
-**См. также:** `secret add` (auto-добавляет export строки)
+**Что:** Авто-загрузка env vars из `.envrc` при `cd`.
+**Запуск:** `direnv allow` (один раз на папку), `direnv reload`, `direnv deny`
 
 ---
 
-### Setup (one-time)
+### Setup
 
 ## bootstrap.sh
-**Что:** Полная установка platform на свежем Mac
+**Что:** Полная установка platform на свежем Mac (brew packages + codex/claude + симлинки + профили). Один раз.
 **Запуск:** `~/dotfiles/bootstrap.sh`
-**Делает:**
-- Ставит Homebrew если нет
-- `brew bundle` из Brewfile (все CLI, casks, fonts)
-- Симлинкает ghostty/tmux configs из repo
-- Создаёт `~/.codex-new`, `~/.codex-wiki`, `~/.claude-new` папки
-- Создаёт WikiPedik vault skeleton (если нет)
-- Подключает loader в `~/.zshrc`
-- Печатает manual steps remaining (login agents, SSH keys, etc.)
-**Когда:** Первый раз на новом компе после `git clone`
-**Idempotent:** Можно перезапускать, не сломает существующее
 
 ---
 
 ### Troubleshooting
 
 ## op-not-signed-in
-**Что:** Решение если `op` CLI не подключен
-**Шаги:**
-- В 1Password app: Settings → Developer → "Integrate with 1Password CLI" ON
-- В терминале: `eval "$(op signin)"`
-- Тест: `op vault list`
+**Что:** Если `op` CLI не подключен → Settings → Developer → Integrate with CLI ON, потом `secret signin`.
 
 ## tmux-prefix-broken
-**Что:** Решение если Ctrl-b не работает (русская раскладка на Ghostty)
-**Workaround:** Используй English layout перед tmux командами
-**Permanent fix:** Karabiner Elements remap русских Ctrl+letter → US Ctrl+letter
+**Что:** Если Ctrl-b не работает в tmux (Ghostty + русская раскладка). Workaround: English layout перед prefix.
 
 ## direnv-not-loading
-**Что:** .envrc не подгружается при cd
-**Проверки:**
-- `direnv allow` выполнен в этой папке?
-- `eval "$(direnv hook zsh)"` в shell config? (должно быть в `shell/40-direnv.zsh`)
-- Нет ли ошибок в `.envrc`? (запусти `direnv reload` для verbose)
+**Что:** Если `.envrc` не подгружается → проверь `direnv allow`, hook в shell, ошибки.
 
 ## ssh-permission-denied
-**Что:** Не клонирует репо через SSH
-**Проверки:**
-- Публичный ключ добавлен в GitLab/GitHub?
-- Тест: `ssh -T git@<vcs>-<co>` (alias из company config)
-- Если alias не работает: `cat ~/.ssh/config | grep <vcs>-<co>`
-
-### Local infrastructure
-
-## dev-stack
-**Что:** Shared local dev stack (Postgres + Redis + Grafana + Prometheus) через Docker Compose
-**Запуск:**
-- `dev-stack up` — поднять все сервисы
-- `dev-stack down` — остановить (данные сохраняются)
-- `dev-stack status` — что запущено
-- `dev-stack logs [service]` — логи
-- `dev-stack psql [db]` — открыть psql
-- `dev-stack redis-cli` — открыть redis-cli
-- `dev-stack db-create <name>` — создать БД
-- `dev-stack db-drop <name>` — удалить БД (с подтверждением)
-- `dev-stack nuke` — снести всё с данными (с подтверждением)
-**Сервисы:**
-- Postgres `localhost:5432` (dev/dev)
-- Redis `localhost:6379`
-- Prometheus `http://localhost:9090`
-- Grafana `http://localhost:3030` (dev/dev)
-**Подключение из проектов:** в `.envrc` пиши `export DATABASE_URL=postgresql://dev:dev@localhost:5432/<db>`
-**Идемпотентно:** stack можно держать постоянно или поднимать только когда работаешь — ~500 MB RAM в idle
-**Зависит от:** Docker (OrbStack)
-**Файлы:** `~/dotfiles/services/dev-stack/`
-
-## legacy
-**Что:** Open tmux session for neurodesk/legacy
-**Запуск:** `legacy`
-**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/legacy/`
-**Repos:** agent_core intent_srv photo_handler vector_ingest
-
-## saas
-**Что:** Open tmux session for neurodesk/saas
-**Запуск:** `saas`
-**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/saas/`
-**Repos:** backend frontend watchtower widget
-
-## infra
-**Что:** Open tmux session for neurodesk/infra
-**Запуск:** `infra`
-**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/infra/`
-**Repos:** infra
-
-## wiki
-**Что:** Open tmux session for neurodesk/wiki
-**Запуск:** `wiki`
-**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/wiki/`
-**Repos:** nrdsk_wiki
+**Что:** Если git clone не работает → проверь публичный ключ в GitLab/GitHub Settings → SSH Keys.
