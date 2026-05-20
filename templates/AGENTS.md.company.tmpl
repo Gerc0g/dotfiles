@@ -3,99 +3,80 @@
 
 ## Context hierarchy
 
-Universal rules + git protocol live in `~/dotfiles/agent-profiles/PLATFORM.md`
-(already loaded via profile). This file = **${CO} specifics only**.
+PLATFORM rules (`~/dotfiles/agent-profiles/PLATFORM.md`) уже загружен через профиль.
+This file = ${CO} specifics only.
 
-Subdirectories with additional context (load on demand, not bulk):
+| Path | Read when |
+|---|---|
+| `<product>/AGENTS.md` | Working in that product (cross-repo work, understanding layout) |
+| `<product>/<repo>/AGENTS.md` | Working in specific repo |
+| `<product>/docs/ARCHITECTURE.md` | Deep architectural questions about product |
 
-| Path | What's inside | Read when |
-|---|---|---|
-| `<product>/AGENTS.md` | Product-level: architecture, repos+roles, cross-repo conventions | Cross-repo work · understanding product layout |
-| `<product>/<repo>/AGENTS.md` | Repo-level: stack, commands, entry points | Working in specific repo |
-
-Rule: read product/repo AGENTS.md only when task involves them. Don't bulk-read.
+Rule: read child files only when task requires.
 
 ## Coordinates
 
 - **Company:** ${CO_TITLE} (slug: `${CO}`)
-- **VCS:** ${VCS}
-- **Host:** `${HOST}`
+- **VCS:** ${VCS} at `${HOST}`
 - **SSH alias:** `${SSH_HOST}`
 - **Default namespace:** `${NS}`
 - **1Password vault:** `${VAULT}`
-- **Git identity email:** `${EMAIL}`
-- **Network:** <!-- TODO: VPN required? other network constraints? --> TODO
+- **Git identity:** `${EMAIL}`
+- **Network:** <!-- TODO --> TODO (VPN required? other constraints?)
 
 ## Stance
 
+<!-- TODO выбрать после генерации: -->
+TODO: `Willison-school` (production, review mandatory) | `Steinberger-style` (pet, minimal ceremony) | hybrid
 
-TODO: choose `Willison-school` | `Steinberger-style` | hybrid.
+## Stack overrides
 
-## Stack defaults (company-level overrides)
+PLATFORM defaults: Python `uv` 3.11+, Node `pnpm` 20+, OrbStack, Alembic, ruff+black, pytest.
 
-Из PLATFORM по умолчанию: Python 3.11+ via `uv`, Node 20+ via `pnpm`,
-OrbStack, Alembic, ruff + black, pytest. Override только если ${CO} требует
-другого.
+Document **only differences** from PLATFORM here. Empty if defaults apply.
 
-| Layer | Tool | Override vs PLATFORM |
-|---|---|---|
-| Python | <!-- TODO: matches default uv? else fill --> | — |
-| Node | <!-- TODO: matches default pnpm? else fill --> | — |
-| CI/CD | <!-- TODO: GitHub Actions / GitLab CI / Jenkins / ... --> | — |
-| Container registry | <!-- TODO: ghcr / gitlab registry / docker hub / harbor / ... --> | — |
-| Deployment | <!-- TODO: Vercel / k8s / serverless / VMs / ... --> | — |
+<!-- TODO: list overrides (CI/CD platform, container registry, deployment target) -->
 
-## Product → namespace map (если non-default paths)
+## Product → namespace map
 
-Не у всех компаний продукты лежат в одной namespace. Если есть разделение:
+<!-- Удалить эту секцию если все продукты в default ${NS}. -->
 
+Заполнить только если продукты разнесены по подгруппам VCS. Используется с `new-project <product> --ns=<ns>`.
 
-| Product | Namespace (used with `--ns=`) |
+| Product | Namespace |
 |---|---|
-| <product1> | `${NS}/<sub>/...` |
-| <product2> | `${NS}` |
+| <product> | `<ns>` |
 
-## MR / PR conventions
+## Secrets
 
-Базовые правила (Conventional Commits, русские описания) — в PLATFORM.
-${CO}-specific:
-
-- <!-- TODO: issue ID prefix в title? напр. `feat(NRDSK-123): ...` --> TODO
-- <!-- TODO: MR description sections (Summary / Why / How tested / Risks)? --> TODO
-- <!-- TODO: required approvers / groups? --> TODO
-
-## Secrets & sensitive data
-
-- All secrets via `secret add` → `${VAULT}` vault. Never plaintext в `.env`
-- <!-- TODO: PII / sensitive data flow в репах? specific rules? --> TODO
-- <!-- TODO: что нельзя коммитить помимо .env (e.g. .env*, fixtures с реальными ID)? --> TODO
-
-## Communication
-
-- <!-- TODO: ключевые люди / GitLab handles / Slack mentions --> TODO
-- <!-- TODO: кого тегать на code review по типу изменения --> TODO
-- <!-- TODO: escalation path (security / infra / release) --> TODO
+- All secrets via `secret add` → `${VAULT}` vault
+- PII / sensitive data: <!-- TODO --> TODO (none / GDPR / HIPAA / SOC2 / other)
 
 ## Cross-repo coordination
 
-When changing API contract in repo A:
-1. Update consumers in repos B, C in same MR/PR series
-2. Merge order: schema/types repo first, then producers, then consumers
-3. Run tests in each affected repo separately
-4. Don't merge breaking change without consumer updates ready
+When changing API in repo A:
+1. Update consumers in same MR series (B, C)
+2. Merge order: schema → producers → consumers
+3. Tests in each affected repo
+4. No breaking change without consumers ready
 
-If unsure which repos consume the API → ask user before changing.
+If unsure which repos consume → ask user.
+
+## Testing contract
+
+- Repo-level `Makefile` targets are the executable contract for humans, agents, and `test-tui`.
+- Each runnable repo should expose stable local targets when applicable: `install`, `dev`, `test`, `test-one`, `lint`, `format`, `typecheck`, `verify`.
+- `verify` must stay local and non-destructive: no migrations, deploys, broad cleanup, or external state mutation.
+- When a change adds a test suite, runner, package manager, or quality gate, update the affected repo's `Makefile` and `AGENTS.md` Commands section in the same change.
+- Product-level coordination still applies: run tests in every touched repo and update consumers when contracts change.
 
 ## External references
 
-- <!-- TODO: Documentation URL (Confluence / Notion / GitLab Wiki) --> TODO
-- <!-- TODO: Issue tracker URL --> TODO
-- <!-- TODO: Production URLs / dashboards / monitoring --> TODO
-- <!-- TODO: Staging URLs --> TODO
-- <!-- TODO: incident runbook location --> TODO
+- Docs: <!-- TODO --> TODO
+- Other refs (issue tracker, prod URLs, runbooks): add as they appear
 
 ## Lessons (organic)
 
-(Agent appends `- YYYY-MM-DD: <rule learned from failure>` after factual fuckups.)
+(Agent appends `- YYYY-MM-DD: <rule>` after factual fuckups.)
 
 - (no entries yet)

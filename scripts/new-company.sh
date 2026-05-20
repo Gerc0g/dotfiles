@@ -102,7 +102,7 @@ export GIT_COMMITTER_EMAIL="${EMAIL}"
 
 # Add secrets via: secret add VAR value
 # example after secret add:
-# export EXAMPLE_TOKEN=\$(op read "op://Work-${CO}/EXAMPLE_TOKEN/credential")
+# export EXAMPLE_TOKEN="\$(bash "\$HOME/dotfiles/scripts/secret-cache.sh" get Work-${CO} _company__EXAMPLE_TOKEN credential)"
 EOF
 echo "✓ $DIR/.envrc (run 'direnv allow' to activate)"
 
@@ -144,5 +144,6 @@ if [ "$VCS" != "local" ]; then
   echo "  2. Test: ssh -T $SSH_HOST"
 fi
 echo "  3. cd $DIR && direnv allow"
-echo "  4. Fill TODO placeholders in $DIR/AGENTS.md"
+echo "  4. Fill TODOs interactively:  onboard $CO"
+echo "     (или вручную в $DIR/AGENTS.md)"
 echo "  5. Create products: new-project $CO <product> [repos...]"

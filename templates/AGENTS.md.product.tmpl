@@ -1,98 +1,45 @@
 # Product — ${PROD}
 
 
-## Context hierarchy (load on demand)
+## Context hierarchy
 
-This product belongs to `${CO}` company. Parent context files exist at
-higher levels. **Don't bulk-read at session start.** Read only when relevant.
+| Path | Read when |
+|---|---|
+| `../AGENTS.md` | Company-level workflow (MR conventions, vault, network) |
+| `<repo>/AGENTS.md` | Working in specific repo |
+| `docs/ARCHITECTURE.md` | Deep architectural questions (system design, data flow, decisions) |
+| `docs/adr/*.md` | Specific architectural decisions |
+| `docs/runbooks/*.md` | Operational procedures (deploy, incident, rollback) |
 
-| Path | What's inside | Read when |
-|---|---|---|
-| `../AGENTS.md` | Company (`${CO}`): VCS host, namespace map, MR conventions, vault location, network rules, school stance | Preparing MR/PR · setting up env vars · onboarding new repo to product |
-| `~/dotfiles/agent-profiles/PLATFORM.md` | Universal infra (dev-stack, git protocol, tooling) | Already loaded via profile. Read only if missing or override needed. |
+Rule: read `docs/` only when task explicitly needs that depth.
 
-## What this is (one line)
+## What this is
 
-<TODO: one sentence — what does this product do, who's the user>
+TODO: 1 sentence — what does ${PROD} do, who's the user.
 
-Status: <TODO: production | staging | experimental | legacy>
+Status: TODO (production | staging | experimental | legacy)
 
 ## Repos and roles
 
 | Repo | Role | Stack hint |
 |---|---|---|
-| <repo1> | <one-liner: what it does> | <Python/Go/TS/...> |
-| <repo2> | <one-liner> | <...> |
-| <repo3> | <one-liner> | <...> |
-
-<!-- For agents product example:
-| barrier    | API gateway, request validation, rate limit  | FastAPI |
-| cortex     | Orchestrator, routes to agent services       | FastAPI |
-| cerebellum | Persistent storage, state machines           | Go |
-| nerve      | Event bus consumer / producer                 | Python |
-| synapse    | Internal RPC mesh                             | Go |
-| vox        | Voice/audio pipeline                          | Python |
--->
+| <repo> | <one-liner> | <Python/Go/TS/...> |
 
 ## Data flow (only if non-obvious)
 
-<TODO: 2-5 lines of ASCII or text describing how repos talk to each other.
-Skip if it's a simple monorepo or repos are independent.>
-
-<!-- Example for agents:
-client → barrier (gateway) → cortex (router) ─┬→ nerve (events)
-                                              ├→ vox (voice)
-                                              └→ cerebellum (state)
-synapse is internal RPC, not exposed to client
--->
-
-## Local development
-
-How to bring product up from cold:
-
-1. <TODO: start dev-stack if needed: `dev-stack up`>
-2. <TODO: create databases if needed: `dev-stack db-create <product>_<repo>`>
-3. <TODO: per-repo dev server commands in order>
-4. <TODO: how to verify all services healthy: curl / port check>
-
-Repos critical for dev: <TODO: which repos must be running>
-Repos that can be mocked: <TODO: which can be omitted in normal dev session>
+TODO: 2-5 lines ASCII or text. Skip section if repos are independent / simple monorepo.
 
 ## Cross-repo conventions
 
-- Shared schemas / DTOs live in: <TODO: which repo, or "none">
-- When changing API in repo X: update consumers in <list>
-- Run tests in EVERY repo touched (not just primary)
-- Don't ship contract change in one repo without consumer updates ready in same MR series
-
-## Procedural workflows
-
-### Adding new agent service to product
-
-<TODO: numbered steps specific to this product>
-
-<!-- Example:
-1. Scaffold: copy `nerve/` as template, rename
-2. Register in `cortex/services_registry.py`
-3. Add health check endpoint
-4. Add CI job in `.gitlab-ci.yml`
-5. Update product README with new service in table
--->
-
-### Rolling out cross-repo contract change
-
-<TODO: numbered steps>
+- Shared schemas/DTOs location: TODO (which repo or "none")
+- When changing API in X → update consumers in: TODO
+- (PLATFORM rules apply: atomic commits, tests in each touched repo)
+- Repo-level `Makefile` targets are the executable test contract. If a product change adds or changes tests, update each affected repo's `Makefile` + `AGENTS.md` commands in the same change.
 
 ## Boundaries (product-specific)
 
-🚫 Don't touch: <TODO: list shared schemas/migrations/configs that need explicit approval>
-⚠️ Ask first: <TODO: list operations that span multiple repos>
-
-## References
-
-- <TODO: link to product Confluence/Notion page if exists>
-- <TODO: architecture diagram path if exists>
-- <TODO: runbook for production incidents if exists>
+🚫 Don't touch without ask: TODO (shared schemas / migrations / configs)
+⚠️ Ask first: TODO (operations spanning multiple repos)
 
 ## Lessons (organic)
 

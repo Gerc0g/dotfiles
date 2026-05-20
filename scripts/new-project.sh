@@ -79,22 +79,22 @@ for repo in "${REPOS[@]}"; do
 done
 
 LAUNCHER=~/dotfiles/shell/30-projects.zsh
-[ ! -f "$LAUNCHER" ] && echo "# Project tmux launchers" > "$LAUNCHER"
+[ ! -f "$LAUNCHER" ] && echo "# Project launch shortcuts" > "$LAUNCHER"
 
 if ! grep -q "^${PROD}() {" "$LAUNCHER"; then
-  FIRST="${REPOS[0]:-}"
+  DEFAULT_ARG=""
+  [ ${#REPOS[@]} -eq 1 ] && DEFAULT_ARG=" \"${REPOS[0]}\""
   cat >> "$LAUNCHER" <<EOF
 
 ${PROD}() {
-  tmux kill-session -t ${PROD} 2>/dev/null
-  tmux new -d -s ${PROD} -c ${PDIR}/${FIRST}
-  tmux send-keys -t ${PROD}:0 'export CODEX_HOME=\$HOME/.codex-new; clear; codex' Enter
-  tmux split-window -v -t ${PROD}:0 -c ${PDIR}/${FIRST}
-  tmux send-keys -t ${PROD}:0.1 'git status; echo' Enter
-  tmux attach -t ${PROD}
+  case \$# in
+    0) launch "${CO}" "${PROD}"${DEFAULT_ARG} ;;
+    1) launch "${CO}" "${PROD}" "\$1" ;;
+    *) echo "Usage: ${PROD} [<repo>]"; return 1 ;;
+  esac
 }
 EOF
-  echo "✓ added '${PROD}' launcher"
+  echo "✓ added '${PROD}' launcher (repo-level 4-window layout)"
 fi
 
 DOC=~/dotfiles/docs/COMMANDS.md
@@ -135,4 +135,10 @@ echo ""
 echo "✅ ${CO}/${PROD} bootstrapped (ns: $NS)"
 ls "$PDIR"
 echo ""
-echo "Next: source ~/.zshrc && ${PROD}"
+echo "Next steps:"
+echo "  1. source ~/.zshrc                          (подхватить ${PROD} launcher)"
+echo "  2. onboard ${CO} ${PROD}                       (заполнить TODO в product AGENTS.md)"
+echo "  3. analyze-product ${CO} ${PROD}               (опц: deep dive → docs/ARCHITECTURE.md)"
+echo "  4. cd <repo> && onboard                     (для каждого репа)"
+echo "  5. cd <repo> && analyze-repo                (опц: deep dive → docs/design.md)"
+echo "  6. ${PROD}                                   (открыть tmux session)"

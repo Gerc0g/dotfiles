@@ -367,6 +367,23 @@ Open via `wikipedik` command (tmux with two codex profiles). Karpathy LLM Wiki p
 
 Don't dump everything in repo's AGENTS.md. Cross-cutting knowledge → wiki.
 
+### Worker memory capture
+
+For normal project agents in repos under `~/Desktop/Prokectfiles/<company>/<product>/<repo>`:
+
+- Read path is automatic: `SessionStart` injects `docs/knowledge/hot.md` when the repo has been bootstrapped with WikiPedik symlinks.
+- Write path is selective: when you identify a durable root cause, production gotcha, failed approach, reusable rule, informal decision, or cross-repo invariant, use the `lesson-append` skill to append one structured entry to `docs/knowledge/_inbox.md`.
+- Before the final answer, run a memory checkpoint: if this task produced a durable root cause, production gotcha, failed approach, reusable rule, informal decision, or cross-repo invariant, use `lesson-append`; if not, write nothing.
+- Do not write curated pages directly (`lessons.md`, `gotchas.md`, `debugging-stories.md`, product/shared pages). Curator handles that via `wiki sync <scope>`.
+- If `docs/knowledge/_inbox.md` is missing, do not create ad hoc wiki paths. Tell the user to run `wiki bootstrap <company> <product>` or `wiki-bootstrap-product <company> <product>`.
+- Skip low-signal notes. Captures should answer: what happened, why it happened, and what reusable rule follows.
+
+Curator commands:
+- `wiki sync <company[/product[/repo]]>` — drain `_inbox.md` into curated pages with confirmation.
+- `wiki sync --commit <scope>` — drain and commit WikiPedik changes; pre-existing dirty files are allowed only inside the requested scope.
+- `wiki status <company[/product[/repo]]>` — report pending memory work.
+- `wiki synthesize <company/product>` — promote repeated repo lessons into product shared patterns.
+
 ## Definition of Done (universal)
 
 Task is complete when ALL apply:
@@ -378,6 +395,13 @@ Task is complete when ALL apply:
 6. Status reported to user with: what changed, what tests ran, any open questions
 
 NEVER report "done" before running the actual verification commands.
+
+Repo testing contract:
+- `Makefile` is the preferred executable interface for local agents and test panes.
+- Keep repo `AGENTS.md` command docs synced with `Makefile`.
+- When changing test infrastructure, add or update stable targets first: `test`, `test-one`, `lint`, `format`, `typecheck`, `verify`.
+- `verify` must stay local and non-destructive: no migrations, deploys, force cleanup, or external state mutation.
+- If no automated tests exist yet, make `test` explicit instead of leaving the repo ambiguous.
 
 ## When Blocked
 
