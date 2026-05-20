@@ -67,9 +67,9 @@ EOF
   fi
 
   if grep -q '^\[hooks\]' "$cfg"; then
-    echo "⚠ $cfg already has [hooks] but not WikiPedik hook; add manually:"
+    echo "✗ $cfg already has [hooks] but not WikiPedik hook; add manually:"
     echo "  SessionStart = [{ matcher = \"startup|resume\", hooks = [{ type = \"command\", command = \"$hook\" }] }]"
-    return 0
+    return 1
   fi
 
   cat >> "$cfg" <<EOF

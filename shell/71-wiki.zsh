@@ -67,13 +67,15 @@ _wiki_git_dirty() {
 _wiki_dirty_outside_scope() {
   local scope=$1
   local root="$(_wiki_vault_root)"
-  local dir rel line path
+  local dir rel product_log product_log_rel line path
 
   dir="$(_wiki_scope_path "$scope")" || {
     _wiki_git_dirty
     return 0
   }
   rel="${dir#$root/}"
+  product_log="$(_wiki_scope_product_log "$scope")"
+  product_log_rel="${product_log#$root/}"
 
   while IFS= read -r line; do
     [ -z "$line" ] && continue
@@ -84,6 +86,7 @@ _wiki_dirty_outside_scope() {
 
     case "$path" in
       "$rel"|"$rel"/*) ;;
+      "$product_log_rel") ;;
       *) print -r -- "$line" ;;
     esac
   done <<< "$(_wiki_git_dirty)"
@@ -158,7 +161,12 @@ _wiki_postflight() {
 _wiki_commit() {
   local scope=$1 push=$2
   local root="$(_wiki_vault_root)"
-  local dirty
+  local dir rel product_log product_log_rel dirty dirty_outside
+
+  dir="$(_wiki_scope_path "$scope")" || {
+    echo "Usage: wiki-commit <company[/product[/repo]]>"
+    return 1
+  }
 
   dirty="$(_wiki_git_dirty)"
   if [ -z "$dirty" ]; then
@@ -166,7 +174,22 @@ _wiki_commit() {
     return 0
   fi
 
-  git -C "$root" add -A
+  dirty_outside="$(_wiki_dirty_outside_scope "$scope")"
+  if [ -n "$dirty_outside" ]; then
+    echo "Refusing wiki commit: dirty files exist outside scope '$scope'."
+    print -r -- "$dirty_outside" | sed 's/^/  /'
+    return 1
+  fi
+
+  rel="${dir#$root/}"
+  git -C "$root" add -A -- "$rel"
+
+  product_log="$(_wiki_scope_product_log "$scope")"
+  if [ -n "$product_log" ]; then
+    product_log_rel="${product_log#$root/}"
+    git -C "$root" add -A -- "$product_log_rel"
+  fi
+
   git -C "$root" commit -m "Curate wiki memory for $scope" || return $?
 
   if [ "$push" = "1" ]; then
@@ -269,7 +292,9 @@ wiki-status() {
   _wiki_curator "wiki-status" "$scope" \
     "Report inbox counts, curated pages, synthesis candidates, stale health files, recent log entries, and recommended next actions. Do not modify files." \
     "readonly"
+  local rc=$?
   _wiki_postflight "$scope"
+  return $rc
 }
 
 wiki-synthesize() {
@@ -283,6 +308,10 @@ wiki-git() {
 }
 
 wiki-commit() {
-  local scope="${1:-manual}"
+  local scope="${1:-}"
+  if [ -z "$scope" ]; then
+    echo "Usage: wiki-commit <company[/product[/repo]]>"
+    return 1
+  fi
   _wiki_commit "$scope" "0"
 }

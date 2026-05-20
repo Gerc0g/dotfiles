@@ -135,7 +135,7 @@ Secrets go through 1Password:
 ```bash
 secret signin
 secret add <VAR> <VALUE>
-secret get op://<vault>/<VAR>/password
+secret get op://<vault>/<VAR>/credential
 ```
 
 `new-company` creates the company vault when possible. `.envrc` is for

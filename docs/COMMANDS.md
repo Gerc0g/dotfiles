@@ -78,7 +78,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `wiki status <company[/product[/repo]]>` — отчёт по pending inbox, curated pages, synthesis candidates.
 - `wiki synthesize <company/product>` — найти повторяющиеся lessons/gotchas и предложить product shared patterns.
 - `wiki bootstrap <company> [product] [repo]` — создать WikiPedik skeleton + repo symlinks.
-- `wiki-commit [scope]` — вручную закоммитить текущие WikiPedik changes.
+- `wiki-commit <scope>` — вручную закоммитить только changes внутри WikiPedik scope.
 - `wiki-git <args...>` — выполнить `git` внутри `~/Desktop/WikiPedik/dev`.
 **Примеры:**
 - `wiki sync neurodesk/wiki/nrdsk_wiki`
@@ -185,7 +185,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Запуск:**
 - `secret signin` — login
 - `secret add <VAR> <VALUE>` — create item + append .envrc
-- `secret get op://<vault>/<VAR>/password`
+- `secret get op://<vault>/<VAR>/credential`
 - `secret list <vault>`
 
 ---

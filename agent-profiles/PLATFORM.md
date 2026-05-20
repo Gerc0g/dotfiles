@@ -45,7 +45,7 @@ Commands:
 - `secret signin` — login
 - `secret add <VAR> <value>` — item in `Work-<co>` + append to `.envrc`
   (company auto-detected from cwd via `.company-config`)
-- `secret get op://Work-<co>/<VAR>/password`
+- `secret get op://Work-<co>/<VAR>/credential`
 - `secret list <vault>`
 
 Rule: repo needs new env var → instruct user to run `secret add VAR value`.
