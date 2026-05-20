@@ -51,16 +51,13 @@ echo "→ Creating agent profile dirs..."
 mkdir -p ~/.codex-new ~/.codex-wiki ~/.claude-new
 echo "✓ ~/.codex-new, ~/.codex-wiki, ~/.claude-new"
 
-# === 7. WikiPedik vault skeleton ===
-if [ ! -d ~/Desktop/WikiPedik ]; then
-  echo ""
-  echo "→ Creating WikiPedik skeleton..."
-  mkdir -p ~/Desktop/WikiPedik/dev/{00-inbox,10-wiki,20-projects}
-  mkdir -p ~/Desktop/WikiPedik/research/{00-inbox,10-wiki}
-  touch ~/Desktop/WikiPedik/dev/10-wiki/{index.md,log.md}
-  touch ~/Desktop/WikiPedik/research/10-wiki/{index.md,log.md}
-  echo "✓ WikiPedik vaults created (empty — fill via codex)"
-fi
+# === 7. WikiPedik runtime ===
+echo ""
+echo "→ Installing WikiPedik runtime..."
+bash ~/dotfiles/skills-stash/wiki/scripts/install-wiki-runtime.sh || {
+  echo "⚠ WikiPedik runtime install failed — run manually:"
+  echo "  bash ~/dotfiles/skills-stash/wiki/scripts/install-wiki-runtime.sh"
+}
 
 # === 8. ~/work directory ===
 mkdir -p ~/Desktop/Prokectfiles

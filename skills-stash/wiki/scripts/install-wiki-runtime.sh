@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# Install WikiPedik local runtime: vault clone/skeleton, skills, and hooks.
+
+set -euo pipefail
+
+DOTFILES="${DOTFILES:-$HOME/dotfiles}"
+WIKI_ROOT="${WIKI_ROOT:-$HOME/Desktop/WikiPedik}"
+WIKI_DEV="$WIKI_ROOT/dev"
+WIKI_RESEARCH="$WIKI_ROOT/research"
+WIKIPEDIK_REMOTE="${WIKIPEDIK_REMOTE:-git@github.com:JustChimera/WikiPedik.git}"
+
+echo "=== WikiPedik runtime install ==="
+
+mkdir -p "$WIKI_ROOT"
+
+if [ -d "$WIKI_DEV/.git" ]; then
+  echo "✓ dev vault git repo exists: $WIKI_DEV"
+elif [ ! -e "$WIKI_DEV" ] || [ -z "$(find "$WIKI_DEV" -mindepth 1 -maxdepth 1 2>/dev/null)" ]; then
+  echo "→ Cloning dev vault: $WIKIPEDIK_REMOTE"
+  rm -rf "$WIKI_DEV"
+  git clone "$WIKIPEDIK_REMOTE" "$WIKI_DEV"
+else
+  echo "⚠ dev vault exists but is not a git repo: $WIKI_DEV"
+  echo "  Leaving it untouched. Initialize or move it manually."
+fi
+
+mkdir -p "$WIKI_RESEARCH/00-inbox" "$WIKI_RESEARCH/10-wiki"
+touch "$WIKI_RESEARCH/10-wiki/index.md" "$WIKI_RESEARCH/10-wiki/log.md"
+echo "✓ research vault skeleton: $WIKI_RESEARCH"
+
+mkdir -p "$HOME/.codex-new/skills" "$HOME/.codex-new/hooks"
+mkdir -p "$HOME/.codex-wiki/skills" "$HOME/.codex-wiki/hooks"
+mkdir -p "$HOME/.claude-new/skills" "$HOME/.claude-new/hooks"
+
+ln -sfn "$DOTFILES/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.codex-new/skills/wiki-context-pack"
+ln -sfn "$DOTFILES/skills-stash/wiki/worker/lesson-append" "$HOME/.codex-new/skills/lesson-append"
+ln -sfn "$DOTFILES/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.claude-new/skills/wiki-context-pack"
+ln -sfn "$DOTFILES/skills-stash/wiki/worker/lesson-append" "$HOME/.claude-new/skills/lesson-append"
+
+for skill in source-ingest agent-history-ingest inbox-drain wiki-synthesize wiki-lint wiki-status autoresearch; do
+  ln -sfn "$DOTFILES/skills-stash/wiki/curator/$skill" "$HOME/.codex-wiki/skills/$skill"
+done
+
+ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-codex.sh" "$HOME/.codex-new/hooks/SessionStart.sh"
+ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-codex.sh" "$HOME/.codex-wiki/hooks/SessionStart.sh"
+ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-claude.sh" "$HOME/.claude-new/hooks/SessionStart.sh"
+echo "✓ skills and hooks symlinked"
+
+ensure_codex_hook() {
+  local cfg=$1
+  local hook=$2
+
+  if [ ! -f "$cfg" ]; then
+    cat > "$cfg" <<EOF
+[hooks]
+SessionStart = [
+  { matcher = "startup|resume", hooks = [{ type = "command", command = "$hook" }] },
+]
+EOF
+    echo "✓ created $cfg"
+    return 0
+  fi
+
+  if grep -qF "$hook" "$cfg"; then
+    echo "✓ codex hook already configured: $cfg"
+    return 0
+  fi
+
+  if grep -q '^\[hooks\]' "$cfg"; then
+    echo "⚠ $cfg already has [hooks] but not WikiPedik hook; add manually:"
+    echo "  SessionStart = [{ matcher = \"startup|resume\", hooks = [{ type = \"command\", command = \"$hook\" }] }]"
+    return 0
+  fi
+
+  cat >> "$cfg" <<EOF
+
+[hooks]
+SessionStart = [
+  { matcher = "startup|resume", hooks = [{ type = "command", command = "$hook" }] },
+]
+EOF
+  echo "✓ appended codex hook: $cfg"
+}
+
+ensure_claude_hook() {
+  local cfg="$HOME/.claude-new/settings.json"
+  local hook="$HOME/.claude-new/hooks/SessionStart.sh"
+
+  CFG="$cfg" HOOK="$hook" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+cfg = Path(os.environ["CFG"])
+hook = os.environ["HOOK"]
+
+if cfg.exists():
+    try:
+        data = json.loads(cfg.read_text())
+    except Exception:
+        print(f"⚠ invalid JSON in {cfg}; leaving untouched")
+        raise SystemExit(0)
+else:
+    data = {}
+
+hooks = data.setdefault("hooks", {})
+items = hooks.setdefault("SessionStart", [])
+
+for item in items:
+    for h in item.get("hooks", []):
+        if h.get("command") == hook:
+            print(f"✓ claude hook already configured: {cfg}")
+            cfg.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+            raise SystemExit(0)
+
+items.append({
+    "matcher": "*",
+    "hooks": [{"type": "command", "command": hook}],
+})
+cfg.parent.mkdir(parents=True, exist_ok=True)
+cfg.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+print(f"✓ configured claude hook: {cfg}")
+PY
+}
+
+ensure_codex_hook "$HOME/.codex-new/config.toml" "$HOME/.codex-new/hooks/SessionStart.sh"
+ensure_codex_hook "$HOME/.codex-wiki/config.toml" "$HOME/.codex-wiki/hooks/SessionStart.sh"
+ensure_claude_hook
+
+echo ""
+echo "Verify:"
+echo "  CODEX_HOME=~/.codex-new codex debug prompt-input smoke | rg 'wiki-context-pack|lesson-append'"
+echo "  CODEX_HOME=~/.codex-wiki codex debug prompt-input smoke | rg 'inbox-drain|wiki-status'"
+echo "  cd ~/Desktop/WikiPedik/dev && git status --short --branch"
