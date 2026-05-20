@@ -1,46 +1,66 @@
-# Project tmux launchers
+# Project launch shortcuts.
+#
+# Product commands are thin wrappers around `launch`, so a repo opens with
+# the standard 4-window layout: plan / code / test / oracle.
 
-agents() {
-  tmux kill-session -t agents 2>/dev/null
-  tmux new -d -s agents -c /Users/_gerc0g/Desktop/Prokectfiles/neurodesk/agents/barrier
-  tmux send-keys -t agents:0 'export CODEX_HOME=$HOME/.codex-new; clear; codex' Enter
-  tmux split-window -v -t agents:0 -c /Users/_gerc0g/Desktop/Prokectfiles/neurodesk/agents/barrier
-  tmux send-keys -t agents:0.1 'git status; echo' Enter
-  tmux attach -t agents
-}
+_project_launch() {
+  local co=$1 prod=$2 default_repo=$3
+  shift 3
 
-legacy() {
-  tmux kill-session -t legacy 2>/dev/null
-  tmux new -d -s legacy -c /Users/_gerc0g/Desktop/Prokectfiles/neurodesk/legacy/agent_core
-  tmux send-keys -t legacy:0 'export CODEX_HOME=$HOME/.codex-new; clear; codex' Enter
-  tmux split-window -v -t legacy:0 -c /Users/_gerc0g/Desktop/Prokectfiles/neurodesk/legacy/agent_core
-  tmux send-keys -t legacy:0.1 'git status; echo' Enter
-  tmux attach -t legacy
-}
-
-saas() {
-  tmux kill-session -t saas 2>/dev/null
-  tmux new -d -s saas -c /Users/_gerc0g/Desktop/Prokectfiles/neurodesk/saas/backend
-  tmux send-keys -t saas:0 'export CODEX_HOME=$HOME/.codex-new; clear; codex' Enter
-  tmux split-window -v -t saas:0 -c /Users/_gerc0g/Desktop/Prokectfiles/neurodesk/saas/backend
-  tmux send-keys -t saas:0.1 'git status; echo' Enter
-  tmux attach -t saas
+  case $# in
+    0)
+      if [ -n "$default_repo" ]; then
+        launch "$co" "$prod" "$default_repo"
+      else
+        launch "$co" "$prod"
+      fi
+      ;;
+    1)
+      launch "$co" "$prod" "$1"
+      ;;
+    *)
+      echo "Usage: $prod [<repo>]"
+      return 1
+      ;;
+  esac
 }
 
 infra() {
-  tmux kill-session -t infra 2>/dev/null
-  tmux new -d -s infra -c /Users/_gerc0g/Desktop/Prokectfiles/neurodesk/infra/infra
-  tmux send-keys -t infra:0 'export CODEX_HOME=$HOME/.codex-new; clear; codex' Enter
-  tmux split-window -v -t infra:0 -c /Users/_gerc0g/Desktop/Prokectfiles/neurodesk/infra/infra
-  tmux send-keys -t infra:0.1 'git status; echo' Enter
-  tmux attach -t infra
+  _project_launch neurodesk infra infra "$@"
+}
+
+legacy() {
+  _project_launch neurodesk legacy "" "$@"
+}
+
+agents() {
+  _project_launch neurodesk agents "" "$@"
 }
 
 wiki() {
-  tmux kill-session -t wiki 2>/dev/null
-  tmux new -d -s wiki -c /Users/_gerc0g/Desktop/Prokectfiles/neurodesk/wiki/nrdsk_wiki
-  tmux send-keys -t wiki:0 'export CODEX_HOME=$HOME/.codex-new; clear; codex' Enter
-  tmux split-window -v -t wiki:0 -c /Users/_gerc0g/Desktop/Prokectfiles/neurodesk/wiki/nrdsk_wiki
-  tmux send-keys -t wiki:0.1 'git status; echo' Enter
-  tmux attach -t wiki
+  case "${1:-}" in
+    sync)
+      shift
+      wiki-sync "$@"
+      ;;
+    status)
+      shift
+      wiki-status "$@"
+      ;;
+    synthesize)
+      shift
+      wiki-synthesize "$@"
+      ;;
+    bootstrap)
+      shift
+      wiki-bootstrap-product "$@"
+      ;;
+    *)
+      _project_launch neurodesk wiki nrdsk_wiki "$@"
+      ;;
+  esac
+}
+
+saas() {
+  _project_launch neurodesk saas "" "$@"
 }

@@ -5,3 +5,13 @@
 *secret*
 shell/local.zsh
 docs/private/
+
+# Generated local artifacts
+logs/
+*.log
+*.bak
+.zshrc-*.txt
+
+# Locally built TUI binaries; sources stay tracked
+tools/oracle-tui/oracle-tui
+tools/test-tui/test-tui
