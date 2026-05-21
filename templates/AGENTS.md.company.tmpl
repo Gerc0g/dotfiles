@@ -31,6 +31,13 @@ Rule: read child files only when task requires.
 <!-- TODO выбрать после генерации: -->
 TODO: `Willison-school` (production, review mandatory) | `Steinberger-style` (pet, minimal ceremony) | hybrid
 
+## Git workflow
+
+- Commit messages: Conventional Commits type/scope in English, description/body in Russian.
+- Application repos: work on feature branches; merge feature branches into `dev` for stage, then release `dev` into `main` for prod.
+- Do not commit directly to `main` or `dev` unless the user explicitly asks or this repo has no branch model yet.
+- WikiPedik is the exception: wiki memory commits go directly to WikiPedik `main` through `wiki sync --commit/--push`.
+
 ## Stack overrides
 
 Baseline defaults: Python `uv` 3.11+, Node `pnpm` 20+, OrbStack, Alembic, ruff+black, pytest.

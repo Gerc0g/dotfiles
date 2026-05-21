@@ -381,8 +381,17 @@ For normal project agents in repos under `~/Desktop/Prokectfiles/<company>/<prod
 Curator commands:
 - `wiki sync <company[/product[/repo]]>` — drain `_inbox.md` into curated pages with confirmation.
 - `wiki sync --commit <scope>` — drain and commit WikiPedik changes; pre-existing dirty files are allowed only inside the requested scope.
+- `wiki sync --push <scope>` — drain, commit, and push WikiPedik changes. Use only when the user explicitly asked to sync with git.
 - `wiki status <company[/product[/repo]]>` — report pending memory work.
 - `wiki synthesize <company/product>` — promote repeated repo lessons into product shared patterns.
+
+Wiki git policy:
+- Wiki commits are atomic by scope: commit only the requested company/product/repo memory path, its product log, and the root project index when bootstrap changed it.
+- `wiki-commit` / `wiki sync --commit` uses the company `git_email` from `~/Desktop/Prokectfiles/<company>/.company-config` when present.
+- Daily agents do not auto-commit or auto-push memory. They append candidates only; curator commands handle git sync.
+- Never push wiki changes unless the user explicitly asked for `--push` or a manual `git push`.
+- WikiPedik commits go directly to `main`; do not use product delivery flow (`dev` as stage, `main` as prod, feature branches) for wiki curation.
+- WikiPedik commit messages follow the same language convention: English Conventional Commit type/scope, Russian description.
 
 ## Definition of Done (universal)
 

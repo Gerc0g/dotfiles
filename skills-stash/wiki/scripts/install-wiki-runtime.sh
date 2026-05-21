@@ -8,6 +8,8 @@ WIKI_ROOT="${WIKI_ROOT:-$HOME/Desktop/WikiPedik}"
 WIKI_DEV="$WIKI_ROOT/dev"
 WIKI_RESEARCH="$WIKI_ROOT/research"
 WIKIPEDIK_REMOTE="${WIKIPEDIK_REMOTE:-git@github.com:JustChimera/WikiPedik.git}"
+WIKIPEDIK_GIT_NAME="${WIKIPEDIK_GIT_NAME:-}"
+WIKIPEDIK_GIT_EMAIL="${WIKIPEDIK_GIT_EMAIL:-}"
 
 echo "=== WikiPedik runtime install ==="
 
@@ -22,6 +24,16 @@ elif [ ! -e "$WIKI_DEV" ] || [ -z "$(find "$WIKI_DEV" -mindepth 1 -maxdepth 1 2>
 else
   echo "⚠ dev vault exists but is not a git repo: $WIKI_DEV"
   echo "  Leaving it untouched. Initialize or move it manually."
+fi
+
+if [ -d "$WIKI_DEV/.git" ]; then
+  git -C "$WIKI_DEV" remote set-url origin "$WIKIPEDIK_REMOTE" 2>/dev/null || true
+  [ -n "$WIKIPEDIK_GIT_NAME" ] && git -C "$WIKI_DEV" config user.name "$WIKIPEDIK_GIT_NAME"
+  [ -n "$WIKIPEDIK_GIT_EMAIL" ] && git -C "$WIKI_DEV" config user.email "$WIKIPEDIK_GIT_EMAIL"
+  echo "✓ dev vault git remote: $(git -C "$WIKI_DEV" remote get-url origin 2>/dev/null || echo none)"
+  if [ -n "$WIKIPEDIK_GIT_EMAIL" ]; then
+    echo "✓ dev vault git email: $WIKIPEDIK_GIT_EMAIL"
+  fi
 fi
 
 mkdir -p "$WIKI_RESEARCH/00-inbox" "$WIKI_RESEARCH/10-wiki"

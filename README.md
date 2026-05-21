@@ -320,11 +320,22 @@ wiki bootstrap <company> [product] [repo]
 wiki status <company/product/repo>
 wiki sync <company/product/repo>
 wiki sync --commit <company/product/repo>
+wiki sync --push <company/product/repo>
 wiki synthesize <company/product>
 ```
 
 `wiki sync` drains `_inbox.md` into curated pages and refreshes `hot.md`.
 `hot.md` is what future agents receive at session start.
+
+Wiki git sync is explicit and scope-atomic:
+
+- `wiki sync` updates local WikiPedik files only.
+- `wiki sync --commit <scope>` commits only the requested memory scope, its product log, and the root project index if bootstrap touched it.
+- `wiki sync --push <scope>` does the same commit and then pushes.
+- Wiki commits use `git_email` from `~/Desktop/Prokectfiles/<company>/.company-config` when present, so company memory is authored by the matching account.
+- WikiPedik commits go directly to its `main` branch; the app repo delivery model (`dev` as stage, `main` as prod, feature branches) does not apply to wiki curation.
+- Commit messages keep the platform convention: English Conventional Commit type/scope, Russian description.
+- Daily repo agents never push automatically; they only append candidates to `docs/knowledge/_inbox.md`.
 
 ## Onboarding Flow
 

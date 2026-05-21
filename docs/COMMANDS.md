@@ -87,6 +87,25 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `wiki status neurodesk`
 - `wiki synthesize neurodesk/agents`
 
+**Git sync policy:**
+- `wiki sync` never commits by itself.
+- `wiki sync --commit/--push` commits atomically by scope and uses company `git_email` from `.company-config` when present.
+- WikiPedik commits go directly to WikiPedik `main`; app repo `feature → dev → main` delivery rules do not apply there.
+- Commit message format remains platform-wide: English Conventional Commit type/scope, Russian description.
+- Daily agents write only `_inbox.md`; curator commands own curated pages and git sync.
+
+
+## aetheria
+**Что:** Open tmux session for chimera/aetheria
+**Запуск:** `aetheria`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/aetheria/`
+**Repos:** Aetheria-App aetheria-frontend Aetheria-Manifests Aetheria-AI
+
+## homeless
+**Что:** Open tmux session for chimera/homeless
+**Запуск:** `homeless`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/homeless/`
+**Repos:** Jarvis Homeless
 ---
 
 ### Bootstrap

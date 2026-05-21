@@ -27,6 +27,23 @@ _wiki_scope_path() {
   esac
 }
 
+_wiki_scope_company() {
+  local scope=$1
+  local -a parts
+
+  parts=("${(@s:/:)scope}")
+  print -r -- "${parts[1]:-}"
+}
+
+_wiki_company_config_value() {
+  local co=$1
+  local key=$2
+  local cfg="$HOME/Desktop/Prokectfiles/$co/.company-config"
+
+  [ -f "$cfg" ] || return 0
+  awk -F':[[:space:]]*' -v key="$key" '$1 == key { print $2; exit }' "$cfg"
+}
+
 _wiki_scope_product_log() {
   local scope=$1
   local root="$(_wiki_vault_root)"
@@ -67,7 +84,7 @@ _wiki_git_dirty() {
 _wiki_dirty_outside_scope() {
   local scope=$1
   local root="$(_wiki_vault_root)"
-  local dir rel product_log product_log_rel line path
+  local dir rel product_log product_log_rel root_index_rel line path
 
   dir="$(_wiki_scope_path "$scope")" || {
     _wiki_git_dirty
@@ -76,6 +93,7 @@ _wiki_dirty_outside_scope() {
   rel="${dir#$root/}"
   product_log="$(_wiki_scope_product_log "$scope")"
   product_log_rel="${product_log#$root/}"
+  root_index_rel="20-projects/index.md"
 
   while IFS= read -r line; do
     [ -z "$line" ] && continue
@@ -87,6 +105,7 @@ _wiki_dirty_outside_scope() {
     case "$path" in
       "$rel"|"$rel"/*) ;;
       "$product_log_rel") ;;
+      "$root_index_rel") ;;
       *) print -r -- "$line" ;;
     esac
   done <<< "$(_wiki_git_dirty)"
@@ -162,6 +181,7 @@ _wiki_commit() {
   local scope=$1 push=$2
   local root="$(_wiki_vault_root)"
   local dir rel product_log product_log_rel dirty dirty_outside
+  local co git_email
 
   dir="$(_wiki_scope_path "$scope")" || {
     echo "Usage: wiki-commit <company[/product[/repo]]>"
@@ -184,13 +204,28 @@ _wiki_commit() {
   rel="${dir#$root/}"
   git -C "$root" add -A -- "$rel"
 
+  # Root project index is auto-managed by bootstrap and is safe to commit with
+  # any project-memory scope. It contains only company links, not repo details.
+  if [ -f "$root/20-projects/index.md" ]; then
+    git -C "$root" add -A -- "20-projects/index.md"
+  fi
+
   product_log="$(_wiki_scope_product_log "$scope")"
   if [ -n "$product_log" ]; then
     product_log_rel="${product_log#$root/}"
     git -C "$root" add -A -- "$product_log_rel"
   fi
 
-  git -C "$root" commit -m "Curate wiki memory for $scope" || return $?
+  co="$(_wiki_scope_company "$scope")"
+  git_email="$(_wiki_company_config_value "$co" git_email)"
+
+  if [ -n "$git_email" ]; then
+    GIT_AUTHOR_EMAIL="$git_email" \
+    GIT_COMMITTER_EMAIL="$git_email" \
+      git -C "$root" commit -m "docs(wiki): синхронизировать память $scope" || return $?
+  else
+    git -C "$root" commit -m "docs(wiki): синхронизировать память $scope" || return $?
+  fi
 
   if [ "$push" = "1" ]; then
     git -C "$root" push

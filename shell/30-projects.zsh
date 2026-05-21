@@ -64,3 +64,19 @@ wiki() {
 saas() {
   _project_launch neurodesk saas "" "$@"
 }
+
+aetheria() {
+  case $# in
+    0) launch "chimera" "aetheria" ;;
+    1) launch "chimera" "aetheria" "$1" ;;
+    *) echo "Usage: aetheria [<repo>]"; return 1 ;;
+  esac
+}
+
+homeless() {
+  case $# in
+    0) launch "chimera" "homeless" ;;
+    1) launch "chimera" "homeless" "$1" ;;
+    *) echo "Usage: homeless [<repo>]"; return 1 ;;
+  esac
+}
