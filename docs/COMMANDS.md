@@ -105,6 +105,15 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 
 ### Agent context setup
 
+## agent-skill
+**Что:** Управление repo-owned skills: создать шаблон, установить symlink в нужные runtime profiles, проверить frontmatter, links и isolation между daily/setup/wiki.
+**Запуск:**
+- `agent-skill list` — показать skills из `~/dotfiles/skills` и статус установки daily/setup/wiki
+- `agent-skill new <name>` — создать `~/dotfiles/skills/<name>/SKILL.md`
+- `agent-skill install` — поставить symlinks: setup skills в setup profiles, universal skills во все профили
+- `agent-skill doctor` — проверить YAML frontmatter, symlinks и отсутствие setup-only skills в daily/wiki profiles
+**Используй:** когда добавляешь/меняешь reusable skill. Для agent-led изменений сначала используй `skill-maintainer`.
+
 ## refresh-templates
 **Что:** Перегенерить AGENTS.md из шаблонов (~5 сек, envsubst подставляет имена, без codex).
 **Запуск:** `refresh-templates <co> [<prod>] [<repo>]`
@@ -162,7 +171,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ### Profiles
 
 ## agent
-**Что:** Переключить codex/claude профиль (legacy / new / wiki) в текущей shell.
+**Что:** Переключить codex/claude профиль (legacy / fresh / setup / wiki) в текущей shell.
 **Запуск:** `agent <profile>` или `agent status`
 
 ---

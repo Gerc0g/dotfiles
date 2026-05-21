@@ -3,6 +3,7 @@
 .env.*
 *credentials*
 *secret*
+!docs/platform/secrets-env.md
 shell/local.zsh
 docs/private/
 

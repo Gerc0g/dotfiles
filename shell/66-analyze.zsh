@@ -47,8 +47,8 @@ analyze-product() {
   echo "  Launching codex..."
   echo ""
 
-  export CODEX_HOME="$HOME/.codex-new"
-  export CLAUDE_CONFIG_DIR="$HOME/.claude-new"
+  export CODEX_HOME="$HOME/.codex-setup"
+  export CLAUDE_CONFIG_DIR="$HOME/.claude-setup"
 
   codex "Use skill analyze-product. cwd is product dir. Read all repos in subdirectories, identify services + inter-service communication + data flow + tech stack. Draft docs/ARCHITECTURE.md and propose docs/adr/ files. Don't auto-save — show me drafts first."
 }
@@ -79,8 +79,8 @@ analyze-repo() {
   echo "  Launching codex..."
   echo ""
 
-  export CODEX_HOME="$HOME/.codex-new"
-  export CLAUDE_CONFIG_DIR="$HOME/.claude-new"
+  export CODEX_HOME="$HOME/.codex-setup"
+  export CLAUDE_CONFIG_DIR="$HOME/.claude-setup"
 
   codex "Use skill analyze-repo. cwd is repo root. Read source code, manifest, README, recent git log. Derive module structure, key abstractions, external dependencies, non-obvious patterns. Draft docs/design.md and propose docs/adr/ files. Don't auto-save — show me drafts first."
 }

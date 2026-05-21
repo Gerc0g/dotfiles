@@ -13,8 +13,9 @@
 
 Rule: load parent / docs only when task requires.
 
-(PLATFORM rules + git protocol + DoD + When Blocked live in
-`~/dotfiles/agent-profiles/PLATFORM.md` — already loaded via profile.)
+Baseline rules live in `~/dotfiles/agent-profiles/BASELINE.md` and are loaded
+through the agent profile. Platform references live in
+`~/dotfiles/docs/platform/`; read them only when the task needs that workflow.
 
 ## What this repo does
 
@@ -47,6 +48,13 @@ Keep this section in sync with `Makefile`; do not invent separate commands here.
 - When adding a new test suite, runner, package manager, or quality gate, update `Makefile` first and then update this `AGENTS.md` section.
 - If no automated tests exist yet, make that explicit in `Makefile` (`test` target with a docs/smoke check or a clear "no automated tests configured" message).
 - Optional UI labels live in `.agents/commands.toml`; do not duplicate logic there if a Make target is enough.
+
+## Platform references
+
+- Git workflow: `~/dotfiles/docs/platform/git-workflow.md`
+- Secrets/env: `~/dotfiles/docs/platform/secrets-env.md`
+- Local infra: `~/dotfiles/docs/platform/local-infra.md`
+- ML/quant: `~/dotfiles/docs/platform/ml-quant-workflow.md`
 
 ## WikiPedik memory
 
@@ -89,7 +97,8 @@ Example: `All API methods return Result[T], NEVER throw — see src/utils/result
 🚫 Don't touch (без ask): `migrations/`, `vendor/`, `.env*`, repo-specific TODO
 ⚠️ Ask first: add new dependency, modify migrations
 
-(Universal git/platform rules — в PLATFORM.md.)
+(Universal safety and workflow rules live in BASELINE.md. Read platform
+references when this repo needs git, secrets, local infra, or ML/quant detail.)
 
 ## Lessons (organic)
 

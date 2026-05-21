@@ -33,8 +33,15 @@ TODO: 2-5 lines ASCII or text. Skip section if repos are independent / simple mo
 
 - Shared schemas/DTOs location: TODO (which repo or "none")
 - When changing API in X → update consumers in: TODO
-- (PLATFORM rules apply: atomic commits, tests in each touched repo)
+- Baseline rules apply: atomic commits, tests in each touched repo.
 - Repo-level `Makefile` targets are the executable test contract. If a product change adds or changes tests, update each affected repo's `Makefile` + `AGENTS.md` commands in the same change.
+
+## Platform references
+
+- Git workflow: `~/dotfiles/docs/platform/git-workflow.md`
+- Secrets/env: `~/dotfiles/docs/platform/secrets-env.md`
+- Local infra: `~/dotfiles/docs/platform/local-infra.md`
+- ML/quant: `~/dotfiles/docs/platform/ml-quant-workflow.md`
 
 ## Boundaries (product-specific)
 

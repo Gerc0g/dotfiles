@@ -56,8 +56,8 @@ fill-agents-md() {
     return 1
   fi
 
-  export CODEX_HOME="$HOME/.codex-new"
-  export CLAUDE_CONFIG_DIR="$HOME/.claude-new"
+  export CODEX_HOME="$HOME/.codex-setup"
+  export CLAUDE_CONFIG_DIR="$HOME/.claude-setup"
 
   echo "→ fill-agents-md at $(pwd)  [level: $level]"
 
@@ -153,8 +153,8 @@ batch-fill-agents() {
   mkdir -p "$logdir"
   local logfile="$logdir/fill-agents-${target_co}${target_prod:+-$target_prod}-${ts}.log"
 
-  export CODEX_HOME="$HOME/.codex-new"
-  export CLAUDE_CONFIG_DIR="$HOME/.claude-new"
+  export CODEX_HOME="$HOME/.codex-setup"
+  export CLAUDE_CONFIG_DIR="$HOME/.claude-setup"
 
   echo "→ batch-fill-agents"
   echo "  Company: $target_co${target_prod:+ / $target_prod}"

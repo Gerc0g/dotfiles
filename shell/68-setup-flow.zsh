@@ -194,8 +194,8 @@ setup-context() {
   read -k 1 c; echo
   [[ ! "$c" =~ [yY] ]] && echo "Aborted." && return 0
 
-  export CODEX_HOME="$HOME/.codex-new"
-  export CLAUDE_CONFIG_DIR="$HOME/.claude-new"
+  export CODEX_HOME="$HOME/.codex-setup"
+  export CLAUDE_CONFIG_DIR="$HOME/.claude-setup"
 
   local start=$(date +%s)
 

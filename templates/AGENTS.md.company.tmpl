@@ -3,7 +3,9 @@
 
 ## Context hierarchy
 
-PLATFORM rules (`~/dotfiles/agent-profiles/PLATFORM.md`) уже загружен через профиль.
+Baseline rules (`~/dotfiles/agent-profiles/BASELINE.md`) are loaded through
+the agent profile. Platform references live in `~/dotfiles/docs/platform/`.
+This file contains only ${CO}-specific context.
 This file = ${CO} specifics only.
 
 | Path | Read when |
@@ -31,9 +33,9 @@ TODO: `Willison-school` (production, review mandatory) | `Steinberger-style` (pe
 
 ## Stack overrides
 
-PLATFORM defaults: Python `uv` 3.11+, Node `pnpm` 20+, OrbStack, Alembic, ruff+black, pytest.
+Baseline defaults: Python `uv` 3.11+, Node `pnpm` 20+, OrbStack, Alembic, ruff+black, pytest.
 
-Document **only differences** from PLATFORM here. Empty if defaults apply.
+Document **only differences** from baseline here. Empty if defaults apply.
 
 <!-- TODO: list overrides (CI/CD platform, container registry, deployment target) -->
 
@@ -50,6 +52,8 @@ Document **only differences** from PLATFORM here. Empty if defaults apply.
 ## Secrets
 
 - All secrets via `secret add` → `${VAULT}` vault
+- Reference for 1Password, direnv, `.envrc`, env vars:
+  `~/dotfiles/docs/platform/secrets-env.md`.
 - PII / sensitive data: <!-- TODO --> TODO (none / GDPR / HIPAA / SOC2 / other)
 
 ## Cross-repo coordination
@@ -69,6 +73,13 @@ If unsure which repos consume → ask user.
 - `verify` must stay local and non-destructive: no migrations, deploys, broad cleanup, or external state mutation.
 - When a change adds a test suite, runner, package manager, or quality gate, update the affected repo's `Makefile` and `AGENTS.md` Commands section in the same change.
 - Product-level coordination still applies: run tests in every touched repo and update consumers when contracts change.
+
+## Platform references
+
+- Git workflow: `~/dotfiles/docs/platform/git-workflow.md`
+- Secrets/env: `~/dotfiles/docs/platform/secrets-env.md`
+- Local infra: `~/dotfiles/docs/platform/local-infra.md`
+- ML/quant: `~/dotfiles/docs/platform/ml-quant-workflow.md`
 
 ## External references
 
