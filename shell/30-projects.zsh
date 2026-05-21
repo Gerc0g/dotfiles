@@ -80,3 +80,11 @@ homeless() {
     *) echo "Usage: homeless [<repo>]"; return 1 ;;
   esac
 }
+
+neuroslop4ik() {
+  case $# in
+    0) launch "chimera" "neuroslop4ik" "NeuroSlop4ik" ;;
+    1) launch "chimera" "neuroslop4ik" "$1" ;;
+    *) echo "Usage: neuroslop4ik [<repo>]"; return 1 ;;
+  esac
+}

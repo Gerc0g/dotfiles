@@ -106,6 +106,12 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Запуск:** `homeless`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/homeless/`
 **Repos:** Jarvis Homeless
+
+## neuroslop4ik
+**Что:** Open tmux session for chimera/neuroslop4ik
+**Запуск:** `neuroslop4ik`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/neuroslop4ik/`
+**Repos:** NeuroSlop4ik
 ---
 
 ### Bootstrap
