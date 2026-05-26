@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install local agent monitoring integrations for isolated dotfiles profiles.
-# Currently integrates Masko Code with Claude profiles used by launch.
+# Integrates Masko Code with Claude hooks and dotfiles launch wrappers for Codex/Claude.
 
 set -euo pipefail
 
@@ -81,10 +81,12 @@ PYCODE
 configure_claude_masko_hooks "$HOME/.claude-new"
 configure_claude_masko_hooks "$HOME/.claude-setup"
 
-cat <<EOF
+cat <<'EOF'
 
-Masko integration installed for Claude profiles.
+Masko integration installed.
 Notes:
   - Existing running agent sessions must be restarted to emit SessionStart hooks.
-  - Codex is left to Masko's native session detection; Codex hook mode remains experimental and is not enabled here.
+  - Claude profiles use native hooks in ~/.claude-new and ~/.claude-setup.
+  - Codex sessions launched through dotfiles `launch`/product shortcuts are reported by scripts/masko-agent-wrap.sh.
+  - If Masko was restarted while agents were already running: bash ~/dotfiles/scripts/masko-resync-active.sh
 EOF

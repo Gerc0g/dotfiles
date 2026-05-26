@@ -19,8 +19,10 @@ fi
 
 session_id="dotfiles-${source_name}-${launch_session}-$$"
 export MASKO_DOTFILES_SESSION_ID="$session_id"
+MASKO_HOOK="${MASKO_HOOK:-$HOME/.masko-desktop/hooks/hook-sender.sh}"
+[ -x "$MASKO_HOOK" ] || MASKO_HOOK="$HOME/.masko-desktop/hooks/hook-sender"
 
-_masko_send() {
+_masko_payload() {
   local event_name=$1
   local exit_code=${2:-0}
   MASKO_EVENT_NAME="$event_name" \
@@ -29,29 +31,50 @@ _masko_send() {
   MASKO_REPO_DIR="$repo_dir" \
   MASKO_LAUNCH_SESSION="$launch_session" \
   MASKO_SESSION_ID="$session_id" \
-  python3 - <<'PYCODE' >/dev/null 2>&1 || true
+  python3 - <<'PYCODE'
 import json
 import os
-import urllib.request
 
 payload = {
     "hook_event_name": os.environ["MASKO_EVENT_NAME"],
     "session_id": os.environ["MASKO_SESSION_ID"],
     "source": os.environ["MASKO_SOURCE"],
     "cwd": os.environ["MASKO_REPO_DIR"],
+    "project_dir": os.environ["MASKO_REPO_DIR"],
     "launch_session": os.environ["MASKO_LAUNCH_SESSION"],
+    "process_id": os.getppid(),
 }
 if payload["hook_event_name"] == "SessionEnd":
     payload["exit_code"] = int(os.environ.get("MASKO_EXIT_CODE", "0") or "0")
 
+print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+PYCODE
+}
+
+_masko_send() {
+  local event_name=$1
+  local exit_code=${2:-0}
+  local payload
+  payload=$(_masko_payload "$event_name" "$exit_code") || return 0
+
+  if [ -x "$MASKO_HOOK" ]; then
+    printf '%s' "$payload" | "$MASKO_HOOK" >/dev/null 2>&1 || true
+    return 0
+  fi
+
+  MASKO_PAYLOAD="$payload" python3 - <<'PYCODE' >/dev/null 2>&1 || true
+import os
+import urllib.request
+
+payload = os.environ["MASKO_PAYLOAD"].encode("utf-8")
 try:
-    urllib.request.urlopen("http://localhost:45832/health", timeout=0.3).read()
+    urllib.request.urlopen("http://127.0.0.1:45832/health", timeout=0.3).read()
 except Exception:
     raise SystemExit(0)
 
 req = urllib.request.Request(
-    "http://localhost:45832/hook",
-    data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+    "http://127.0.0.1:45832/hook",
+    data=payload,
     headers={"Content-Type": "application/json"},
     method="POST",
 )
@@ -90,8 +113,23 @@ EOF
 }
 
 _masko_send SessionStart 0
+(
+  while true; do
+    sleep "${MASKO_HEARTBEAT_SECONDS:-60}"
+    _masko_send SessionStart 0
+  done
+) &
+heartbeat_pid=$!
+
+_cleanup_heartbeat() {
+  kill "$heartbeat_pid" >/dev/null 2>&1 || true
+  wait "$heartbeat_pid" >/dev/null 2>&1 || true
+}
+trap _cleanup_heartbeat EXIT INT TERM
+
 "$@"
 status=$?
+_cleanup_heartbeat
 _git_guard
 _masko_send SessionEnd "$status"
 exit "$status"
