@@ -64,6 +64,24 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - 🔮 **oracle** — `oracle-tui`: prompt + local answer history in `.agents/oracle/`, backed by `@steipete/oracle`
 **Зависит от:** tmux, codex, claude, oracle (`npm i -g @steipete/oracle`)
 
+
+## agent-workspace
+**Что:** создать и запустить изолированный git worktree для agent-задачи. Нужен, когда несколько агентов могут писать в один repo или product-agent делает межреповую работу.
+**Запуск:**
+- `healler --agent epic-04` — короткий UX для default repo shortcut.
+- `agent-workspace launch <co> <prod> <repo> <task>` — создать worktree и открыть стандартный 4-pane layout.
+- `agent-workspace list` — список agent worktrees.
+- `agent-workspace status` — `git status` по всем agent worktrees.
+- `agent-workspace remove <co> <prod> <repo> <task>` — удалить clean worktree.
+**Git:** base branch = `dev`, иначе `main`; branch = `agent/<task>`.
+
+## agent-commit / agent-task-push
+**Что:** git discipline для агентов.
+**Запуск:**
+- `agent-commit.sh "feat(scope): русское описание" -- <explicit paths>` — локальный атомарный commit после завершённого logical change.
+- `agent-task-push.sh` — push текущей task branch после завершения задачи/ветки.
+**Правила:** no `git add .`, no force, no rebase, push не на каждый commit.
+
 ## wikipedik
 **Что:** tmux с двумя codex: dev + research wiki vaults параллельно. (Obsidian vaults, не код-репы.)
 **Запуск:** `wikipedik`
@@ -112,6 +130,12 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Запуск:** `neuroslop4ik`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/neuroslop4ik/`
 **Repos:** NeuroSlop4ik
+
+## comonline
+**Что:** Open tmux session for chimera/comonline
+**Запуск:** `comonline`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/comonline/`
+**Repos:** ComaOnline-Sources
 ---
 
 ### Bootstrap

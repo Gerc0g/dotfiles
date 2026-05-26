@@ -206,14 +206,27 @@ _launch_session() {
   [ -d "$repo_dir" ] || { echo "⚠ Not found: $repo_dir"; return 1; }
   [ -d "$repo_dir/.git" ] || { echo "⚠ Not a git repo: $repo_dir"; return 1; }
 
-  local session="${co}-${prod}-${repo}"
-  local work_label="🖥 ${repo}"
+  _launch_session_path "${co}-${prod}-${repo}" "$repo_dir" "🖥 ${repo}"
+}
+
+_launch_session_path() {
+  local session=$1 repo_dir=$2 work_label=$3
+
+  [ -d "$repo_dir" ] || { echo "⚠ Not found: $repo_dir"; return 1; }
+  [ -d "$repo_dir/.git" ] || [ -f "$repo_dir/.git" ] || { echo "⚠ Not a git worktree: $repo_dir"; return 1; }
 
   tmux kill-session -t "$session" 2>/dev/null
 
   export CODEX_HOME="$HOME/.codex-new"
   export CLAUDE_CONFIG_DIR="$HOME/.claude-new"
-  local fresh_env='export CODEX_HOME="$HOME/.codex-new"; export CLAUDE_CONFIG_DIR="$HOME/.claude-new";'
+  export AGENT_GIT_MODE="commit-local"
+  export AGENT_GIT_PUSH="task"
+  export AGENT_WORKSPACE_MODE="shared"
+  if [ -f "$repo_dir/.agent-workspace" ]; then
+    export AGENT_WORKSPACE_MODE="agent"
+  fi
+
+  local fresh_env='export CODEX_HOME="$HOME/.codex-new"; export CLAUDE_CONFIG_DIR="$HOME/.claude-new"; export AGENT_GIT_MODE="commit-local"; export AGENT_GIT_PUSH="task"; export AGENT_WORKSPACE_MODE="'"$AGENT_WORKSPACE_MODE"'";'
 
   local test_cmd
   test_cmd=$(_launch_detect_test "$repo_dir")
@@ -228,7 +241,7 @@ _launch_session() {
     "codex $LAUNCH_PLAN_MODEL  reasoning=$LAUNCH_PLAN_REASONING" \
     "spec writing, decomposition, design discussion" \
     "$session" \
-    "codex --model $LAUNCH_PLAN_MODEL -c model_reasoning_effort=\"$LAUNCH_PLAN_REASONING\""
+    "bash \"\$HOME/dotfiles/scripts/masko-agent-wrap.sh\" codex \"$repo_dir\" \"$session\" -- codex --model $LAUNCH_PLAN_MODEL -c model_reasoning_effort=\"$LAUNCH_PLAN_REASONING\""
 
   _launch_write_banner_script "$tmpdir/code.sh" \
     "💻 CODE" \
@@ -236,7 +249,7 @@ _launch_session() {
     "claude code" \
     "writing, refactoring, applying changes" \
     "$session" \
-    "claude"
+    "bash \"\$HOME/dotfiles/scripts/masko-agent-wrap.sh\" claudeCode \"$repo_dir\" \"$session\" -- claude"
 
   _launch_write_test_banner "$tmpdir/test.sh" "$session" "$test_cmd" "$repo_dir"
 
@@ -253,6 +266,9 @@ _launch_session() {
   plan_pane=$(tmux new-session -d -s "$session" -c "$repo_dir" -n "work" -P -F '#{pane_id}')
   tmux set-environment -t "$session" CODEX_HOME "$HOME/.codex-new"
   tmux set-environment -t "$session" CLAUDE_CONFIG_DIR "$HOME/.claude-new"
+  tmux set-environment -t "$session" AGENT_GIT_MODE "commit-local"
+  tmux set-environment -t "$session" AGENT_GIT_PUSH "task"
+  tmux set-environment -t "$session" AGENT_WORKSPACE_MODE "$AGENT_WORKSPACE_MODE"
   tmux set-option -t "$session" status-left " ${work_label} "
   tmux set-option -t "$session" set-titles on
   tmux set-option -t "$session" set-titles-string "${work_label}"

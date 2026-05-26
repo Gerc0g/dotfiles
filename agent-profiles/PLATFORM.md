@@ -97,6 +97,26 @@ Examples (✅ atomic, ❌ bundled):
 - Conventional Commits format: `feat|fix|refactor|build|ci|chore|docs|style|perf|test(scope): description`
 - No repo-wide search/replace scripts; keep edits small and reviewable
 
+
+### Managed agent workspaces and commit mode
+
+When `AGENT_GIT_MODE=commit-local`, the user has delegated local atomic
+commits for this agent session. In that mode:
+
+- After every completed logical change, run:
+  `~/dotfiles/scripts/agent-commit.sh "type(scope): русское описание" -- <explicit paths>`
+- Push only when the logical task/branch is complete, using:
+  `~/dotfiles/scripts/agent-task-push.sh`
+- No force-push, no rebase, no merge, no `git add .`, no `git add -A`.
+- Do not start the next feature/epic while the completed change is dirty/uncommitted.
+- Shared checkout branch switching is forbidden. Do not `git checkout` /
+  `git switch` in a shared repo if another agent may be using it.
+- Product-level or multi-repo writing work must use a managed worktree:
+  `agent-workspace launch <company> <product> <repo> <task-slug>`.
+- Default integration branch is `dev` when present, otherwise `main`; agent
+  branches are named `agent/<task-slug>` and merge/PR back into the integration
+  branch.
+
 ### Language: commit messages in Russian
 
 Default convention: Conventional Commits prefix in English (tooling-friendly),
@@ -283,7 +303,7 @@ If session was multi-step: end in branch/checkout user expects (not detached HEA
 
 ### Push & remote
 
-- NEVER `git push` without explicit user ask
+- NEVER `git push` without explicit user ask, except when explicitly finishing an agent task with `agent-task-push.sh`
 - NEVER `--force-push` unless user explicitly says "force"
 - NEVER amend pushed commits unless user explicitly asks
 - `git pull` ok when user asks ("pull and push" = consent for both)
@@ -390,7 +410,7 @@ Wiki git policy:
 - `wiki-commit` / `wiki sync --commit` uses the company `git_email` from `~/Desktop/Prokectfiles/<company>/.company-config` when present.
 - Daily agents do not auto-commit or auto-push memory. They append candidates only; curator commands handle git sync.
 - Never push wiki changes unless the user explicitly asked for `--push` or a manual `git push`.
-- WikiPedik commits go directly to `main`; do not use product delivery flow (`dev` as stage, `main` as prod, feature branches) for wiki curation.
+- WikiPedik commits go directly to `main`; do not use product delivery flow (`dev` as stage, `main` as prod, feature branches) for wiki curation. Push still happens only at explicit sync/task completion.
 - WikiPedik commit messages follow the same language convention: English Conventional Commit type/scope, Russian description.
 
 ## Definition of Done (universal)

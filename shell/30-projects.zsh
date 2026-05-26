@@ -7,6 +7,15 @@ _project_launch() {
   local co=$1 prod=$2 default_repo=$3
   shift 3
 
+  if [ "${1:-}" = "--agent" ]; then
+    local task=${2:-}
+    local repo=${3:-$default_repo}
+    [ -n "$task" ] || { echo "Usage: $prod --agent <task-slug> [<repo>]"; return 1; }
+    [ -n "$repo" ] || { echo "Usage: $prod --agent <task-slug> <repo>"; return 1; }
+    agent-workspace launch "$co" "$prod" "$repo" "$task"
+    return $?
+  fi
+
   case $# in
     0)
       if [ -n "$default_repo" ]; then
@@ -19,7 +28,7 @@ _project_launch() {
       launch "$co" "$prod" "$1"
       ;;
     *)
-      echo "Usage: $prod [<repo>]"
+      echo "Usage: $prod [<repo>] | $prod --agent <task-slug> [<repo>]"
       return 1
       ;;
   esac
@@ -66,25 +75,21 @@ saas() {
 }
 
 aetheria() {
-  case $# in
-    0) launch "chimera" "aetheria" ;;
-    1) launch "chimera" "aetheria" "$1" ;;
-    *) echo "Usage: aetheria [<repo>]"; return 1 ;;
-  esac
+  _project_launch chimera aetheria "" "$@"
 }
 
 homeless() {
-  case $# in
-    0) launch "chimera" "homeless" ;;
-    1) launch "chimera" "homeless" "$1" ;;
-    *) echo "Usage: homeless [<repo>]"; return 1 ;;
-  esac
+  _project_launch chimera homeless "" "$@"
+}
+
+healler() {
+  _project_launch chimera homeless Healler "$@"
 }
 
 neuroslop4ik() {
-  case $# in
-    0) launch "chimera" "neuroslop4ik" "NeuroSlop4ik" ;;
-    1) launch "chimera" "neuroslop4ik" "$1" ;;
-    *) echo "Usage: neuroslop4ik [<repo>]"; return 1 ;;
-  esac
+  _project_launch chimera neuroslop4ik NeuroSlop4ik "$@"
+}
+
+comonline() {
+  _project_launch chimera comonline ComaOnline-Sources "$@"
 }

@@ -81,13 +81,21 @@ bash ~/dotfiles/skills-stash/wiki/scripts/install-wiki-runtime.sh || {
   echo "  bash ~/dotfiles/skills-stash/wiki/scripts/install-wiki-runtime.sh"
 }
 
-# === 9. Agent skills ===
+# === 9. Agent monitoring ===
+echo ""
+echo "→ Installing agent monitoring integrations..."
+bash ~/dotfiles/scripts/install-agent-monitoring.sh || {
+  echo "⚠ Agent monitoring install failed — run manually:"
+  echo "  bash ~/dotfiles/scripts/install-agent-monitoring.sh"
+}
+
+# === 10. Agent skills ===
 echo ""
 echo "→ Installing agent skills..."
 bash ~/dotfiles/scripts/agent-skill.sh install
 bash ~/dotfiles/scripts/agent-skill.sh doctor
 
-# === 10. Claude LSP plugins ===
+# === 11. Claude LSP plugins ===
 echo ""
 echo "→ Configuring Claude LSP plugins..."
 configure_claude_profile() {
@@ -160,11 +168,11 @@ install_claude_lsp_plugins "$HOME/.claude-new"
 install_claude_lsp_plugins "$HOME/.claude-setup"
 echo "✓ Claude LSP plugins configured (pyright, vtsls, yaml-language-server)"
 
-# === 11. ~/work directory ===
+# === 12. ~/work directory ===
 mkdir -p ~/Desktop/Prokectfiles
 echo "✓ ~/Desktop/Prokectfiles/ ready"
 
-# === 12. Подключить loader в .zshrc ===
+# === 13. Подключить loader в .zshrc ===
 if ! grep -q "dotfiles/shell/_loader.zsh" ~/.zshrc 2>/dev/null; then
   echo "" >> ~/.zshrc
   echo "# === Personal Platform ===" >> ~/.zshrc
@@ -174,7 +182,7 @@ else
   echo "✓ Loader already in ~/.zshrc"
 fi
 
-# === 13. Проверка OrbStack ===
+# === 14. Проверка OrbStack ===
 if command -v docker >/dev/null 2>&1; then
   if docker ps >/dev/null 2>&1; then
     echo "✓ Docker runtime (OrbStack) работает"
