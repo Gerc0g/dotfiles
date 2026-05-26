@@ -82,7 +82,7 @@ new-company <company> <vcs[:host]> <namespace> [email]
 new-project <company> <product> [--ns=<namespace>] [repo...]
 setup-context <company> [product] [repo]
 complete-onboard <company> [product] [repo]
-launch <company> <product> <repo> <task>
+launch <company> <product> <repo>
 wiki bootstrap <company> [product] [repo]
 wiki sync --commit <company/product/repo>
 agent-skill list
@@ -192,7 +192,7 @@ Do not write reusable skills directly into `~/.codex-*` or `~/.claude-*`.
 
 ## Launch Layout
 
-`launch <company> <product> <repo> <task>` creates a managed agent worktree and opens one tmux window with four panes:
+`launch <company> <product> <repo>` creates a managed agent worktree and opens one tmux window with four panes:
 
 | Pane | Role | Tool |
 |---|---|---|
@@ -382,7 +382,7 @@ wiki bootstrap <company> [product] [repo]
 Open the repo:
 
 ```bash
-launch <company> <product> <repo> <task>
+launch <company> <product> <repo>
 ```
 
 ## Secrets

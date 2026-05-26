@@ -53,11 +53,11 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ## launch
 **Что:** Запустить agent workspace для одного репо с 4-pane layout. Daily code work всегда идёт через managed git worktree, не через shared main/dev checkout.
 **Запуск:**
-- `launch` — interactive picker: company → product → repo → task slug
-- `launch <co>` — указал компанию, пикер для product + repo, потом task slug
-- `launch <co> <prod>` — пикер для repo, потом task slug
-- `launch <co> <prod> <repo>` — direct repo, потом task slug
-- `launch <co> <prod> <repo> <task>` — fully direct
+- `launch` — interactive picker: company → product → repo
+- `launch <co>` — указал компанию, пикер для product + repo, default task `work`
+- `launch <co> <prod>` — пикер для repo, default task `work`
+- `launch <co> <prod> <repo>` — direct repo, default task `work`
+- `launch <co> <prod> <repo> <task>` — fully direct with custom task
 **Panes:**
 - 🧠 **plan** — codex gpt-5.4 high reasoning (architect / planner)
 - 💻 **code** — claude code (implementer)

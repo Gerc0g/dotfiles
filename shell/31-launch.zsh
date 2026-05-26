@@ -8,10 +8,10 @@
 # **Что:** Запустить tmux session для одного репо с 4 окнами: plan / code / test / oracle.
 # Атомарность работы — repo (по ресерчу snapshot). Координация — на уровне продукта.
 # **Запуск:**
-# - `launch` — interactive: company → product → repo → task slug
-# - `launch <co>` — start from company; pick product + repo, then task slug
-# - `launch <co> <prod>` — start from product; pick repo, then task slug
-# - `launch <co> <prod> <repo>` — direct repo, then task slug
+# - `launch` — interactive: company → product → repo
+# - `launch <co>` — start from company; pick product + repo
+# - `launch <co> <prod>` — start from product; pick repo
+# - `launch <co> <prod> <repo>` — direct repo with default task `work`
 # - `launch <co> <prod> <repo> <task-slug>` — fully direct safe worktree launch
 # **Окна:**
 # - 🧠 plan    — codex high reasoning (architect)
@@ -199,7 +199,7 @@ launch() {
   esac
 
   if [ -z "${task:-}" ]; then
-    task=$(_project_task_prompt) || return 1
+    task=work
   fi
 
   agent-workspace launch "$co" "$prod" "$repo" "$task"

@@ -4,23 +4,11 @@
 # the standard 4-pane layout inside a managed git worktree so agents do not
 # write into shared main/dev checkouts by accident.
 
-_project_task_prompt() {
-  local task
-
-  print -P "%F{cyan}Task slug:%f " >&2
-  read -r task
-  task=${task//[[:space:]]/-}
-  [ -n "$task" ] || { echo "Task slug is required for agent workspace launch." >&2; return 1; }
-  print -r -- "$task"
-}
-
 _project_safe_launch() {
-  local co=$1 prod=$2 repo=$3 task=${4:-}
+  local co=$1 prod=$2 repo=$3 task=${4:-work}
 
   [ -n "$repo" ] || { echo "Repo is required." >&2; return 1; }
-  if [ -z "$task" ]; then
-    task=$(_project_task_prompt) || return 1
-  fi
+  [ -n "$task" ] || task=work
 
   agent-workspace launch "$co" "$prod" "$repo" "$task"
 }
