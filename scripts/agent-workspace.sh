@@ -204,7 +204,7 @@ start_workspace() {
   base_ref=$(base_ref_for "$repo_dir")
   [ -n "$base_ref" ] || { echo "error: cannot detect base branch for $repo_dir" >&2; exit 65; }
 
-  git -C "$repo_dir" worktree add "$wt_dir" -b "$branch" "$base_ref"
+  git -C "$repo_dir" worktree add --quiet "$wt_dir" -b "$branch" "$base_ref" >&2
 
   git -C "$wt_dir" config user.name "$(company_name "$co")"
   email=$(company_email "$co" || true)
