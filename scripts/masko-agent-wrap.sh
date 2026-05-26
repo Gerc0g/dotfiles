@@ -84,8 +84,8 @@ Required next step for agents:
   ~/dotfiles/scripts/agent-commit.sh "type(scope): русское описание" -- <explicit paths>
 
 Do not start the next feature/epic until the completed logical change is committed locally.
-Push only when the task/branch is complete:
-  ~/dotfiles/scripts/agent-task-push.sh
+Finish only when the task/branch is complete:
+  ~/dotfiles/scripts/agent-finish.sh
 EOF
 }
 

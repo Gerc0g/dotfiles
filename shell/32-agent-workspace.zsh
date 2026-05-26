@@ -1,5 +1,6 @@
 # Managed agent workspaces built on git worktree.
-# Normal launch remains unchanged. Use `<project> --agent <task>` for isolated work.
+# Daily project launch commands use this by default. Keep this command as the
+# lower-level escape hatch for listing/removing worktrees.
 
 agent-workspace() {
   local cmd=${1:-}
@@ -15,7 +16,7 @@ agent-workspace() {
       label="🖥 ${repo}/${task_slug}"
       _launch_session_path "$session" "$wt" "$label"
       ;;
-    start|list|status|remove)
+    start|list|status|cleanup|ready|remove)
       bash "$HOME/dotfiles/scripts/agent-workspace.sh" "$@"
       ;;
     *)
@@ -25,12 +26,14 @@ Usage:
   agent-workspace start  <company> <product> <repo> <task-slug>
   agent-workspace list
   agent-workspace status
-  agent-workspace remove <company> <product> <repo> <task-slug>
+  agent-workspace cleanup [--days N] [--dry-run]
+  agent-workspace ready <company> <product> <repo> <worktree-id>
+  agent-workspace remove <company> <product> <repo> <worktree-id>
 
-Project shortcuts also support:
-  healler --agent epic-04
-  neuroslop4ik --agent script-runtime
-  comonline --agent ingest-archive
+Daily project shortcuts call this automatically:
+  healler epic-04
+  agents synapse ticket-quality
+  comonline ingest-archive
 EOF
       return 1
       ;;

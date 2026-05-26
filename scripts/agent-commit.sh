@@ -11,7 +11,7 @@ Usage: agent-commit.sh "type(scope): русское описание" -- path/to
 Rules:
   - explicit paths only; never git add . or git add -A
   - commits one logical change
-  - does not push; use agent-task-push.sh when the task/branch is complete
+  - does not push; use agent-finish.sh when the task/branch is complete
   - no force, no rebase, no merge
 EOF
 }
@@ -129,4 +129,4 @@ git diff --cached --stat
 printf '\n--- committing ---\n'
 git commit -m "$message" -- "${paths[@]}"
 printf '\n✓ committed locally: %s\n' "$message"
-printf 'Next when task is complete: agent-task-push.sh\n'
+printf 'Next when task is complete: agent-finish.sh\n'

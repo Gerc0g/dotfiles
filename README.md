@@ -70,7 +70,7 @@ Open the WikiPedik vault in Obsidian:
 ```bash
 ?                    # command index
 ? <cmd>              # command details
-launch               # interactive company/product/repo launcher
+launch               # interactive safe worktree launcher
 wiki                 # open WikiPedik product repo
 agent status         # current Codex/Claude profile env
 ```
@@ -82,7 +82,7 @@ new-company <company> <vcs[:host]> <namespace> [email]
 new-project <company> <product> [--ns=<namespace>] [repo...]
 setup-context <company> [product] [repo]
 complete-onboard <company> [product] [repo]
-launch <company> <product> <repo>
+launch <company> <product> <repo> <task>
 wiki bootstrap <company> [product] [repo]
 wiki sync --commit <company/product/repo>
 agent-skill list
@@ -192,7 +192,7 @@ Do not write reusable skills directly into `~/.codex-*` or `~/.claude-*`.
 
 ## Launch Layout
 
-`launch <company> <product> <repo>` opens one tmux window with four panes:
+`launch <company> <product> <repo> <task>` creates a managed agent worktree and opens one tmux window with four panes:
 
 | Pane | Role | Tool |
 |---|---|---|
@@ -201,10 +201,20 @@ Do not write reusable skills directly into `~/.codex-*` or `~/.claude-*`.
 | `test` | selectable local checks with logs | `tools/test-tui` |
 | `oracle` | second-model review / saved answers | `tools/oracle-tui` + `@steipete/oracle` |
 
+Git flow:
+
+```text
+worktree path: ~/Desktop/Prokectfiles/.worktrees/<company>/<product>/<repo>/<id>
+branch: agent/<task>-<id>
+commit: agent-commit.sh "type(scope): русское описание" -- <explicit paths>
+finish: agent-finish.sh  # verify/test → push → draft PR/MR → review metadata
+cleanup: agent-workspace cleanup
+```
+
 tmux tab title:
 
 ```text
-🖥 <repo>
+🖥 <repo>/<id>
 ```
 
 Pane border labels are intentionally short:
@@ -372,7 +382,7 @@ wiki bootstrap <company> [product] [repo]
 Open the repo:
 
 ```bash
-launch <company> <product> <repo>
+launch <company> <product> <repo> <task>
 ```
 
 ## Secrets

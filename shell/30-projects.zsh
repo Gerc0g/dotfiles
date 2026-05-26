@@ -1,7 +1,29 @@
 # Project launch shortcuts.
 #
-# Product commands are thin wrappers around `launch`, so a repo opens with
-# the standard 4-window layout: plan / code / test / oracle.
+# Product commands are the daily entrypoint for writing work. They always open
+# the standard 4-pane layout inside a managed git worktree so agents do not
+# write into shared main/dev checkouts by accident.
+
+_project_task_prompt() {
+  local task
+
+  print -P "%F{cyan}Task slug:%f " >&2
+  read -r task
+  task=${task//[[:space:]]/-}
+  [ -n "$task" ] || { echo "Task slug is required for agent workspace launch." >&2; return 1; }
+  print -r -- "$task"
+}
+
+_project_safe_launch() {
+  local co=$1 prod=$2 repo=$3 task=${4:-}
+
+  [ -n "$repo" ] || { echo "Repo is required." >&2; return 1; }
+  if [ -z "$task" ]; then
+    task=$(_project_task_prompt) || return 1
+  fi
+
+  agent-workspace launch "$co" "$prod" "$repo" "$task"
+}
 
 _project_launch() {
   local co=$1 prod=$2 default_repo=$3
@@ -12,23 +34,38 @@ _project_launch() {
     local repo=${3:-$default_repo}
     [ -n "$task" ] || { echo "Usage: $prod --agent <task-slug> [<repo>]"; return 1; }
     [ -n "$repo" ] || { echo "Usage: $prod --agent <task-slug> <repo>"; return 1; }
-    agent-workspace launch "$co" "$prod" "$repo" "$task"
+    _project_safe_launch "$co" "$prod" "$repo" "$task"
     return $?
   fi
 
   case $# in
     0)
       if [ -n "$default_repo" ]; then
-        launch "$co" "$prod" "$default_repo"
+        _project_safe_launch "$co" "$prod" "$default_repo"
       else
-        launch "$co" "$prod"
+        local repos=($(_launch_list_repos "$co" "$prod"))
+        [ ${#repos[@]} -eq 0 ] && { echo "⚠ No repos in $co/$prod"; return 1; }
+        local repo
+        repo=$(_launch_pick "Repos in ${co}/${prod}:" "${repos[@]}") || return 1
+        _project_safe_launch "$co" "$prod" "$repo"
       fi
       ;;
     1)
-      launch "$co" "$prod" "$1"
+      if [ -n "$default_repo" ]; then
+        _project_safe_launch "$co" "$prod" "$default_repo" "$1"
+      else
+        _project_safe_launch "$co" "$prod" "$1"
+      fi
+      ;;
+    2)
+      if [ -n "$default_repo" ]; then
+        echo "Usage: $prod [<task-slug>] | $prod --agent <task-slug> [<repo>]" >&2
+        return 1
+      fi
+      _project_safe_launch "$co" "$prod" "$1" "$2"
       ;;
     *)
-      echo "Usage: $prod [<repo>] | $prod --agent <task-slug> [<repo>]"
+      echo "Usage: $prod [<repo> [<task-slug>]] | $prod --agent <task-slug> [<repo>]"
       return 1
       ;;
   esac

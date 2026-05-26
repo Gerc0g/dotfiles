@@ -8,10 +8,11 @@
 # **Что:** Запустить tmux session для одного репо с 4 окнами: plan / code / test / oracle.
 # Атомарность работы — repo (по ресерчу snapshot). Координация — на уровне продукта.
 # **Запуск:**
-# - `launch` — interactive: company → product → repo
-# - `launch <co>` — start from company; pick product + repo
-# - `launch <co> <prod>` — start from product; pick repo
-# - `launch <co> <prod> <repo>` — direct
+# - `launch` — interactive: company → product → repo → task slug
+# - `launch <co>` — start from company; pick product + repo, then task slug
+# - `launch <co> <prod>` — start from product; pick repo, then task slug
+# - `launch <co> <prod> <repo>` — direct repo, then task slug
+# - `launch <co> <prod> <repo> <task-slug>` — fully direct safe worktree launch
 # **Окна:**
 # - 🧠 plan    — codex high reasoning (architect)
 # - 💻 code    — claude code (implementer)
@@ -157,7 +158,7 @@ EOF
 # ─── Main launcher ───
 
 launch() {
-  local co prod repo
+  local co prod repo task
 
   case $# in
     0)
@@ -188,13 +189,20 @@ launch() {
     3)
       co=$1; prod=$2; repo=$3
       ;;
+    4)
+      co=$1; prod=$2; repo=$3; task=$4
+      ;;
     *)
-      echo "Usage: launch [<co> [<prod> [<repo>]]]"
+      echo "Usage: launch [<co> [<prod> [<repo> [<task-slug>]]]]"
       return 1
       ;;
   esac
 
-  _launch_session "$co" "$prod" "$repo"
+  if [ -z "${task:-}" ]; then
+    task=$(_project_task_prompt) || return 1
+  fi
+
+  agent-workspace launch "$co" "$prod" "$repo" "$task"
 }
 
 # ─── Session builder ───

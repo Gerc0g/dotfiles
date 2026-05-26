@@ -20,6 +20,16 @@ repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
 }
 cd "$repo_root"
 
+ensure_worktree_excludes() {
+  local exclude_file
+  exclude_file=$(git rev-parse --git-path info/exclude)
+  mkdir -p "$(dirname "$exclude_file")"
+  touch "$exclude_file"
+  grep -qxF '.agent-workspace' "$exclude_file" || echo '.agent-workspace' >> "$exclude_file"
+}
+
+[ -f .agent-workspace ] && ensure_worktree_excludes
+
 branch=$(git branch --show-current)
 if [ -z "$branch" ]; then
   echo "error: detached HEAD; refusing to push" >&2
@@ -55,4 +65,18 @@ printf '\n--- branch status ---\n'
 git status --short --branch
 printf '\n--- pushing task branch ---\n'
 git push -u origin HEAD
+
+if [ -f .agent-workspace ]; then
+  tmp=$(mktemp)
+  awk -F= '$1 != "cleanup_state" && $1 != "pushed_at" && $1 != "pushed_branch"' .agent-workspace > "$tmp"
+  {
+    cat "$tmp"
+    echo "cleanup_state=pushed"
+    echo "pushed_at=$(date '+%Y-%m-%d %H:%M:%S')"
+    echo "pushed_branch=$branch"
+  } > .agent-workspace
+  rm -f "$tmp"
+fi
+
 printf '\n✓ pushed task branch: %s\n' "$branch"
+printf 'Worktree marked pushed. Run agent-finish.sh to open review, or mark ready manually after review.\n'

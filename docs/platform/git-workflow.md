@@ -12,8 +12,8 @@ reviewing staged/unstaged changes.
 - Commit after each logical change when the user asks to commit, or automatically in `AGENT_GIT_MODE=commit-local`.
 - Conventional Commit prefix/scope in English; description in Russian by
   default.
-- Do not push, force-push, rebase pushed commits, merge PRs/MRs, or delete
-  branches without explicit user ask. Exception: a completed agent task may push once with `agent-task-push.sh`.
+- Do not raw-push, force-push, rebase pushed commits, merge PRs/MRs, or delete
+  branches without explicit user ask. Exception: a completed agent task finishes through `agent-finish.sh`, which verifies, pushes the task branch, and opens a draft PR/MR without merging.
 
 ## Branches
 
@@ -48,14 +48,15 @@ For parallel or multi-repo agent work, avoid writing in the shared checkout. Use
 managed worktrees:
 
 ```bash
-agent-workspace launch <company> <product> <repo> <task-slug>
+launch <company> <product> <repo> <task-slug>
+# or: agent-workspace launch <company> <product> <repo> <task-slug>
 ```
 
 Rules:
 
 - default base branch is `dev` when present, otherwise `main`;
-- agent branch is `agent/<task-slug>`;
-- commit-local mode commits every completed logical change; task push happens once with `agent-task-push.sh`;
+- worktree path uses a short id; agent branch is `agent/<task-slug>-<id>`;
+- commit-local mode commits every completed logical change; task finish happens once with `agent-finish.sh`;
 - never switch branches in a shared checkout when another agent may be active;
 - stash is only an emergency tool, not the normal coordination model.
 
@@ -66,6 +67,6 @@ Before declaring ready:
 - self-review diff against target branch;
 - run relevant local verification;
 - report touched files and residual risk;
-- do not push or open/merge remotely unless the user explicitly asked.
+- in agent worktrees, use `agent-finish.sh` to push and open a draft PR/MR; do not merge remotely unless the user explicitly asked.
 
 Deep reference: `~/dotfiles/agent-profiles/PLATFORM.md` section "Git protocol".

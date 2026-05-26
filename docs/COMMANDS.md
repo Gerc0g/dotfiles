@@ -51,12 +51,13 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ### Workspaces
 
 ## launch
-**Что:** Запустить tmux session для одного репо с 4-pane layout (Steinberger pattern). Атомарность работы = repo (по ресерчу).
+**Что:** Запустить agent workspace для одного репо с 4-pane layout. Daily code work всегда идёт через managed git worktree, не через shared main/dev checkout.
 **Запуск:**
-- `launch` — interactive picker: company → product → repo
-- `launch <co>` — указал компанию, пикер для product + repo
-- `launch <co> <prod>` — пикер для repo
-- `launch <co> <prod> <repo>` — direct
+- `launch` — interactive picker: company → product → repo → task slug
+- `launch <co>` — указал компанию, пикер для product + repo, потом task slug
+- `launch <co> <prod>` — пикер для repo, потом task slug
+- `launch <co> <prod> <repo>` — direct repo, потом task slug
+- `launch <co> <prod> <repo> <task>` — fully direct
 **Panes:**
 - 🧠 **plan** — codex gpt-5.4 high reasoning (architect / planner)
 - 💻 **code** — claude code (implementer)
@@ -66,21 +67,29 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 
 
 ## agent-workspace
-**Что:** создать и запустить изолированный git worktree для agent-задачи. Нужен, когда несколько агентов могут писать в один repo или product-agent делает межреповую работу.
+**Что:** нижнеуровневое управление managed git worktrees. Обычные project shortcuts (`agents synapse ticket-quality`, `healler epic-04`) вызывают это автоматически.
 **Запуск:**
-- `healler --agent epic-04` — короткий UX для default repo shortcut.
 - `agent-workspace launch <co> <prod> <repo> <task>` — создать worktree и открыть стандартный 4-pane layout.
-- `agent-workspace list` — список agent worktrees.
+- `agent-workspace list` — список agent worktrees с id/task/branch/state/dirty.
 - `agent-workspace status` — `git status` по всем agent worktrees.
-- `agent-workspace remove <co> <prod> <repo> <task>` — удалить clean worktree.
-**Git:** base branch = `dev`, иначе `main`; branch = `agent/<task>`.
+- `agent-workspace cleanup [--days N] [--dry-run]` — удалить только clean + pushed + ready/merged worktrees.
+- `agent-workspace ready <co> <prod> <repo> <id>` — вручную пометить clean+pushed worktree готовым к cleanup.
+- `agent-workspace remove <co> <prod> <repo> <id>` — удалить clean worktree по короткому id.
+**Git:** base branch = `dev`, иначе `main`; path = короткий id; branch = `agent/<task>-<id>`.
 
-## agent-commit / agent-task-push
-**Что:** git discipline для агентов.
+## agent-commit
+**Что:** локальный атомарный commit для agent worktree.
 **Запуск:**
-- `agent-commit.sh "feat(scope): русское описание" -- <explicit paths>` — локальный атомарный commit после завершённого logical change.
-- `agent-task-push.sh` — push текущей task branch после завершения задачи/ветки.
-**Правила:** no `git add .`, no force, no rebase, push не на каждый commit.
+- `agent-commit.sh "feat(scope): русское описание" -- <explicit paths>` — commit после завершённого logical change.
+**Правила:** explicit paths only; no `git add .`, no force, no rebase, не push.
+
+## agent-finish
+**Что:** финал agent-задачи: verify/test, push branch, открыть draft PR/MR в integration branch, записать review metadata.
+**Запуск:**
+- `agent-finish.sh` — основной финальный flow.
+- `agent-finish.sh --base dev --title "feat(scope): описание"` — override base/title.
+- `agent-task-push.sh` — низкоуровневый fallback push без PR/MR.
+**Правила:** push не на каждый commit; merge не выполняется автоматически.
 
 ## wikipedik
 **Что:** tmux с двумя codex: dev + research wiki vaults параллельно. (Obsidian vaults, не код-репы.)
