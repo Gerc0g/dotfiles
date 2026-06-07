@@ -57,6 +57,11 @@ company_name() {
 
 base_ref_for() {
   local repo_dir=$1
+  if ! git -C "$repo_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
+    echo __orphan__
+    return
+  fi
+
   git -C "$repo_dir" fetch origin --prune >/dev/null 2>&1 || true
   if git -C "$repo_dir" show-ref --verify --quiet refs/remotes/origin/dev; then
     echo origin/dev
@@ -97,6 +102,11 @@ ensure_worktree_excludes() {
   mkdir -p "$(dirname "$exclude_file")"
   touch "$exclude_file"
   grep -qxF '.agent-workspace' "$exclude_file" || echo '.agent-workspace' >> "$exclude_file"
+}
+
+seed_orphan_worktree() {
+  local repo_dir=$1 wt_dir=$2
+  find "$repo_dir" -mindepth 1 -maxdepth 1 ! -name .git -exec cp -R {} "$wt_dir" \;
 }
 
 mark_ready_metadata() {
@@ -204,7 +214,12 @@ start_workspace() {
   base_ref=$(base_ref_for "$repo_dir")
   [ -n "$base_ref" ] || { echo "error: cannot detect base branch for $repo_dir" >&2; exit 65; }
 
-  git -C "$repo_dir" worktree add --quiet "$wt_dir" -b "$branch" "$base_ref" >&2
+  if [ "$base_ref" = "__orphan__" ]; then
+    git -C "$repo_dir" worktree add --quiet --orphan -b "$branch" "$wt_dir" >&2
+    seed_orphan_worktree "$repo_dir" "$wt_dir"
+  else
+    git -C "$repo_dir" worktree add --quiet "$wt_dir" -b "$branch" "$base_ref" >&2
+  fi
 
   git -C "$wt_dir" config user.name "$(company_name "$co")"
   email=$(company_email "$co" || true)

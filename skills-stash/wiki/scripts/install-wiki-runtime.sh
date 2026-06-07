@@ -7,6 +7,7 @@ DOTFILES="${DOTFILES:-$HOME/dotfiles}"
 WIKI_ROOT="${WIKI_ROOT:-$HOME/Desktop/WikiPedik}"
 WIKI_DEV="$WIKI_ROOT/dev"
 WIKI_RESEARCH="$WIKI_ROOT/research"
+WIKI_BRAND="$WIKI_ROOT/Personal Brand"
 WIKIPEDIK_REMOTE="${WIKIPEDIK_REMOTE:-git@github.com:JustChimera/WikiPedik.git}"
 WIKIPEDIK_GIT_NAME="${WIKIPEDIK_GIT_NAME:-}"
 WIKIPEDIK_GIT_EMAIL="${WIKIPEDIK_GIT_EMAIL:-}"
@@ -15,30 +16,35 @@ echo "=== WikiPedik runtime install ==="
 
 mkdir -p "$WIKI_ROOT"
 
-if [ -d "$WIKI_DEV/.git" ]; then
-  echo "✓ dev vault git repo exists: $WIKI_DEV"
-elif [ ! -e "$WIKI_DEV" ] || [ -z "$(find "$WIKI_DEV" -mindepth 1 -maxdepth 1 2>/dev/null)" ]; then
-  echo "→ Cloning dev vault: $WIKIPEDIK_REMOTE"
-  rm -rf "$WIKI_DEV"
-  git clone "$WIKIPEDIK_REMOTE" "$WIKI_DEV"
+if [ -d "$WIKI_ROOT/.git" ]; then
+  echo "✓ root vault git repo exists: $WIKI_ROOT"
+elif [ -d "$WIKI_DEV/.git" ]; then
+  echo "⚠ legacy dev-level git repo exists: $WIKI_DEV/.git"
+  echo "  Move it to $WIKI_ROOT/.git before running full-vault sync."
+elif [ ! -e "$WIKI_ROOT/.git" ] && [ -z "$(find "$WIKI_ROOT" -mindepth 1 -maxdepth 1 ! -name dev 2>/dev/null)" ] && { [ ! -e "$WIKI_DEV" ] || [ -z "$(find "$WIKI_DEV" -mindepth 1 -maxdepth 1 2>/dev/null)" ]; }; then
+  echo "→ Cloning root vault: $WIKIPEDIK_REMOTE"
+  git clone "$WIKIPEDIK_REMOTE" "$WIKI_ROOT"
 else
-  echo "⚠ dev vault exists but is not a git repo: $WIKI_DEV"
+  echo "⚠ root vault exists but is not a git repo: $WIKI_ROOT"
   echo "  Leaving it untouched. Initialize or move it manually."
 fi
 
-if [ -d "$WIKI_DEV/.git" ]; then
-  git -C "$WIKI_DEV" remote set-url origin "$WIKIPEDIK_REMOTE" 2>/dev/null || true
-  [ -n "$WIKIPEDIK_GIT_NAME" ] && git -C "$WIKI_DEV" config user.name "$WIKIPEDIK_GIT_NAME"
-  [ -n "$WIKIPEDIK_GIT_EMAIL" ] && git -C "$WIKI_DEV" config user.email "$WIKIPEDIK_GIT_EMAIL"
-  echo "✓ dev vault git remote: $(git -C "$WIKI_DEV" remote get-url origin 2>/dev/null || echo none)"
+if [ -d "$WIKI_ROOT/.git" ]; then
+  git -C "$WIKI_ROOT" remote set-url origin "$WIKIPEDIK_REMOTE" 2>/dev/null || true
+  [ -n "$WIKIPEDIK_GIT_NAME" ] && git -C "$WIKI_ROOT" config user.name "$WIKIPEDIK_GIT_NAME"
+  [ -n "$WIKIPEDIK_GIT_EMAIL" ] && git -C "$WIKI_ROOT" config user.email "$WIKIPEDIK_GIT_EMAIL"
+  echo "✓ root vault git remote: $(git -C "$WIKI_ROOT" remote get-url origin 2>/dev/null || echo none)"
   if [ -n "$WIKIPEDIK_GIT_EMAIL" ]; then
-    echo "✓ dev vault git email: $WIKIPEDIK_GIT_EMAIL"
+    echo "✓ root vault git email: $WIKIPEDIK_GIT_EMAIL"
   fi
 fi
 
 mkdir -p "$WIKI_RESEARCH/00-inbox" "$WIKI_RESEARCH/10-wiki"
 touch "$WIKI_RESEARCH/10-wiki/index.md" "$WIKI_RESEARCH/10-wiki/log.md"
 echo "✓ research vault skeleton: $WIKI_RESEARCH"
+
+mkdir -p "$WIKI_BRAND"
+echo "✓ personal brand vault path: $WIKI_BRAND"
 
 mkdir -p "$HOME/.codex-new/skills" "$HOME/.codex-new/hooks"
 mkdir -p "$HOME/.codex-wiki/skills" "$HOME/.codex-wiki/hooks"
@@ -94,6 +100,25 @@ EOF
   echo "✓ appended codex hook: $cfg"
 }
 
+ensure_codex_project_trust() {
+  local cfg=$1
+  local project_path=$2
+
+  [ -f "$cfg" ] || return 0
+
+  if grep -qF "[projects.\"$project_path\"]" "$cfg"; then
+    echo "✓ codex project already trusted: $project_path"
+    return 0
+  fi
+
+  cat >> "$cfg" <<EOF
+
+[projects."$project_path"]
+trust_level = "trusted"
+EOF
+  echo "✓ trusted codex project: $project_path"
+}
+
 ensure_claude_hook() {
   local cfg="$HOME/.claude-new/settings.json"
   local hook="$HOME/.claude-new/hooks/SessionStart.sh"
@@ -137,10 +162,14 @@ PY
 
 ensure_codex_hook "$HOME/.codex-new/config.toml" "$HOME/.codex-new/hooks/SessionStart.sh"
 ensure_codex_hook "$HOME/.codex-wiki/config.toml" "$HOME/.codex-wiki/hooks/SessionStart.sh"
+ensure_codex_project_trust "$HOME/.codex-wiki/config.toml" "$WIKI_DEV"
+ensure_codex_project_trust "$HOME/.codex-wiki/config.toml" "$WIKI_RESEARCH"
+ensure_codex_project_trust "$HOME/.codex-wiki/config.toml" "$WIKI_BRAND"
+ensure_codex_project_trust "$HOME/.codex-wiki/config.toml" "$WIKI_ROOT"
 ensure_claude_hook
 
 echo ""
 echo "Verify:"
 echo "  CODEX_HOME=~/.codex-new codex debug prompt-input smoke | rg 'wiki-context-pack|lesson-append'"
 echo "  CODEX_HOME=~/.codex-wiki codex debug prompt-input smoke | rg 'inbox-drain|wiki-status'"
-echo "  cd ~/Desktop/WikiPedik/dev && git status --short --branch"
+echo "  cd ~/Desktop/WikiPedik && git status --short --branch"

@@ -38,23 +38,31 @@ Stack down → suggest `dev-stack up`.
 
 ## Secrets
 
-1Password vaults named `Work-<company-slug>`. NO plaintext secrets in `.env`,
+1Password vaults are company-scoped: `Work-<company-slug>`. Env loading is
+company/product/repo scoped through `.envrc`. NO plaintext secrets in `.env`,
 NO secrets in git.
 
 Commands:
 - `secret signin` — login
-- `secret add <VAR> <value>` — item in `Work-<co>` + append to `.envrc`
-  (company auto-detected from cwd via `.company-config`)
-- `secret get op://Work-<co>/<VAR>/credential`
+- `secret add --repo <VAR> <value>` — create repo-scoped item
+  `<product>__<repo>__<VAR>` in `Work-<co>` + append repo `.envrc`
+- `secret add --product <VAR> <value>` — create product-scoped item
+  `<product>__<VAR>` + append product `.envrc`
+- `secret add --company <VAR> <value>` — create company-scoped item
+  `_company__<VAR>` + append company `.envrc`
+- `secret name --repo <VAR>` / `secret envline --repo <VAR>` — inspect naming
+  without revealing the value
 - `secret list <vault>`
 
-Rule: repo needs new env var → instruct user to run `secret add VAR value`.
+Rule: repo needs new env var → instruct user to run
+`secret add --repo VAR value`.
 Don't write secret values to `.env`/`.envrc` manually.
 Do assume env available at runtime: `os.environ['VAR']` / `process.env.VAR`.
 
 ## Environment loading
 
-direnv auto-loads `.envrc` on `cd`. Chain: company → product → repo.
+direnv auto-loads `.envrc` on `cd`. Chain: company → product → repo via
+`source_up`.
 
 After edit: `direnv allow`. Don't use `.env`. Project-shipped `.env.example` is
 documentation, not config.
@@ -382,7 +390,9 @@ Don't suggest replacing existing tooling unless explicitly asked.
 ## Long-term knowledge: WikiPedik
 
 When a learning is worth keeping across projects/sessions → `~/Desktop/WikiPedik/dev/`
-(coding patterns, runbooks, lessons) or `.../research/` (papers, articles).
+(coding patterns, runbooks, lessons) or `~/Desktop/WikiPedik/research/`
+(papers, articles). The Git repository is the full vault root:
+`~/Desktop/WikiPedik`.
 
 Open via `wikipedik` command (tmux with two codex profiles). Karpathy LLM Wiki pattern.
 

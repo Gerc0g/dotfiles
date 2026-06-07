@@ -100,9 +100,12 @@ cat > "$DIR/.envrc" <<EOF
 export GIT_AUTHOR_EMAIL="${EMAIL}"
 export GIT_COMMITTER_EMAIL="${EMAIL}"
 
-# Add secrets via: secret add VAR value
+# Add company-wide secrets via: secret add --company VAR value
 # example after secret add:
 # export EXAMPLE_TOKEN="\$(bash "\$HOME/dotfiles/scripts/secret-cache.sh" get Work-${CO} _company__EXAMPLE_TOKEN credential)"
+#
+# Product/repo .envrc files use source_up and repo-scoped item names:
+#   <product>__<repo>__EXAMPLE_TOKEN
 EOF
 echo "✓ $DIR/.envrc (run 'direnv allow' to activate)"
 

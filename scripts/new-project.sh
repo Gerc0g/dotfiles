@@ -55,6 +55,16 @@ slug: $PROD
 namespace: $NS
 EOF
 
+if [ ! -f "$PDIR/.envrc" ]; then
+  cat > "$PDIR/.envrc" <<EOF
+source_up
+
+# Product-scoped secrets are loaded here by:
+#   secret add --product <VAR> <VALUE>
+EOF
+  echo "✓ $PDIR/.envrc (run 'direnv allow' in product dir if needed)"
+fi
+
 if [ -n "$SSH_HOST" ] && [ "$SSH_HOST" != "local" ]; then
   REMOTE="git@${SSH_HOST}:${NS}"
 elif [ "$VCS" = "local" ]; then
@@ -75,6 +85,15 @@ for repo in "${REPOS[@]}"; do
   if [ ! -f "$PDIR/$repo/AGENTS.md" ]; then
     REPO="$repo" CO="$CO" PROD="$PROD" envsubst '$CO $PROD $REPO' \
       < "$TPL/AGENTS.md.repo.tmpl" > "$PDIR/$repo/AGENTS.md"
+  fi
+  if [ ! -f "$PDIR/$repo/.envrc" ]; then
+    cat > "$PDIR/$repo/.envrc" <<EOF
+source_up
+
+# Repo-scoped secrets are loaded here by:
+#   secret add --repo <VAR> <VALUE>
+EOF
+    echo "✓ $PDIR/$repo/.envrc (run 'direnv allow' in repo dir if needed)"
   fi
 done
 

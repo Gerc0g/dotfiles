@@ -7,7 +7,9 @@ credentials, tokens, API keys, and secret handling.
 
 - No plaintext secrets in git.
 - Do not edit `.env*` or `.envrc` without explicit user ask.
-- Prefer `secret add <VAR> <value>` for new repo/company secrets.
+- Prefer `secret add --repo <VAR> <value>` for repo secrets,
+  `secret add --product <VAR> <value>` for product secrets, and
+  `secret add --company <VAR> <value>` for company-wide secrets.
 - Assume runtime code reads from environment (`os.environ`, `process.env`,
   framework settings), not from committed secret files.
 - `.env.example` is documentation only.
@@ -17,21 +19,38 @@ credentials, tokens, API keys, and secret handling.
 Vault convention:
 
 - company vault: `Work-<company-slug>`;
-- item name: env var name;
+- item name includes the narrowest needed scope:
+  - company: `_company__<VARNAME>`;
+  - product: `<product>__<VARNAME>`;
+  - repo: `<product>__<repo>__<VARNAME>`;
 - field: `credential`.
 
 Useful commands:
 
 ```bash
 secret signin
-secret add <VAR> <value>
-secret get op://Work-<company>/<VAR>/credential
+secret add --repo <VAR> <value>
+secret add --product <VAR> <value>
+secret add --company <VAR> <value>
+secret name --repo <VAR>
+secret envline --repo <VAR>
 secret list <vault>
 ```
 
 ## direnv
 
-`direnv` loads `.envrc` on `cd`. Company/product/repo files may chain.
+`direnv` loads `.envrc` on `cd`. Company/product/repo files chain with
+`source_up`.
+
+Scope rules:
+
+- company `.envrc`: git identity and company-wide env only;
+- product `.envrc`: product-wide env shared by all repos in a product;
+- repo `.envrc`: repo runtime env and repo-only secrets.
+
+`secret add` appends a `secret-cache` backed export to the `.envrc` for the
+selected scope. Cached values live under `~/.cache/dotfiles/secrets` with file
+mode `600` and default TTL of 30 days.
 
 After a legitimate `.envrc` change, tell the user to run:
 
@@ -45,7 +64,7 @@ direnv allow
 - If 1Password asks for biometric approval too often, do not bypass security in
   repo code. Adjust 1Password/CLI/session policy with the user.
 - If a repo needs a new env var, document the variable and tell the user the
-  exact `secret add` command.
+  exact scoped `secret add --repo ...` command.
 
 Deep reference: `~/dotfiles/agent-profiles/PLATFORM.md` sections "Secrets" and
 "Environment loading".

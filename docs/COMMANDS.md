@@ -92,8 +92,17 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Правила:** push не на каждый commit; merge не выполняется автоматически.
 
 ## wikipedik
-**Что:** tmux с двумя codex: dev + research wiki vaults параллельно. (Obsidian vaults, не код-репы.)
+**Что:** tmux с тремя codex-панелями для Obsidian vault: project memory, research и personal brand tracker.
 **Запуск:** `wikipedik`
+**Панели:**
+- `~/Desktop/WikiPedik/dev` — project-memory curator (`wiki sync/status/synthesize`).
+- `~/Desktop/WikiPedik/research` — research/study agent для источников, статей, концептов и study notes.
+- `~/Desktop/WikiPedik/Personal Brand` — изолированный brand-agent для идей, черновиков, inbound и weekly metrics.
+**Правила brand-agent:**
+- Пишет и отвечает на русском; English content делает только по явной просьбе и отдельной копией ` - EN.md`.
+- SessionStart hook напоминает после изменений сделать commit+push vault state в GitHub.
+- Git покрывает весь vault `~/Desktop/WikiPedik`: `dev`, `research`, `Personal Brand` и Obsidian metadata.
+- Commit message: English Conventional Commit type/scope + русское описание.
 
 ## wiki
 **Что:** WikiPedik project-memory commands. Без аргументов запускает wiki product repo, с подкомандами управляет curator flow.
@@ -106,7 +115,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `wiki synthesize <company/product>` — найти повторяющиеся lessons/gotchas и предложить product shared patterns.
 - `wiki bootstrap <company> [product] [repo]` — создать WikiPedik skeleton + repo symlinks.
 - `wiki-commit <scope>` — вручную закоммитить только changes внутри WikiPedik scope.
-- `wiki-git <args...>` — выполнить `git` внутри `~/Desktop/WikiPedik/dev`.
+- `wiki-git <args...>` — выполнить `git` внутри root vault `~/Desktop/WikiPedik`.
 **Примеры:**
 - `wiki sync neurodesk/wiki/nrdsk_wiki`
 - `wiki sync --commit neurodesk/wiki/nrdsk_wiki`
@@ -132,7 +141,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Что:** Open tmux session for chimera/homeless
 **Запуск:** `homeless`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/homeless/`
-**Repos:** Jarvis Homeless
+**Repos:** Jarvis Homeless Healler Hiring-Radar-Bot
 
 ## neuroslop4ik
 **Что:** Open tmux session for chimera/neuroslop4ik
@@ -248,11 +257,14 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ### Secrets
 
 ## secret
-**Что:** 1Password wrapper. `secret add VAR value` создаёт item в vault и добавляет export в `.envrc` (company auto-detect).
+**Что:** 1Password wrapper. Один vault на компанию (`Work-<co>`), но item names и `.envrc` scoped по company/product/repo. Default scope определяется из cwd, включая managed worktree.
 **Запуск:**
 - `secret signin` — login
-- `secret add <VAR> <VALUE>` — create item + append .envrc
-- `secret get op://<vault>/<VAR>/credential`
+- `secret add --repo <VAR> <VALUE>` — item `<product>__<repo>__<VAR>` + repo `.envrc`
+- `secret add --product <VAR> <VALUE>` — item `<product>__<VAR>` + product `.envrc`
+- `secret add --company <VAR> <VALUE>` — item `_company__<VAR>` + company `.envrc`
+- `secret name --repo <VAR>` — показать 1Password item name без значения
+- `secret envline --repo <VAR>` — показать export line без значения
 - `secret list <vault>`
 
 ---

@@ -19,6 +19,55 @@
 
 CWD="${PWD}"
 PROJECTS_ROOT="$HOME/Desktop/Prokectfiles"
+WIKIPEDIK_ROOT="$HOME/Desktop/WikiPedik"
+
+# WikiPedik vault sessions have their own lightweight checkpoint. This is not a
+# project-memory hot cache; it is a session discipline reminder for Obsidian work.
+case "$CWD" in
+  "$WIKIPEDIK_ROOT"|"$WIKIPEDIK_ROOT"/*)
+    if ! command -v python3 >/dev/null 2>&1; then
+      exit 0
+    fi
+
+    WIKIPEDIK_ROOT="$WIKIPEDIK_ROOT" CWD="$CWD" python3 - <<'PY' || exit 0
+import json
+import os
+
+root = os.environ.get("WIKIPEDIK_ROOT", "")
+cwd = os.environ.get("CWD", "")
+
+scope = "root"
+if cwd.startswith(os.path.join(root, "dev")):
+    scope = "dev"
+elif cwd.startswith(os.path.join(root, "research")):
+    scope = "research"
+elif cwd.startswith(os.path.join(root, "Personal Brand")):
+    scope = "Personal Brand"
+
+context = f"""# WikiPedik session checkpoint
+
+Current WikiPedik scope: {scope}
+
+- Conversation and vault-writing default: Russian.
+- Code identifiers, commands, URLs, and stable product names stay as written.
+- Personal Brand content is Russian by default. Translate or write English only on explicit user request.
+- English Personal Brand output should preserve the Russian source and usually be a separate copy with filename suffix ` - EN.md`.
+- Before the final answer, if this session changed the vault, remind the user to commit and push the vault state to GitHub.
+- Current Git boundary: `{root}` is the vault Git repository. Project memory lives in `{root}/dev`, research in `{root}/research`, and Personal Brand in `{root}/Personal Brand`.
+- Do not run `git commit` or `git push` unless the user explicitly asks for commit+push in the current session or a configured finish command does it.
+- Commit messages: English Conventional Commit type/scope, Russian description/body, for example `docs(brand): обновить трекер личного бренда`.
+"""
+
+print(json.dumps({
+    "hookSpecificOutput": {
+        "hookEventName": "SessionStart",
+        "additionalContext": context,
+    }
+}, ensure_ascii=False))
+PY
+    exit 0
+    ;;
+esac
 
 # Are we inside a project repo?
 case "$CWD" in

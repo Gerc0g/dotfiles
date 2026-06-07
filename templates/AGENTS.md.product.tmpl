@@ -35,6 +35,9 @@ TODO: 2-5 lines ASCII or text. Skip section if repos are independent / simple mo
 - When changing API in X → update consumers in: TODO
 - Baseline rules apply: atomic commits, tests in each touched repo.
 - Repo-level `Makefile` targets are the executable test contract. If a product change adds or changes tests, update each affected repo's `Makefile` + `AGENTS.md` commands in the same change.
+- Product-scoped env belongs in product `.envrc` via
+  `secret add --product <VARNAME> <VALUE>`. Repo-specific env belongs in repo
+  `.envrc` via `secret add --repo <VARNAME> <VALUE>`.
 
 ## Platform references
 

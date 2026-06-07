@@ -1,12 +1,16 @@
 # WikiPedik project-memory helpers
 
 _wiki_vault_root() {
+  print -r -- "$HOME/Desktop/WikiPedik"
+}
+
+_wiki_memory_root() {
   print -r -- "$HOME/Desktop/WikiPedik/dev"
 }
 
 _wiki_scope_path() {
   local scope=$1
-  local root="$(_wiki_vault_root)"
+  local root="$(_wiki_memory_root)"
   local co prod repo
   local -a parts
 
@@ -46,7 +50,7 @@ _wiki_company_config_value() {
 
 _wiki_scope_product_log() {
   local scope=$1
-  local root="$(_wiki_vault_root)"
+  local root="$(_wiki_memory_root)"
   local -a parts
 
   parts=("${(@s:/:)scope}")
@@ -83,17 +87,18 @@ _wiki_git_dirty() {
 
 _wiki_dirty_outside_scope() {
   local scope=$1
-  local root="$(_wiki_vault_root)"
+  local git_root="$(_wiki_vault_root)"
+  local memory_root="$(_wiki_memory_root)"
   local dir rel product_log product_log_rel root_index_rel line path
 
   dir="$(_wiki_scope_path "$scope")" || {
     _wiki_git_dirty
     return 0
   }
-  rel="${dir#$root/}"
+  rel="${dir#$git_root/}"
   product_log="$(_wiki_scope_product_log "$scope")"
-  product_log_rel="${product_log#$root/}"
-  root_index_rel="20-projects/index.md"
+  product_log_rel="${product_log#$git_root/}"
+  root_index_rel="${memory_root#$git_root/}/20-projects/index.md"
 
   while IFS= read -r line; do
     [ -z "$line" ] && continue
@@ -180,6 +185,7 @@ _wiki_postflight() {
 _wiki_commit() {
   local scope=$1 push=$2
   local root="$(_wiki_vault_root)"
+  local memory_root="$(_wiki_memory_root)"
   local dir rel product_log product_log_rel dirty dirty_outside
   local co git_email
 
@@ -206,8 +212,8 @@ _wiki_commit() {
 
   # Root project index is auto-managed by bootstrap and is safe to commit with
   # any project-memory scope. It contains only company links, not repo details.
-  if [ -f "$root/20-projects/index.md" ]; then
-    git -C "$root" add -A -- "20-projects/index.md"
+  if [ -f "$memory_root/20-projects/index.md" ]; then
+    git -C "$root" add -A -- "${memory_root#$root/}/20-projects/index.md"
   fi
 
   product_log="$(_wiki_scope_product_log "$scope")"
@@ -231,7 +237,7 @@ _wiki_commit() {
     git -C "$root" push
   else
     echo "Wiki commit created. Push manually with:"
-    echo "  cd ~/Desktop/WikiPedik/dev && git push"
+    echo "  cd ~/Desktop/WikiPedik && git push"
   fi
 }
 
@@ -305,7 +311,7 @@ wiki-sync() {
       echo ""
       echo "Refusing auto-commit: WikiPedik had dirty files outside this scope before sync."
       echo "Review manually:"
-      echo "  cd ~/Desktop/WikiPedik/dev && git status"
+      echo "  cd ~/Desktop/WikiPedik && git status"
       return 1
     fi
     if [ -n "$dirty_before" ]; then

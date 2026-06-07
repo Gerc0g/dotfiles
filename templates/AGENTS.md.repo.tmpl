@@ -84,6 +84,17 @@ TODO: env vars from `.env.example`, port, dev-stack usage.
 - Run: `cd ${REPO} && direnv allow && <install> && <dev cmd>`
 - Health: `curl http://localhost:<port>/health`
 
+## Env contract
+
+- `env.example` documents required variables without values.
+- Repo `.envrc` may load repo-scoped secrets from 1Password via `secret-cache`.
+- Secret item names are scoped inside the company vault:
+  `Work-${CO}` item `${PROD}__${REPO}__<VARNAME>`.
+- To add a missing repo secret, ask the user to run:
+  `secret add --repo <VARNAME> <VALUE>`
+- Agents may document missing env vars, but must not write secret values to
+  `.env*`, `.envrc`, docs, logs, or code.
+
 ## Non-obvious patterns
 
 TODO: counter-intuitive things agent can't infer from code without reading 20 files.

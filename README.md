@@ -391,16 +391,18 @@ Secrets go through 1Password.
 
 ```bash
 secret signin
-secret add <VAR> <VALUE>
-secret get op://<vault>/<VAR>/credential
+secret add --repo <VAR> <VALUE>
+secret add --product <VAR> <VALUE>
+secret add --company <VAR> <VALUE>
 ```
 
 Rules:
 
 - no plaintext secrets in git;
-- `.envrc` references 1Password items;
+- `.envrc` references scoped 1Password items through `secret-cache`;
 - company-level vaults are created by `new-company` when possible;
-- repo/product-specific naming should make duplicated variable names clear.
+- repo/product-specific item names are generated as
+  `<product>__<repo>__<VAR>` or `<product>__<VAR>`.
 
 See `docs/platform/secrets-env.md`.
 

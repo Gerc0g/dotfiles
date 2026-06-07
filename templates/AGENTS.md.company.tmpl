@@ -58,7 +58,11 @@ Document **only differences** from baseline here. Empty if defaults apply.
 
 ## Secrets
 
-- All secrets via `secret add` → `${VAULT}` vault
+- All secrets live in `${VAULT}` vault, with scoped item names:
+  `_company__<VAR>`, `<product>__<VAR>`, or `<product>__<repo>__<VAR>`.
+- Add secrets through `secret add --company`, `secret add --product`, or
+  `secret add --repo`; this appends a `secret-cache` export to the matching
+  company/product/repo `.envrc`.
 - Reference for 1Password, direnv, `.envrc`, env vars:
   `~/dotfiles/docs/platform/secrets-env.md`.
 - PII / sensitive data: <!-- TODO --> TODO (none / GDPR / HIPAA / SOC2 / other)
