@@ -154,6 +154,12 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Запуск:** `comonline`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/comonline/`
 **Repos:** ComaOnline-Sources
+
+## clients
+**Что:** Open tmux session for SupportOps-Core/clients
+**Запуск:** `clients`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/SupportOps-Core/clients/`
+**Repos:** adminka
 ---
 
 ### Bootstrap

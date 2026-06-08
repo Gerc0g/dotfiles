@@ -118,3 +118,11 @@ neuroslop4ik() {
 comonline() {
   _project_launch chimera comonline ComaOnline-Sources "$@"
 }
+
+clients() {
+  case $# in
+    0) launch "SupportOps-Core" "clients" "adminka" ;;
+    1) launch "SupportOps-Core" "clients" "$1" ;;
+    *) echo "Usage: clients [<repo>]"; return 1 ;;
+  esac
+}
