@@ -16,7 +16,7 @@ agent-workspace() {
       label="🖥 ${repo}/${task_slug}"
       _launch_session_path "$session" "$wt" "$label"
       ;;
-    start|list|status|cleanup|ready|remove)
+    start|list|status|cleanup|ready|remove|stale)
       bash "$HOME/dotfiles/scripts/agent-workspace.sh" "$@"
       ;;
     *)

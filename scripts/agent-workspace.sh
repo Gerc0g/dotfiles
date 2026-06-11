@@ -29,6 +29,7 @@ Usage:
   agent-workspace cleanup [--days N] [--dry-run]
   agent-workspace ready <company> <product> <repo> <worktree-id>
   agent-workspace remove <company> <product> <repo> <worktree-id>
+  agent-workspace stale [days]   # active worktrees idle N+ days with no tmux session
 EOF
 }
 
@@ -232,6 +233,11 @@ start_workspace() {
   done
 
   cleanup_workspaces --days 7 --quiet || true
+  local n_stale
+  n_stale=$(stale_count 3)
+  if [ "${n_stale:-0}" -gt 0 ]; then
+    echo "ℹ $n_stale stale active worktree(s) — triage with: agent-workspace stale" >&2
+  fi
 
   base_ref=$(base_ref_for "$repo_dir")
   [ -n "$base_ref" ] || { echo "error: cannot detect base branch for $repo_dir" >&2; exit 65; }
@@ -274,6 +280,52 @@ status_workspaces() {
     echo "task=$(metadata_value "$meta" task) state=$(metadata_value "$meta" cleanup_state)"
     git -C "$wt" status --short --branch || true
   done
+}
+
+# Worktrees in `active` state that nobody is working on: no tmux session and no
+# commits for N days. Cleanup never touches them (they may hold unpushed work),
+# so they accumulate silently — this view is for human triage.
+stale_workspaces() {
+  local days=${1:-3} now found=0
+  case "$days" in ''|*[!0-9]*) echo "Usage: agent-workspace stale [days]" >&2; exit 64 ;; esac
+  [ -d "$WORKTREES" ] || return 0
+  now=$(date +%s)
+
+  while IFS= read -r meta; do
+    [ -n "$meta" ] || continue
+    local wt state co prod repo id session last_ts idle dirty ahead
+    wt=${meta%/.agent-workspace}
+    state=$(metadata_value "$meta" cleanup_state)
+    [ "$state" = "active" ] || continue
+
+    co=$(metadata_value "$meta" company)
+    prod=$(metadata_value "$meta" product)
+    repo=$(metadata_value "$meta" repo)
+    id=$(metadata_value "$meta" id)
+    session="${co}-${prod}-${repo}-agent-${id}"
+    tmux has-session -t "$session" 2>/dev/null && continue
+
+    last_ts=$(git -C "$wt" log -1 --format=%ct 2>/dev/null || echo 0)
+    [ "$last_ts" -gt 0 ] || last_ts=$(stat -f %m "$meta" 2>/dev/null || echo "$now")
+    idle=$(( (now - last_ts) / 86400 ))
+    [ "$idle" -ge "$days" ] || continue
+
+    dirty=$(git -C "$wt" status --short 2>/dev/null | wc -l | tr -d ' ')
+    ahead=$(git -C "$wt" rev-list --count '@{u}..HEAD' 2>/dev/null || echo '?')
+    found=$((found + 1))
+    printf '%s | idle=%sd | dirty=%s | unpushed=%s\n' "${wt#$WORKTREES/}" "$idle" "$dirty" "$ahead"
+  done < <(find "$WORKTREES" -name .agent-workspace -type f -print | sort)
+
+  if [ "$found" = "0" ]; then
+    echo "no stale active worktrees (idle >= ${days}d, no tmux session)"
+  else
+    echo ""
+    echo "triage: push unfinished work, 'agent-workspace ready ...' clean ones, or 'agent-workspace remove ...' abandoned ones"
+  fi
+}
+
+stale_count() {
+  stale_workspaces "${1:-3}" 2>/dev/null | grep -c '| idle=' || true
 }
 
 
@@ -323,5 +375,6 @@ case "$cmd" in
   cleanup) cleanup_workspaces "$@" ;;
   ready) ready_workspace "$@" ;;
   remove) remove_workspace "$@" ;;
+  stale) stale_workspaces "$@" ;;
   *) usage; exit 64 ;;
 esac
