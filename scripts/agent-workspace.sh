@@ -157,11 +157,12 @@ salvage_worktree_artifacts() {
 }
 
 # After salvage, runtime junk and untracked-but-salvaged epic docs may be
-# dropped so a finished worktree becomes removable. Tracked modifications
-# (real code) are never touched here.
+# dropped so a finished worktree becomes removable. Tracked files are never
+# touched: some repos commit .agents/*/.gitignore, so .agents is cleaned via
+# git clean (untracked + ignored only), not rm -rf.
 drop_salvaged_junk() {
   local wt=$1 rel
-  rm -rf "$wt/.agents"
+  git -C "$wt" clean -fdxq -- .agents 2>/dev/null || true
   while IFS= read -r rel; do
     [ -n "$rel" ] || continue
     rm -f "$wt/$rel"
