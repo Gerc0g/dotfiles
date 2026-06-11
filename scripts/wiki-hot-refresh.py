@@ -101,6 +101,14 @@ def build_hot(repo_mem: Path, repo: str) -> str:
     lines += section("Fresh Lessons", "lessons.md", lessons, LESSONS_LIMIT)
     lines += section("Critical Gotchas", "gotchas.md", gotchas, GOTCHAS_LIMIT)
     lines += section("Open Questions", "open-questions.md", questions, QUESTIONS_LIMIT)
+    lines += [
+        "## Memory pages (read on demand)",
+        "",
+        "This file is an index. Full pages live next to it in `docs/knowledge/`:",
+        "`lessons.md` · `gotchas.md` · `debugging-stories.md` · `decisions-not-adr.md` · `open-questions.md` · `links.md`.",
+        "Product/company layers: `docs/product-knowledge/`, `docs/company-knowledge/`.",
+        "",
+    ]
     lines.append(f"<!-- last refreshed: {stamp} (wiki-hot-refresh) -->")
     return "\n".join(lines) + "\n"
 
