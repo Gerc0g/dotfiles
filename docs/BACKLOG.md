@@ -51,7 +51,11 @@ wiki-context-pack в launch-флоу по умолчанию.
 
 ## WikiPedik memory v2 — по итогам research рынка и SOTA
 
-Status: todo
+Status: in progress — §1 частично done 2026-06-12: механизм "урок → правило"
+реализован (`wiki-rules-sync.py`: vault `rules/` → path-scoped
+`.claude/rules/wiki-*` симлинки в чекауты+worktrees; дайджест "Binding rules"
+в hot.md для codex; promotion bar в `wiki-synthesize`; e2e-тест пройден).
+Остальное по списку ниже.
 
 Источник: [wikipedik-memory-research.md](./wikipedik-memory-research.md)
 (deep-research 2026-06-11, 23 источника, верифицированные claims). Рынок
