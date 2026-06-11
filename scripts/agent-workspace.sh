@@ -236,12 +236,20 @@ prune_branches() {
 # worktree starts without them and SessionStart hooks / lesson-append go dark.
 # Mirror them from the main checkout when present.
 link_knowledge_symlinks() {
-  local repo_dir=$1 wt_dir=$2 name target
+  local repo_dir=$1 wt_dir=$2 name target rule
   for name in knowledge product-knowledge company-knowledge; do
     target=$(readlink "$repo_dir/docs/$name" 2>/dev/null) || continue
     [ -d "$target" ] || continue
     mkdir -p "$wt_dir/docs"
     ln -sfn "$target" "$wt_dir/docs/$name"
+  done
+  # Path-scoped wiki rules (.claude/rules/wiki-*) are vault symlinks too.
+  for rule in "$repo_dir"/.claude/rules/wiki-*; do
+    [ -L "$rule" ] || continue
+    target=$(readlink "$rule") || continue
+    [ -f "$target" ] || continue
+    mkdir -p "$wt_dir/.claude/rules"
+    ln -sfn "$target" "$wt_dir/.claude/rules/$(basename "$rule")"
   done
 }
 

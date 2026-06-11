@@ -251,6 +251,12 @@ wiki-hot-refresh() {
   python3 "$HOME/dotfiles/scripts/wiki-hot-refresh.py" "$@"
 }
 
+# Materialize vault rules/ into repos as path-scoped .claude/rules symlinks
+# (main checkouts + active worktrees).
+wiki-rules-sync() {
+  python3 "$HOME/dotfiles/scripts/wiki-rules-sync.py" "$@"
+}
+
 _wiki_curator() {
   local skill=$1
   local scope="${2:-}"

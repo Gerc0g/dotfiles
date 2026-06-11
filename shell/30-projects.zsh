@@ -93,6 +93,10 @@ wiki() {
       shift
       wiki-autocommit "$@"
       ;;
+    rules-sync)
+      shift
+      wiki-rules-sync "$@"
+      ;;
     *)
       _project_launch neurodesk wiki nrdsk_wiki "$@"
       ;;

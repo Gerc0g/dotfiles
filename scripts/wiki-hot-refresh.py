@@ -55,10 +55,39 @@ def section(label: str, page_name: str, titles: list[str], limit: int) -> list[s
     return lines
 
 
+def rule_lines(repo_mem: Path) -> list[str]:
+    """One-line digest per binding rule (repo + product level) for hot.md.
+
+    This is the codex-facing channel: codex cannot load path-scoped
+    .claude/rules, so the digest tells the planner WHAT is binding; Claude
+    additionally gets the full rule text lazily via wiki-rules-sync symlinks.
+    """
+    out: list[str] = []
+    for src_dir, label in ((repo_mem / "rules", "rules"), (repo_mem.parent.parent / "shared" / "rules", "product rules")):
+        if not src_dir.is_dir():
+            continue
+        for rule in sorted(src_dir.glob("*.md")):
+            text = rule.read_text(encoding="utf-8")
+            front = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+            # same validity bar as wiki-rules-sync: no paths: -> not a rule
+            if not (front and re.search(r"^paths\s*:", front.group(1), re.MULTILINE)):
+                continue
+            title = ""
+            for line in text.splitlines():
+                if line.startswith("# "):
+                    title = line[2:].strip()
+                    break
+                if line.startswith("description:"):
+                    title = line.split(":", 1)[1].strip().strip('"')
+            out.append(f"- [{label}] {title or rule.stem} → {label.replace(' ', '/')}/{rule.name}")
+    return out[:10]
+
+
 def build_hot(repo_mem: Path, repo: str) -> str:
     lessons = entry_titles(repo_mem / "lessons.md")
     gotchas = entry_titles(repo_mem / "gotchas.md")
     questions = entry_titles(repo_mem / "open-questions.md")
+    rules = rule_lines(repo_mem)
 
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     lines = [
@@ -67,6 +96,8 @@ def build_hot(repo_mem: Path, repo: str) -> str:
         "Auto-refreshed by curator. Loaded by SessionStart hook on every codex/claude session in this repo.",
         "",
     ]
+    if rules:
+        lines += ["## Binding rules", ""] + rules + [""]
     lines += section("Fresh Lessons", "lessons.md", lessons, LESSONS_LIMIT)
     lines += section("Critical Gotchas", "gotchas.md", gotchas, GOTCHAS_LIMIT)
     lines += section("Open Questions", "open-questions.md", questions, QUESTIONS_LIMIT)
