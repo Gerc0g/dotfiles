@@ -1,6 +1,6 @@
 ---
 name: inbox-drain
-description: Drains candidate YAML captures from repo-level _inbox.md files into the right curated wiki pages (lessons.md, gotchas.md, debugging-stories.md, decisions-not-adr.md, open-questions.md). Interactive — proposes target for each entry, awaits confirmation. Updates index.md and log.md. Use when the user asks to "drain inbox", "wiki sync", "synthesize inbox", or when inbox grows beyond ~10 entries.
+description: Drains candidate YAML captures from repo-level _inbox.md files into the right curated wiki pages (lessons.md, gotchas.md, debugging-stories.md, decisions-not-adr.md, open-questions.md). Interactive — proposes target for each entry, awaits confirmation. Updates index.md and log.md, and refreshes hot.md for every repo that received entries. Use when the user asks to "drain inbox", "wiki sync", "synthesize inbox", or when inbox grows beyond ~10 entries.
 ---
 
 # inbox-drain
@@ -143,7 +143,21 @@ If any entry was flagged for `wiki-synthesize` (pattern across repos), append to
 
 This is input for `wiki-synthesize` skill to process next.
 
-### Phase 7: Summary report
+### Phase 7: Refresh hot.md (MANDATORY for every touched repo)
+
+`hot.md` is what SessionStart hooks inject into every future worker session in that repo. A drain that does not refresh `hot.md` leaves workers reading a stale placeholder — the read half of the memory loop stays dead. Do NOT skip this phase.
+
+For each repo that received at least one drained entry (and any repo the user explicitly names), rebuild `repos/<repo>/hot.md`:
+
+1. Pick content from the curated pages, newest first:
+   - 2–3 most recent durable lessons (`lessons.md`)
+   - critical gotchas relevant right now (`gotchas.md`)
+   - currently active open questions (`open-questions.md`)
+2. Keep the whole file ~50 lines max. One bullet per item: `- <file>#<anchor>: one-line essence`.
+3. Keep the header comment intact and update the stamp:
+   `<!-- last refreshed: YYYY-MM-DD HH:MM -->`
+
+### Phase 8: Summary report
 
 After loop:
 
@@ -163,6 +177,7 @@ Processed: 12 entries
 Updated:
   - <list of repos' index.md updated>
   - <product>/log.md (1 event)
+  - hot.md refreshed: <list of repos>
 
 Next: run wiki-synthesize for cross-repo patterns.
 ```
