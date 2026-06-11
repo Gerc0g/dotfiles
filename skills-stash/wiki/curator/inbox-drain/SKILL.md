@@ -157,6 +157,12 @@ For each repo that received at least one drained entry (and any repo the user ex
 3. Keep the header comment intact and update the stamp:
    `<!-- last refreshed: YYYY-MM-DD HH:MM -->`
 
+Prefer writing hot.md yourself (richer one-line summaries). If you cannot, run the deterministic fallback and verify its output:
+
+```bash
+python3 ~/dotfiles/scripts/wiki-hot-refresh.py <co>/<prod>/<repo>
+```
+
 ### Phase 8: Summary report
 
 After loop:
