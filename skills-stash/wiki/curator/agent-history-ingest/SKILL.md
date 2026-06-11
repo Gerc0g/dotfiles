@@ -22,9 +22,9 @@ python3 ~/dotfiles/scripts/agent-session-digest.py --source all --since YYYY-MM-
 Target:
 - `~/Desktop/WikiPedik/dev/10-wiki/sources/sessions/<source>/<YYYY-MM-DD>-<slug>.md`
 
-Manifest:
-- Codex: `~/.codex-new/.wiki-ingest-manifest.json`
-- Claude: `~/.claude-new/.wiki-ingest-manifest.json`
+Manifest (inside the vault — curator sandbox cannot write outside it):
+- `~/Desktop/WikiPedik/dev/10-wiki/sources/sessions/.ingest-manifest.json`
+- One JSON object: `{"<digest or session path>": {"mtime": ..., "size": ..., "note": "<output note path>"}}`.
 
 ## Arguments
 
