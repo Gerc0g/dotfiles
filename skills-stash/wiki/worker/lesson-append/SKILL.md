@@ -66,8 +66,10 @@ Fix / Reusable rule:
 Failed approaches (if any):
 - <what didn't work and why>
 
+Citations:
+- <path:line | commit sha>  (REQUIRED when the lesson claims anything about code behavior — future agents verify these before applying the lesson)
+
 Links:
-- code: <path:line | commit>
 - related canonical: <docs/design.md#section | ADR-N>
 - related wiki: <if any>
 ```

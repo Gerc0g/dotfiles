@@ -137,9 +137,16 @@ For each accepted entry:
 
 3. Mark inbox entry as drained — change `Status: candidate` to `Status: drained` AND prepend `~~` strikethrough to the timestamp heading. Do NOT delete the entry immediately; keep history.
 
-4. Update `docs/knowledge/index.md` — add line to "Recent" section.
+4. Memory evolution (Zettelkasten): if the accepted entry relates to existing
+   curated entries (shared tags, same subsystem, same root-cause family), add
+   wikilinks BOTH ways — `Related: [[gotchas#anchor]]` in the new entry and a
+   backlink in the old one. If the new entry re-confirms an old lesson, also
+   refresh that lesson's `Last verified` date. Integration of new memory must
+   update the context of related old memory, not just append.
 
-5. Append to `docs/product-knowledge/log.md`:
+5. Update `docs/knowledge/index.md` — add line to "Recent" section.
+
+6. Append to `docs/product-knowledge/log.md`:
    ```
    ## [YYYY-MM-DD HH:MM] drain | <repo> | <title>
    Target: <target file>#<anchor>
