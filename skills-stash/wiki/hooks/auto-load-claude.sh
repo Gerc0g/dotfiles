@@ -24,8 +24,8 @@ CWD="${PWD}"
 PROJECTS_ROOT="$HOME/Desktop/Prokectfiles"
 
 case "$CWD" in
-  "$PROJECTS_ROOT"/*)
-    ;;
+  "$PROJECTS_ROOT"/*) ;;
+  "$HOME/dotfiles"|"$HOME/dotfiles"/*) ;;  # platform repo has its own memory (_platform scope)
   *)
     exit 0
     ;;
@@ -89,7 +89,7 @@ except Exception:
 if not hot:
     sys.exit(0)
 
-checkpoint = """\n\n# WikiPedik memory checkpoint\n\nBefore the final answer, decide whether this task produced a durable root cause, production gotcha, failed approach, reusable rule, informal decision, or cross-repo invariant. If yes, use the `lesson-append` skill to append one concise candidate to `docs/knowledge/_inbox.md`. If not, write nothing."""
+checkpoint = """\n\n# WikiPedik memory checkpoint\n\n1. The hot context above is an INDEX, not the whole memory. Read `docs/knowledge/<page>.md` (lessons, gotchas, debugging-stories, open-questions) on demand when the task touches those topics; for nontrivial debug/design/migration work start with the `wiki-context-pack` skill.\n2. Verify before apply: when acting on a remembered lesson that cites code locations, check the cited code first — if the code has changed and contradicts the lesson, capture a corrected version via `lesson-append` instead of applying the stale one.\n3. Before the final answer, decide whether this task produced a durable root cause, production gotcha, failed approach, reusable rule, informal decision, or cross-repo invariant. If yes, use the `lesson-append` skill to append one concise candidate (with citations) to `docs/knowledge/_inbox.md`. If not, write nothing."""
 
 status = ""
 cand = os.environ.get("INBOX_CANDIDATES", "0").strip()
