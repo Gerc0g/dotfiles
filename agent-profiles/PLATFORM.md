@@ -122,6 +122,11 @@ commits for this agent session. In that mode:
   `git switch` in a shared repo if another agent may be using it.
 - Product-level or multi-repo writing work must use a managed worktree:
   `agent-workspace launch <company> <product> <repo> <task-slug>`.
+- Task/epic state (plan, decomposition, "where I stopped") lives in
+  `docs/epics/<task-slug>.md` and is committed with the branch like any other
+  change. Uncommitted epic docs and `.agents/oracle/` answers are rescued into
+  WikiPedik `_salvage/` when the worktree is removed, but a commit is the
+  reliable path — salvage is the safety net, not the workflow.
 - Default integration branch is `dev` when present, otherwise `main`; agent
   branches are named `agent/<task-slug>` and merge/PR back into the integration
   branch.

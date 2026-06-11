@@ -2,7 +2,11 @@
 
 ## WikiPedik: working memory + salvage артефактов worktree
 
-Status: todo (приоритет 1 в серии "память: справка → навык → самонаполнение")
+Status: done (2026-06-11) — `salvage_worktree_artifacts` + `drop_salvaged_junk`
+в `agent-workspace.sh` (вызываются из `remove` и `cleanup`); Phase 0 в
+`inbox-drain` (куратор разбирает `_salvage/` при `wiki sync`); конвенция
+`docs/epics/<task>.md` в PLATFORM.md; e2e-тест пройден. Следующие шаги серии
+(2 backfill, 3 урок→правило) — ниже по записям.
 
 Problem: знание двух классов теряется безвозвратно. (1) Working memory —
 состояние задач между сессиями (epic-доки, планы, "на чём остановился")
