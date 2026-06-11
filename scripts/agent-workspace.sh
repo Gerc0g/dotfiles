@@ -12,6 +12,7 @@ set -euo pipefail
 
 BASE="$HOME/Desktop/Prokectfiles"
 WORKTREES="$BASE/.worktrees"
+VAULT_PROJECTS="$HOME/Desktop/WikiPedik/dev/20-projects"
 
 sync_vscode_project_manager() {
   local sync="$HOME/dotfiles/scripts/vscode-projects-sync.py"
@@ -110,6 +111,61 @@ ensure_worktree_excludes() {
   mkdir -p "$(dirname "$exclude_file")"
   touch "$exclude_file"
   grep -qxF '.agent-workspace' "$exclude_file" || echo '.agent-workspace' >> "$exclude_file"
+}
+
+# Working-memory salvage: before a worktree dies, copy artifacts that exist
+# nowhere else into the WikiPedik vault for curator review.
+#   - .agents/oracle/*.md   — second-model review answers (runtime dir, dies with worktree)
+#   - docs/epics/*.md       — uncommitted task/epic state (untracked or modified)
+# Salvage never deletes anything itself; callers decide what becomes removable.
+salvage_worktree_artifacts() {
+  local wt=$1 co=$2 prod=$3 repo=$4 id=$5
+  local dest="$VAULT_PROJECTS/$co/$prod/repos/$repo/_salvage/$id"
+  local salvaged=0 f rel
+
+  [ -n "$co" ] && [ -n "$prod" ] && [ -n "$repo" ] && [ -n "$id" ] || return 0
+
+  for f in "$wt"/.agents/oracle/*.md; do
+    [ -f "$f" ] || continue
+    mkdir -p "$dest/oracle"
+    cp "$f" "$dest/oracle/"
+    salvaged=$((salvaged + 1))
+  done
+
+  while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    [ -f "$wt/$rel" ] || continue
+    mkdir -p "$dest/$(dirname "$rel")"
+    cp "$wt/$rel" "$dest/$rel"
+    salvaged=$((salvaged + 1))
+  done < <(git -C "$wt" status --porcelain -- 'docs/epics/*.md' 2>/dev/null | cut -c4-)
+
+  if [ "$salvaged" -gt 0 ]; then
+    {
+      echo "# salvage: $co/$prod/$repo @ $id"
+      echo ""
+      echo "branch: $(metadata_value "$wt/.agent-workspace" branch 2>/dev/null)"
+      echo "task: $(metadata_value "$wt/.agent-workspace" task 2>/dev/null)"
+      echo "salvaged_at: $(date '+%Y-%m-%d %H:%M:%S')"
+      echo "files: $salvaged"
+      echo ""
+      echo "Curator: review during wiki sync — promote durable parts to lessons/epics archive, delete the rest."
+    } > "$dest/INFO.md"
+    echo "salvaged $salvaged file(s) -> ${dest/#$HOME/\~}"
+  fi
+  return 0
+}
+
+# After salvage, runtime junk and untracked-but-salvaged epic docs may be
+# dropped so a finished worktree becomes removable. Tracked modifications
+# (real code) are never touched here.
+drop_salvaged_junk() {
+  local wt=$1 rel
+  rm -rf "$wt/.agents"
+  while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    rm -f "$wt/$rel"
+  done < <(git -C "$wt" status --porcelain -- 'docs/epics/*.md' 2>/dev/null | awk '$1 == "??"' | cut -c4-)
 }
 
 # Delete an agent/* branch only when no work can be lost:
@@ -253,12 +309,20 @@ cleanup_workspaces() {
       continue
     fi
     wt=${meta%/.agent-workspace}
-    is_clean_and_pushed "$wt" || continue
     co=$(metadata_value "$meta" company)
     prod=$(metadata_value "$meta" product)
     repo=$(metadata_value "$meta" repo)
     repo_dir=$(repo_dir_for "$co" "$prod" "$repo")
     [ -d "$repo_dir/.git" ] || continue
+    if [ "$dry_run" != "1" ]; then
+      if [ "$quiet" = "1" ]; then
+        salvage_worktree_artifacts "$wt" "$co" "$prod" "$repo" "$(metadata_value "$meta" id)" >/dev/null 2>&1 || true
+      else
+        salvage_worktree_artifacts "$wt" "$co" "$prod" "$repo" "$(metadata_value "$meta" id)" || true
+      fi
+      drop_salvaged_junk "$wt"
+    fi
+    is_clean_and_pushed "$wt" || continue
     found=1
     branch=$(metadata_value "$meta" branch)
     if [ "$dry_run" = "1" ]; then
@@ -427,6 +491,8 @@ remove_workspace() {
   wt_dir=$(worktree_dir_for "$co" "$prod" "$repo" "$id")
   repo_dir=$(repo_dir_for "$co" "$prod" "$repo")
   [ -e "$wt_dir" ] || { echo "not found: $wt_dir" >&2; exit 66; }
+  salvage_worktree_artifacts "$wt_dir" "$co" "$prod" "$repo" "$id"
+  drop_salvaged_junk "$wt_dir"
   if [ -n "$(git -C "$wt_dir" status --short 2>/dev/null || true)" ]; then
     echo "error: worktree is dirty; commit/push or clean it before remove" >&2
     exit 65
