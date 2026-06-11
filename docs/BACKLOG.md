@@ -1,5 +1,41 @@
 # Platform Backlog
 
+## WikiPedik: working memory + salvage артефактов worktree
+
+Status: todo (приоритет 1 в серии "память: справка → навык → самонаполнение")
+
+Problem: знание двух классов теряется безвозвратно. (1) Working memory —
+состояние задач между сессиями (epic-доки, планы, "на чём остановился")
+умирает с worktree или блокирует его удаление (кейс: synapse/5f256d2b держим
+из-за 3 несохранённых epic-доков). (2) Oracle-ответы (second-model review)
+живут в `.agents/oracle/` и удаляются при cleanup как мусор.
+
+Design (продумано 2026-06-11):
+- `salvage_worktree_artifacts` в `agent-workspace.sh`: перед `git worktree
+  remove` (в `remove` и `cleanup`) копировать ценные несохранённые артефакты
+  в вольт: `20-projects/<co>/<prod>/repos/<repo>/_salvage/<worktree-id>/`.
+  Что брать: `.agents/oracle/*.md`, untracked/modified `docs/epics/*.md`.
+  Плюс `INFO.md` с метаданными (branch, task, дата, источник).
+- После salvage: `.agents/` удалять (runtime-мусор, ответы спасены),
+  untracked epic-доки удалять (копия в вольте) — тогда завершённый worktree
+  удаляется без --force. Изменённые tracked-файлы (реальный код) по-прежнему
+  блокируют remove.
+- Куратор: `_salvage/` разбирается при `wiki sync` как второй inbox
+  (промоутить durable, мусор удалить) — дополнить `inbox-drain` SKILL.md.
+- Конвенция в PLATFORM.md: состояние задачи живёт в `docs/epics/<task>.md`
+  и коммитится с веткой (тогда оно не теряется вообще).
+- Privacy: salvage по построению остаётся в company namespace.
+
+Acceptance criteria:
+- `agent-workspace remove/cleanup` не уничтожает oracle-ответы и epic-доки.
+- Worktree с «только epic-доками» удаляется без ручного rm.
+- `_salvage/` упоминается в curator-флоу; COMMANDS.md обновлён.
+
+Порядок серии: (1) этот salvage → (2) backfill базы через
+`agent-history-ingest` по июньским сессиям (см. wikipedik-roadmap.md §2) →
+(3) promotion "урок → path-scoped правило" (см. memory v2 §1, делать после
+наполнения базы — правилам нужны повторяющиеся уроки).
+
 ## WikiPedik: использовать полную мощь подхода
 
 Status: todo
