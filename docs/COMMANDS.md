@@ -134,6 +134,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `wiki-commit <scope>` — вручную закоммитить только changes внутри WikiPedik scope.
 - `wiki autocommit` / `wiki-autocommit` — catch-all commit всего dirty вольта (без push, с secret-scan); `launch` вызывает его раз в сутки через `--if-due`.
 - `wiki-hot-refresh <co>[/<prod>[/<repo>]]` — детерминированно пересобрать `hot.md` из curated-страниц (fallback, если куратор пропустил свою фазу).
+- `agent-session-digest.py --source claude|codex|all [--since D] [--until D] [--project substr]` — сжать JSONL-сессии в markdown-дайджесты для майнинга куратором (`10-wiki/sources/sessions/_digests/`); secrets редактируются, объём падает с MB до десятков KB.
 - `wiki-git <args...>` — выполнить `git` внутри root vault `~/Desktop/WikiPedik`.
 **Примеры:**
 - `wiki sync neurodesk/wiki/nrdsk_wiki`
