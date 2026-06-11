@@ -1,5 +1,14 @@
 # Platform Backlog
 
+## WikiPedik: использовать полную мощь подхода
+
+Status: todo
+
+Цикл памяти работает на страховочном минимуме; неиспользованные возможности и
+рекомендованный порядок внедрения — в [wikipedik-roadmap.md](./wikipedik-roadmap.md).
+Топ-3: history-ingest backfill июня, bootstrap самого dotfiles в память,
+wiki-context-pack в launch-флоу по умолчанию.
+
 ## Automatic WikiPedik vault commits
 
 Status: done (2026-06-11) — `scripts/wikipedik-autocommit.sh`: catch-all commit с secret-scan, без push; `launch` вызывает раз в сутки через `--if-due`, вручную — `wiki autocommit`. launchd отклонён из-за TCC-доступа к Desktop у фоновых процессов.
