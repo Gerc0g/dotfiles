@@ -126,3 +126,11 @@ clients() {
     *) echo "Usage: clients [<repo>]"; return 1 ;;
   esac
 }
+
+cerebro() {
+  case $# in
+    0) launch "neurodesk" "cerebro" "cerebro" ;;
+    1) launch "neurodesk" "cerebro" "$1" ;;
+    *) echo "Usage: cerebro [<repo>]"; return 1 ;;
+  esac
+}
