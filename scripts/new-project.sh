@@ -150,6 +150,16 @@ EOF
   echo "✓ added '${PROD}' to COMMANDS.md (Workspaces)"
 fi
 
+VSCODE_SYNC="$HOME/dotfiles/scripts/vscode-projects-sync.py"
+if [ -x "$VSCODE_SYNC" ]; then
+  if "$VSCODE_SYNC" --no-backup >/tmp/dotfiles-vscode-projects-sync.log 2>&1; then
+    echo "✓ VS Code Project Manager synced"
+  else
+    echo "⚠ VS Code Project Manager sync skipped/failed"
+    sed 's/^/  /' /tmp/dotfiles-vscode-projects-sync.log
+  fi
+fi
+
 echo ""
 echo "✅ ${CO}/${PROD} bootstrapped (ns: $NS)"
 ls "$PDIR"

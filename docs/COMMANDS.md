@@ -76,6 +76,20 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `agent-workspace ready <co> <prod> <repo> <id>` — вручную пометить clean+pushed worktree готовым к cleanup.
 - `agent-workspace remove <co> <prod> <repo> <id>` — удалить clean worktree по короткому id.
 **Git:** base branch = `dev`, иначе `main`; path = короткий id; branch = `agent/<task>-<id>`.
+**VS Code:** start/launch/ready/remove/cleanup автоматически обновляют Project Manager через `vscode-projects-sync`.
+
+## vscode-projects-sync
+**Что:** Синхронизировать `~/Desktop/Prokectfiles/<company>/<product>/<repo>` и активные `~/Desktop/Prokectfiles/.worktrees/...` с VS Code Project Manager (`alefragnani.project-manager`). По умолчанию Project Manager становится зеркалом платформенных product/repo/worktree entries; старые внешние записи удаляются. Управляемые записи помечаются тегом `dotfiles`, перед ручной записью делает backup `projects.json`.
+**Naming:** repo entries называются коротко (`synapse`), product entries — `Product: company/product`, worktree entries — `repo @ id · task`; company/product/state/branch доступны через tags.
+**Запуск:**
+- `vscode-projects-sync` — добавить/обновить product + repo + worktree entries и убрать внешние старые entries.
+- `vscode-projects-sync --dry-run` — показать изменения без записи.
+- `vscode-projects-sync --check` — вернуть exit 1 если файл не синхронизирован.
+- `vscode-projects-sync --repos-only` — синхронизировать только репозитории.
+- `vscode-projects-sync --products-only` — синхронизировать только продукты.
+- `vscode-projects-sync --no-worktrees` — не добавлять agent worktree entries.
+- `vscode-projects-sync --preserve-external` — сохранить проекты, добавленные вручную вне dotfiles.
+**Файл:** `~/Library/Application Support/Code/User/globalStorage/alefragnani.project-manager/projects.json`
 
 ## agent-commit
 **Что:** локальный атомарный commit для agent worktree.
@@ -160,6 +174,12 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Запуск:** `clients`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/SupportOps-Core/clients/`
 **Repos:** adminka
+
+## cerebro
+**Что:** Open tmux session for neurodesk/cerebro
+**Запуск:** `cerebro`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/cerebro/`
+**Repos:** cerebro
 ---
 
 ### Bootstrap
@@ -170,7 +190,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **См. также:** `new-project`
 
 ## new-project
-**Что:** Создать продукт в компании: клонит репы + AGENTS.md заготовки + tmux launcher.
+**Что:** Создать продукт в компании: клонит репы + AGENTS.md заготовки + tmux launcher + sync VS Code Project Manager.
 **Запуск:** `new-project <company> <product> [--ns=<override>] [repo1 repo2 ...]`
 **См. также:** `new-company`, `setup-context`
 
