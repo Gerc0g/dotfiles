@@ -39,6 +39,17 @@ Never cross company boundary. If wrong company name → STOP.
 
 ## Workflow
 
+### Phase 0: Check salvage zones
+
+`agent-workspace remove/cleanup` rescues worktree artifacts (oracle answers, uncommitted epic docs) into `repos/<repo>/_salvage/<worktree-id>/` before deleting the worktree. For each repo in scope, if `_salvage/` exists and is non-empty:
+
+1. Read each `<worktree-id>/INFO.md` and the rescued files.
+2. Triage per file, asking the user like in Phase 3:
+   - durable lesson hiding in an oracle answer → treat as a candidate entry (continue through Phases 2–5);
+   - still-relevant task/epic state → propose moving it into the repo's canonical `docs/epics/` via a normal commit (tell the user; do not touch the repo yourself);
+   - obsolete → propose deleting the salvage subdir.
+3. After triage, remove emptied `<worktree-id>/` dirs. `_salvage/` should trend toward empty; it is a staging zone, not an archive.
+
 ### Phase 1: Read inbox
 
 Parse each `_inbox.md` (or all of them if product/company scope). Extract YAML blocks bounded by `## [` timestamps.
