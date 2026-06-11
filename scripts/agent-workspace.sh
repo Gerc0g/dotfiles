@@ -30,6 +30,7 @@ Usage:
   agent-workspace ready <company> <product> <repo> <worktree-id>
   agent-workspace remove <company> <product> <repo> <worktree-id>
   agent-workspace stale [days]   # active worktrees idle N+ days with no tmux session
+  agent-workspace prune-branches [--dry-run]   # delete merged/pushed agent/* branches not used by any worktree
 EOF
 }
 
@@ -111,6 +112,69 @@ ensure_worktree_excludes() {
   grep -qxF '.agent-workspace' "$exclude_file" || echo '.agent-workspace' >> "$exclude_file"
 }
 
+# Delete an agent/* branch only when no work can be lost:
+#   - never touches branches attached to an existing worktree (live sessions);
+#   - deletes when merged into the base branch OR fully pushed to upstream;
+#   - keeps everything else and says why.
+prune_branch_if_safe() {
+  local repo_dir=$1 branch=$2 dry_run=${3:-0}
+  local base_ref reason="" unpushed
+
+  [ -n "$branch" ] || return 0
+  case "$branch" in agent/*) ;; *) return 0 ;; esac
+  git -C "$repo_dir" show-ref --verify --quiet "refs/heads/$branch" || return 0
+
+  if git -C "$repo_dir" worktree list --porcelain 2>/dev/null | grep -qx "branch refs/heads/$branch"; then
+    return 0
+  fi
+
+  base_ref=$(base_ref_for "$repo_dir")
+  if [ -n "$base_ref" ] && [ "$base_ref" != "__orphan__" ] \
+    && git -C "$repo_dir" merge-base --is-ancestor "$branch" "$base_ref" 2>/dev/null; then
+    reason="merged into $base_ref"
+  elif git -C "$repo_dir" rev-parse --verify --quiet "$branch@{u}" >/dev/null 2>&1; then
+    unpushed=$(git -C "$repo_dir" rev-list --count "$branch@{u}..$branch" 2>/dev/null || echo 1)
+    if [ "$unpushed" = "0" ]; then
+      reason="fully pushed to $(git -C "$repo_dir" rev-parse --abbrev-ref "$branch@{u}" 2>/dev/null)"
+    fi
+  fi
+
+  if [ -z "$reason" ]; then
+    echo "keeping branch $branch (unmerged/unpushed local work)"
+    return 0
+  fi
+
+  if [ "$dry_run" = "1" ]; then
+    echo "would delete branch $branch ($reason)"
+  else
+    git -C "$repo_dir" branch -D "$branch" >/dev/null
+    echo "deleted branch $branch ($reason)"
+  fi
+}
+
+# Sweep agent/* branches across all main checkouts. Branches attached to a
+# worktree are never considered; only merged or fully pushed ones are deleted.
+prune_branches() {
+  local dry_run=0
+  [ "${1:-}" = "--dry-run" ] && dry_run=1
+  local repo_dir branch found=0
+
+  local out
+  for repo_dir in "$BASE"/*/*/*; do
+    [ -d "$repo_dir/.git" ] || continue
+    while IFS= read -r branch; do
+      [ -n "$branch" ] || continue
+      out=$(prune_branch_if_safe "$repo_dir" "$branch" "$dry_run")
+      [ -n "$out" ] || continue
+      found=1
+      printf '%s: %s\n' "${repo_dir#$BASE/}" "$out"
+    done < <(git -C "$repo_dir" for-each-ref --format='%(refname:short)' 'refs/heads/agent/**' 'refs/heads/agent/*' 2>/dev/null | sort -u)
+  done
+
+  [ "$found" = "0" ] && echo "no agent/* branches found"
+  return 0
+}
+
 # WikiPedik knowledge symlinks are untracked (kept in info/exclude), so a fresh
 # worktree starts without them and SessionStart hooks / lesson-append go dark.
 # Mirror them from the main checkout when present.
@@ -175,7 +239,7 @@ cleanup_workspaces() {
   local found=0
   while IFS= read -r meta; do
     [ -n "$meta" ] || continue
-    local state wt co prod repo repo_dir
+    local state wt co prod repo repo_dir branch
     state=$(metadata_value "$meta" cleanup_state)
     if [ "$state" != "ready" ]; then
       if [ "$state" = "review" ] && review_is_merged "$meta"; then
@@ -196,11 +260,17 @@ cleanup_workspaces() {
     repo_dir=$(repo_dir_for "$co" "$prod" "$repo")
     [ -d "$repo_dir/.git" ] || continue
     found=1
+    branch=$(metadata_value "$meta" branch)
     if [ "$dry_run" = "1" ]; then
       echo "would remove $wt"
     else
       [ "$quiet" = "1" ] || echo "removing $wt"
       git -C "$repo_dir" worktree remove "$wt"
+      if [ "$quiet" = "1" ]; then
+        prune_branch_if_safe "$repo_dir" "$branch" >/dev/null 2>&1 || true
+      else
+        prune_branch_if_safe "$repo_dir" "$branch" || true
+      fi
     fi
   done < <(find "$WORKTREES" -name .agent-workspace -type f -print | sort)
 
@@ -353,7 +423,7 @@ ready_workspace() {
 
 remove_workspace() {
   [ $# -eq 4 ] || { usage; exit 64; }
-  local co=$1 prod=$2 repo=$3 id=$4 wt_dir repo_dir
+  local co=$1 prod=$2 repo=$3 id=$4 wt_dir repo_dir branch
   wt_dir=$(worktree_dir_for "$co" "$prod" "$repo" "$id")
   repo_dir=$(repo_dir_for "$co" "$prod" "$repo")
   [ -e "$wt_dir" ] || { echo "not found: $wt_dir" >&2; exit 66; }
@@ -361,7 +431,9 @@ remove_workspace() {
     echo "error: worktree is dirty; commit/push or clean it before remove" >&2
     exit 65
   fi
+  branch=$(metadata_value "$wt_dir/.agent-workspace" branch 2>/dev/null || true)
   git -C "$repo_dir" worktree remove "$wt_dir"
+  prune_branch_if_safe "$repo_dir" "$branch"
   sync_vscode_project_manager
 }
 
@@ -376,5 +448,6 @@ case "$cmd" in
   ready) ready_workspace "$@" ;;
   remove) remove_workspace "$@" ;;
   stale) stale_workspaces "$@" ;;
+  prune-branches) prune_branches "$@" ;;
   *) usage; exit 64 ;;
 esac
