@@ -17,7 +17,7 @@ Acceptance criteria:
 
 ## Stale active worktree handling
 
-Status: done (2026-06-11) — `agent-workspace stale [days]` показывает active worktrees без tmux-сессии и коммитов N+ дней (dirty/unpushed счётчики); `start` печатает подсказку при наличии stale. Политика веток `agent/work-*` после удаления worktree — всё ещё открытый вопрос.
+Status: done (2026-06-11) — `agent-workspace stale [days]` показывает active worktrees без tmux-сессии и коммитов N+ дней (dirty/unpushed счётчики); `start` печатает подсказку при наличии stale. Политика веток: `remove`/`cleanup` удаляют ветку worktree, если она merged/pushed; `agent-workspace prune-branches` чистит остальные; ветки, привязанные к worktree или с локальной работой, не трогаются никогда.
 
 Problem: `agent-workspace start` already runs `cleanup_workspaces --days 7 --quiet`, but cleanup only removes `ready` (or merged `review`) worktrees. In practice tasks are rarely finished through `agent-finish.sh`, so worktrees stay `cleanup_state=active` forever and accumulate (2026-06-10: 20 worktrees, 4 live tmux sessions, all but one `active`).
 

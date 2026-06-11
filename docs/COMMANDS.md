@@ -76,6 +76,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `agent-workspace ready <co> <prod> <repo> <id>` — вручную пометить clean+pushed worktree готовым к cleanup.
 - `agent-workspace remove <co> <prod> <repo> <id>` — удалить clean worktree по короткому id.
 - `agent-workspace stale [days]` — active worktrees без tmux-сессии и коммитов N+ дней (default 3) для ручного triage; `start` подсказывает их количество.
+- `agent-workspace prune-branches [--dry-run]` — удалить `agent/*` ветки, не привязанные ни к одному worktree и при этом merged в base или полностью pushed; всё остальное keeping с причиной. `remove`/`cleanup` делают то же для ветки удаляемого worktree автоматически.
 **Git:** base branch = `dev`, иначе `main`; path = короткий id; branch = `agent/<task>-<id>`.
 **VS Code:** start/launch/ready/remove/cleanup автоматически обновляют Project Manager через `vscode-projects-sync`.
 
