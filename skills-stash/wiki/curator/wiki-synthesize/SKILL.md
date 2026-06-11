@@ -64,10 +64,50 @@ Outputs:
 - If this becomes binding, draft an ADR in the affected repo/product.
 ```
 
+## Rule Promotion (память → поведение)
+
+When a pattern or lesson is BOTH binding (must-follow, not advice) AND
+attachable to concrete code paths, propose promoting it to a path-scoped rule.
+Rules are the ladder step between shared patterns and ADR.
+
+Where rules live (source of truth, synced into repos by `wiki-rules-sync`):
+- repo rule: `repos/<repo>/rules/<slug>.md`
+- product rule (binding for all repos of the product): `shared/rules/<slug>.md`
+
+Rule file template — `paths:` frontmatter is MANDATORY (a rule without it
+would load into every session and bloat context; rules-sync refuses such
+files):
+
+```markdown
+---
+description: <one line, imperative>
+paths: ["src/metrics/**", "**/prometheus*"]
+---
+
+# <rule title, imperative>
+
+<2-6 lines: the binding rule, why it exists, what breaks otherwise.>
+
+Source: [[lessons#<anchor>]] / [[../shared/patterns#<anchor>]]
+Last verified: YYYY-MM-DD
+```
+
+Promotion bar (ALL must hold):
+1. The lesson recurred or caused real damage at least twice, OR the user explicitly asks.
+2. It is a must-follow constraint, not a preference.
+3. It maps to concrete file globs.
+4. User confirms the promotion.
+
+After writing a rule file, tell the user to run `wiki rules-sync <co>/<prod>`
+and `wiki-hot-refresh <co>/<prod>/<repo>` (the rule digest goes into hot.md
+for codex). If a rule later becomes canonical, promote to ADR and turn the
+rule body into a pointer.
+
 ## Boundaries
 
 - Do not invent a product rule from one repo only.
 - Do not write company-level memory; company promotion is a separate explicit step.
 - Do not modify canonical repo docs or ADRs.
 - If a pattern becomes binding, suggest ADR promotion instead of treating wiki as canonical truth.
+- Never create a rule file without `paths:` frontmatter and user confirmation.
 
