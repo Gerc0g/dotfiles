@@ -86,23 +86,45 @@ if [ -z "$REPO_ROOT" ]; then
   exit 0
 fi
 
-HOT_FILE="$REPO_ROOT/docs/knowledge/hot.md"
-
-# Hot cache might not exist yet — that's fine
-if [ ! -f "$HOT_FILE" ]; then
-  exit 0
-fi
-
-# Skip if hot.md is empty
-if [ ! -s "$HOT_FILE" ]; then
-  exit 0
-fi
-
 if ! command -v python3 >/dev/null 2>&1; then
   exit 0
 fi
 
-HOT_FILE="$HOT_FILE" python3 - <<'PY' || exit 0
+HOT_FILE="$REPO_ROOT/docs/knowledge/hot.md"
+
+# Memory not attached (repo never bootstrapped, or a worktree without symlinks).
+# Do not stay silent: tell the agent so the user learns about it in-chat instead
+# of the memory loop dying invisibly for weeks.
+if [ ! -f "$HOT_FILE" ] || [ ! -s "$HOT_FILE" ]; then
+  REL="${REPO_ROOT#$PROJECTS_ROOT/}"
+  case "$REL" in
+    .worktrees/*) REL="${REL#.worktrees/}" ;;
+  esac
+  SCOPE="$(printf '%s' "$REL" | awk -F/ '{print $1, $2, $3}')"
+  SCOPE="$SCOPE" python3 - <<'PY' || exit 0
+import json
+import os
+
+scope = os.environ.get("SCOPE", "").strip()
+context = (
+    "# WikiPedik memory warning\n\n"
+    "This repo has no WikiPedik project memory attached: docs/knowledge/hot.md is missing or empty.\n"
+    "Lessons will not be captured and no prior context is available.\n"
+    f"Early in this session, tell the user that project memory is disconnected and suggest running: `wiki bootstrap {scope}`."
+)
+print(json.dumps({
+    "hookSpecificOutput": {
+        "hookEventName": "SessionStart",
+        "additionalContext": context,
+    }
+}, ensure_ascii=False))
+PY
+  exit 0
+fi
+
+INBOX_CANDIDATES="$(grep -c '^Status: candidate$' "$REPO_ROOT/docs/knowledge/_inbox.md" 2>/dev/null || echo 0)"
+
+HOT_FILE="$HOT_FILE" INBOX_CANDIDATES="$INBOX_CANDIDATES" python3 - <<'PY' || exit 0
 import json
 import os
 import sys
@@ -118,7 +140,13 @@ if not hot:
     sys.exit(0)
 
 checkpoint = """\n\n# WikiPedik memory checkpoint\n\nBefore the final answer, decide whether this task produced a durable root cause, production gotcha, failed approach, reusable rule, informal decision, or cross-repo invariant. If yes, use the `lesson-append` skill to append one concise candidate to `docs/knowledge/_inbox.md`. If not, write nothing."""
-context = "# Recent wiki context (auto-loaded from docs/knowledge/hot.md)\n\n" + hot + checkpoint
+
+status = ""
+cand = os.environ.get("INBOX_CANDIDATES", "0").strip()
+if cand.isdigit() and int(cand) >= 5:
+    status = f"\n\nInbox status: {cand} candidate lessons are pending in docs/knowledge/_inbox.md. Mention to the user that `wiki sync` is overdue."
+
+context = "# Recent wiki context (auto-loaded from docs/knowledge/hot.md)\n\n" + hot + checkpoint + status
 print(json.dumps({
     "hookSpecificOutput": {
         "hookEventName": "SessionStart",
