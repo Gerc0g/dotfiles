@@ -245,6 +245,12 @@ wiki-bootstrap-product() {
   zsh "$HOME/dotfiles/skills-stash/wiki/scripts/wiki-bootstrap-product.sh" "$@"
 }
 
+# Deterministic hot.md rebuild from curated pages. Fallback when the curator
+# skipped its hot.md phase; safe to run any time.
+wiki-hot-refresh() {
+  python3 "$HOME/dotfiles/scripts/wiki-hot-refresh.py" "$@"
+}
+
 _wiki_curator() {
   local skill=$1
   local scope="${2:-}"
@@ -355,4 +361,9 @@ wiki-commit() {
     return 1
   fi
   _wiki_commit "$scope" "0"
+}
+
+# Catch-all vault commit; `launch` calls it daily via --if-due.
+wiki-autocommit() {
+  bash "$HOME/dotfiles/scripts/wikipedik-autocommit.sh" "$@"
 }

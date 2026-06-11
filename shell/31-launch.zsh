@@ -345,5 +345,6 @@ _launch_session_path() {
   tmux select-pane -t "$plan_pane"
   tmux rename-window -t "${session}:work" "${work_label}"
   _launch_memory_status "$repo_dir" "$session"
+  bash "$HOME/dotfiles/scripts/wikipedik-autocommit.sh" --if-due 2>/dev/null || true
   tmux attach -t "$session"
 }

@@ -89,6 +89,10 @@ wiki() {
       shift
       wiki-bootstrap-product "$@"
       ;;
+    autocommit)
+      shift
+      wiki-autocommit "$@"
+      ;;
     *)
       _project_launch neurodesk wiki nrdsk_wiki "$@"
       ;;
