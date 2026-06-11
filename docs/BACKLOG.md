@@ -51,11 +51,19 @@ wiki-context-pack в launch-флоу по умолчанию.
 
 ## WikiPedik memory v2 — по итогам research рынка и SOTA
 
-Status: in progress — §1 частично done 2026-06-12: механизм "урок → правило"
-реализован (`wiki-rules-sync.py`: vault `rules/` → path-scoped
-`.claude/rules/wiki-*` симлинки в чекауты+worktrees; дайджест "Binding rules"
-в hot.md для codex; promotion bar в `wiki-synthesize`; e2e-тест пройден).
-Остальное по списку ниже.
+Status: mostly done 2026-06-12.
+- §1 done: "урок → правило" (`wiki-rules-sync.py`, дайджест Binding rules в
+  hot.md, promotion bar в wiki-synthesize) + hot.md как индекс (футер memory
+  pages, read-on-demand протокол в чекпойнте хуков).
+- §2 done: citations обязательны в lesson-append, verify-before-apply в
+  чекпойнте обоих хуков.
+- §3 done: memory evolution (Zettelkasten-связки + refresh Last verified)
+  как шаг Phase 4 в inbox-drain.
+- §4 todo: last-used экспирация — ждёт первой практики wiki lint.
+- §5 blocked: autoMemoryDirectory vs privacy firewall (открытый вопрос
+  research).
+Бонус: сам dotfiles подключён к памяти (_platform scope в вольте, симлинки,
+хуки пускают ~/dotfiles), 5 платформенных уроков в inbox.
 
 Источник: [wikipedik-memory-research.md](./wikipedik-memory-research.md)
 (deep-research 2026-06-11, 23 источника, верифицированные claims). Рынок
