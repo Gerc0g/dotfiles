@@ -69,11 +69,18 @@ For each candidate entry, build:
 
 Skip entries already marked `Status: drained` or `Status: rejected`.
 
-### Phase 2: Deduplicate
+### Phase 2: Deduplicate and derivability-check
 
 For each entry, check if it duplicates or extends existing curated content:
 - Check `lessons.md`, `gotchas.md`, `debugging-stories.md` headings + tags
 - If high similarity (same tags + similar title) → propose merge
+
+Then apply the derivability test: if the entry restates what the repo already
+declares (code, `.claude/skills/*`, prompts, `AGENTS.md`, `docs/design.md`,
+ADRs), propose **reject** with reason `spec-derivable` — the wiki keeps only
+what cannot be re-derived: divergence from spec, failures, surprises, informal
+decisions. Rejected-as-derivable entries are feedback for tuning worker
+capture, same as `below signal threshold`.
 
 ### Phase 3: Propose targets
 

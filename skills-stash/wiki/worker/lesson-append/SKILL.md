@@ -24,6 +24,12 @@ Automatically (without asking the user) when the agent observes one of these **d
 
 If none of the above — do NOT invoke. Low-signal notes pollute the inbox.
 
+Derivability test before every capture: if a new developer could re-derive the
+fact from the repo itself (code, skill files, prompts, `AGENTS.md`,
+`docs/design.md`, ADRs), it is spec — not a lesson. Skip it. Capture only the
+divergence: where behavior contradicted the spec, what failed, what surprised,
+what the spec is silent about.
+
 Also invoke explicitly when the user says: "запиши урок", "save this lesson", "remember this", "capture this", "add to inbox".
 
 ## What it does

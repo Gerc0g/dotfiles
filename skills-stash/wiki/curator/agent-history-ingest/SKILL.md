@@ -44,6 +44,16 @@ Accept an optional source selector in the user's request:
    - failed approaches;
    - recurring project constraints;
    - commands or workflows worth remembering.
+
+   **Derivability test (hard filter).** Before listing anything as a candidate
+   capture, ask: could a new developer re-derive this from the repo itself —
+   code, `.claude/skills/*`, prompts, `AGENTS.md`, `docs/design.md`, ADRs?
+   - YES → it is spec, not a lesson. Do not capture it (do not even list it
+     as a weak candidate). Example: "the KDL assistant keeps a narrow
+     commercial scope" is written in its skill file — skip.
+   - NO → capture. Lessons live in the *divergence* from spec: where observed
+     behavior contradicted the spec, what failed, what surprised, what the
+     spec is silent about.
 5. Redact secrets, tokens, raw `.env` values, personal identifiers, and long raw logs.
 6. Write one source note per meaningful session or cluster of related sessions.
 7. Update the manifest with processed files and output notes.
