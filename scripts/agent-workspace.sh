@@ -13,6 +13,12 @@ set -euo pipefail
 BASE="$HOME/Desktop/Prokectfiles"
 WORKTREES="$BASE/.worktrees"
 
+sync_vscode_project_manager() {
+  local sync="$HOME/dotfiles/scripts/vscode-projects-sync.py"
+  [ -x "$sync" ] || return 0
+  "$sync" --no-backup >/dev/null 2>&1 || true
+}
+
 usage() {
   cat >&2 <<'EOF'
 Usage:
@@ -104,6 +110,19 @@ ensure_worktree_excludes() {
   grep -qxF '.agent-workspace' "$exclude_file" || echo '.agent-workspace' >> "$exclude_file"
 }
 
+# WikiPedik knowledge symlinks are untracked (kept in info/exclude), so a fresh
+# worktree starts without them and SessionStart hooks / lesson-append go dark.
+# Mirror them from the main checkout when present.
+link_knowledge_symlinks() {
+  local repo_dir=$1 wt_dir=$2 name target
+  for name in knowledge product-knowledge company-knowledge; do
+    target=$(readlink "$repo_dir/docs/$name" 2>/dev/null) || continue
+    [ -d "$target" ] || continue
+    mkdir -p "$wt_dir/docs"
+    ln -sfn "$target" "$wt_dir/docs/$name"
+  done
+}
+
 seed_orphan_worktree() {
   local repo_dir=$1 wt_dir=$2
   find "$repo_dir" -mindepth 1 -maxdepth 1 ! -name .git -exec cp -R {} "$wt_dir" \;
@@ -187,6 +206,9 @@ cleanup_workspaces() {
   if [ "$found" = "0" ] && [ "$quiet" != "1" ]; then
     echo "no clean pushed ready worktrees to remove"
   fi
+  if [ "$dry_run" != "1" ]; then
+    sync_vscode_project_manager
+  fi
 }
 
 start_workspace() {
@@ -225,7 +247,9 @@ start_workspace() {
   email=$(company_email "$co" || true)
   [ -n "$email" ] && git -C "$wt_dir" config user.email "$email"
   ensure_worktree_excludes "$wt_dir"
+  link_knowledge_symlinks "$repo_dir" "$wt_dir"
   write_metadata "$wt_dir" "$co" "$prod" "$repo" "$task" "$id" "$branch" "$base_ref"
+  sync_vscode_project_manager
   echo "$wt_dir"
 }
 
@@ -271,6 +295,7 @@ ready_workspace() {
     echo "ready_at=$(date '+%Y-%m-%d %H:%M:%S')"
   } > "$meta"
   rm -f "$tmp"
+  sync_vscode_project_manager
   echo "marked ready: $wt_dir"
 }
 
@@ -285,6 +310,7 @@ remove_workspace() {
     exit 65
   fi
   git -C "$repo_dir" worktree remove "$wt_dir"
+  sync_vscode_project_manager
 }
 
 cmd=${1:-}
