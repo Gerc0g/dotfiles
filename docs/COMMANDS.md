@@ -75,6 +75,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `agent-workspace cleanup [--days N] [--dry-run]` — удалить только clean + pushed + ready/merged worktrees.
 - `agent-workspace ready <co> <prod> <repo> <id>` — вручную пометить clean+pushed worktree готовым к cleanup.
 - `agent-workspace remove <co> <prod> <repo> <id>` — удалить clean worktree по короткому id.
+- `agent-workspace stale [days]` — active worktrees без tmux-сессии и коммитов N+ дней (default 3) для ручного triage; `start` подсказывает их количество.
 **Git:** base branch = `dev`, иначе `main`; path = короткий id; branch = `agent/<task>-<id>`.
 **VS Code:** start/launch/ready/remove/cleanup автоматически обновляют Project Manager через `vscode-projects-sync`.
 
@@ -129,6 +130,8 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `wiki synthesize <company/product>` — найти повторяющиеся lessons/gotchas и предложить product shared patterns.
 - `wiki bootstrap <company> [product] [repo]` — создать WikiPedik skeleton + repo symlinks.
 - `wiki-commit <scope>` — вручную закоммитить только changes внутри WikiPedik scope.
+- `wiki autocommit` / `wiki-autocommit` — catch-all commit всего dirty вольта (без push, с secret-scan); `launch` вызывает его раз в сутки через `--if-due`.
+- `wiki-hot-refresh <co>[/<prod>[/<repo>]]` — детерминированно пересобрать `hot.md` из curated-страниц (fallback, если куратор пропустил свою фазу).
 - `wiki-git <args...>` — выполнить `git` внутри root vault `~/Desktop/WikiPedik`.
 **Примеры:**
 - `wiki sync neurodesk/wiki/nrdsk_wiki`

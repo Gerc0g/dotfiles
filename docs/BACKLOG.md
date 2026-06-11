@@ -2,7 +2,7 @@
 
 ## Automatic WikiPedik vault commits
 
-Status: todo
+Status: done (2026-06-11) — `scripts/wikipedik-autocommit.sh`: catch-all commit с secret-scan, без push; `launch` вызывает раз в сутки через `--if-due`, вручную — `wiki autocommit`. launchd отклонён из-за TCC-доступа к Desktop у фоновых процессов.
 
 Problem: nothing commits the WikiPedik vault automatically — no obsidian-git plugin, no launchd/cron job, no hook. The vault has 8 manual commits total; curator work (drain, synthesize, hot.md refresh) sits uncommitted until someone runs `wiki-commit` by hand. Human edits in Obsidian are never captured at all.
 
@@ -17,7 +17,7 @@ Acceptance criteria:
 
 ## Stale active worktree handling
 
-Status: todo
+Status: done (2026-06-11) — `agent-workspace stale [days]` показывает active worktrees без tmux-сессии и коммитов N+ дней (dirty/unpushed счётчики); `start` печатает подсказку при наличии stale. Политика веток `agent/work-*` после удаления worktree — всё ещё открытый вопрос.
 
 Problem: `agent-workspace start` already runs `cleanup_workspaces --days 7 --quiet`, but cleanup only removes `ready` (or merged `review`) worktrees. In practice tasks are rarely finished through `agent-finish.sh`, so worktrees stay `cleanup_state=active` forever and accumulate (2026-06-10: 20 worktrees, 4 live tmux sessions, all but one `active`).
 
