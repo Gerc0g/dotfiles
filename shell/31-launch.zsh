@@ -217,6 +217,43 @@ _launch_session() {
   _launch_session_path "${co}-${prod}-${repo}" "$repo_dir" "🖥 ${repo}"
 }
 
+# WikiPedik memory health: print a short status and put a badge into the tmux
+# status bar, so a dead memory loop is visible at launch instead of silent.
+_launch_memory_status() {
+  local repo_dir=$1 session=$2
+  local kdir="$repo_dir/docs/knowledge"
+
+  if [ ! -f "$kdir/hot.md" ]; then
+    echo "⚠ wiki memory: не подключена (нет docs/knowledge/hot.md) — запусти wiki bootstrap"
+    tmux set-option -t "$session" status-right " wiki:✗ | %H:%M " 2>/dev/null
+    return 0
+  fi
+
+  local cand stamp age_note="" badge
+  cand=$(grep -c '^Status: candidate$' "$kdir/_inbox.md" 2>/dev/null) || cand=0
+  stamp=$(grep -o 'last refreshed: [0-9-]*' "$kdir/hot.md" 2>/dev/null | head -1 | awk '{print $3}')
+
+  if [ -z "$stamp" ] || [ "$stamp" = "never" ]; then
+    age_note="hot.md ещё не собирался"
+  else
+    local then_s now_s days
+    then_s=$(date -j -f '%Y-%m-%d' "$stamp" +%s 2>/dev/null || echo 0)
+    now_s=$(date +%s)
+    if [ "$then_s" -gt 0 ]; then
+      days=$(( (now_s - then_s) / 86400 ))
+      [ "$days" -gt 14 ] && age_note="hot.md устарел: $days дн."
+    fi
+  fi
+
+  badge=" wiki:✓"
+  [ "$cand" -gt 0 ] && badge="$badge in:$cand"
+  tmux set-option -t "$session" status-right "$badge | %H:%M " 2>/dev/null
+
+  if [ "$cand" -ge 5 ] || [ -n "$age_note" ]; then
+    echo "ℹ wiki memory: inbox $cand candidate${age_note:+ · $age_note} — пора wiki sync"
+  fi
+}
+
 _launch_session_path() {
   local session=$1 repo_dir=$2 work_label=$3
 
@@ -307,5 +344,6 @@ _launch_session_path() {
   # Plan pane = active on attach
   tmux select-pane -t "$plan_pane"
   tmux rename-window -t "${session}:work" "${work_label}"
+  _launch_memory_status "$repo_dir" "$session"
   tmux attach -t "$session"
 }
