@@ -65,10 +65,13 @@ def checkout_dirs(co: str, prod: str, repo: str) -> list[Path]:
     if (main / ".git").exists():
         dirs.append(main)
     wt_root = WORKTREES_ROOT / co / prod / repo
-    if wt_root.is_dir():
-        for wt in sorted(wt_root.iterdir()):
-            if (wt / ".git").exists():
-                dirs.append(wt)
+    try:
+        if wt_root.is_dir():
+            for wt in sorted(wt_root.iterdir()):
+                if (wt / ".git").exists():
+                    dirs.append(wt)
+    except OSError as exc:  # macOS TCC can flake on Desktop subdirs
+        print(f"⚠ skip worktrees of {repo}: {exc}", file=sys.stderr)
     return dirs
 
 
