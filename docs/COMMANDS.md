@@ -109,10 +109,11 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Правила:** push не на каждый commit; merge не выполняется автоматически.
 
 ## wikipedik
-**Что:** tmux с тремя codex-панелями для Obsidian vault: project memory, research и personal brand tracker.
+**Что:** tmux с тремя codex-панелями + меню памяти для Obsidian vault: project memory, research и personal brand tracker.
 **Запуск:** `wikipedik`
 **Панели:**
 - `~/Desktop/WikiPedik/dev` — project-memory curator (`wiki sync/status/synthesize`).
+- **меню памяти** (`scripts/wiki-menu.zsh`) — композер промптов: выбираешь действие (status/sync/synthesize/lint/ingest) и scope (компания→продукт→репо) по цифрам — готовый промпт ложится в буфер и впечатывается в инпут dev-чата, фокус прыгает туда, ты жмёшь Enter. Механика (rules-sync, hot-refresh, push, git status, bootstrap репо без памяти) выполняется сразу. Шпаргалка: `docs/wikipedik-cheatsheet.md`.
 - `~/Desktop/WikiPedik/research` — research/study agent для источников, статей, концептов и study notes.
 - `~/Desktop/WikiPedik/Personal Brand` — изолированный brand-agent для идей, черновиков, inbound и weekly metrics.
 **Правила brand-agent:**

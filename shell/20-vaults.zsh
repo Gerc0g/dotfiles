@@ -12,6 +12,11 @@ wikipedik() {
   tmux split-window -h -t wikipedik:0.1 -c ~/Desktop/WikiPedik/Personal\ Brand
   tmux send-keys -t wikipedik:0.2 'export CODEX_HOME=$HOME/.codex-wiki; clear; codex' Enter
 
+  # Memory ops: prompt composer for the dev chat + quick mechanical actions
+  tmux split-window -h -t wikipedik:0.0 -c ~/Desktop/WikiPedik/dev
+  tmux send-keys -t wikipedik:0.1 'zsh ~/dotfiles/scripts/wiki-menu.zsh' Enter
+
   tmux select-layout -t wikipedik:0 tiled
+  tmux select-pane -t wikipedik:0.0
   tmux attach -t wikipedik
 }
