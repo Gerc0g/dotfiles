@@ -252,6 +252,35 @@ _launch_memory_status() {
   if [ "$cand" -ge 5 ] || [ -n "$age_note" ]; then
     echo "ℹ wiki memory: inbox $cand candidate${age_note:+ · $age_note} — пора wiki sync"
   fi
+
+  # Hygiene nudges (cheap, deterministic): lint age and history-ingest age.
+  local health="$repo_dir/docs/product-knowledge/health.md" lint_line
+  if [ -f "$health" ]; then
+    lint_line=$(grep -m1 '^Last lint:' "$health" 2>/dev/null)
+    case "$lint_line" in
+      *never*) echo "ℹ wiki lint: ни разу не запускался для этого продукта — wiki lint <co>/<prod>" ;;
+      *)
+        local lint_date lint_s lint_now
+        lint_date=$(print -r -- "$lint_line" | grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' | head -1)
+        if [ -n "$lint_date" ]; then
+          lint_s=$(date -j -f '%Y-%m-%d' "$lint_date" +%s 2>/dev/null || echo 0)
+          lint_now=$(date +%s)
+          [ "$lint_s" -gt 0 ] && [ $(( (lint_now - lint_s) / 86400 )) -gt 30 ] && \
+            echo "ℹ wiki lint: последний $lint_date (>30 дн.) — пора wiki lint"
+        fi
+        ;;
+    esac
+  fi
+
+  local manifest="$HOME/Desktop/WikiPedik/dev/10-wiki/sources/sessions/.ingest-manifest.json" ingest_s ingest_days
+  if [ -f "$manifest" ]; then
+    ingest_s=$(stat -f %m "$manifest" 2>/dev/null || echo 0)
+    if [ "$ingest_s" -gt 0 ]; then
+      ingest_days=$(( ($(date +%s) - ingest_s) / 86400 ))
+      [ "$ingest_days" -ge 14 ] && \
+        echo "ℹ history-ingest: последний прогон $ingest_days дн. назад — пора майнить сессии (agent-history-ingest)"
+    fi
+  fi
 }
 
 _launch_session_path() {
