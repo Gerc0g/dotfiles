@@ -356,7 +356,7 @@ _launch_session_path() {
       "run-shell \"bash $HOME/dotfiles/scripts/agent-workspace.sh reap '$repo_dir' >>$HOME/Library/Logs/agent-workspace-reap.log 2>&1\""
     # Live reap indicator goes into status-right (set by _launch_memory_status):
     # green ●synced = closing removes it, yellow ●…hold = unsynced work kept.
-    tmux set-option -t "$session" status-interval 10
+    tmux set-option -t "$session" status-interval 15
   fi
   tmux set-option -t "$session" status-left " ${work_label} "
   tmux set-option -t "$session" set-titles on

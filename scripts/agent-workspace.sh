@@ -552,7 +552,11 @@ remove_workspace() {
 #   yellow ● 3✎ 2↑ hold  → uncommitted/unpushed work; closing keeps it
 reap_status() {
   local wt=${1:-} state dirty ahead
-  [ -n "$wt" ] && [ -d "$wt" ] || return 0
+  [ -n "$wt" ] || return 0
+  # Fast bail if the path is unreadable (e.g. tmux server without TCC access to
+  # Desktop): never block or spam the status bar.
+  ls "$wt" >/dev/null 2>&1 || { printf '#[fg=red]● ?#[default]'; return 0; }
+  [ -d "$wt" ] || return 0
   [ -f "$wt/.agent-workspace" ] || return 0
 
   state=$(metadata_value "$wt/.agent-workspace" cleanup_state 2>/dev/null)
