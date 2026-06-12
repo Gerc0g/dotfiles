@@ -471,6 +471,39 @@ stale_count() {
   stale_workspaces "${1:-3}" 2>/dev/null | grep -c '| idle=' || true
 }
 
+# Reap a single worktree when its tmux session closes (session-closed hook).
+# Best-effort and SAFE: salvages artifacts, then removes the worktree ONLY if
+# it is clean and fully pushed (or already ready). Dirty / unpushed work is
+# left untouched — closing a window must never destroy unsynced work; such a
+# worktree is picked up later by `stale`/`cleanup`. Quiet: meant for a hook.
+reap_workspace() {
+  local wt_dir=${1:-} meta co prod repo id branch repo_dir state
+  [ -n "$wt_dir" ] && [ -d "$wt_dir" ] || return 0
+  meta="$wt_dir/.agent-workspace"
+  [ -f "$meta" ] || return 0
+
+  co=$(metadata_value "$meta" company)
+  prod=$(metadata_value "$meta" product)
+  repo=$(metadata_value "$meta" repo)
+  id=$(metadata_value "$meta" id)
+  branch=$(metadata_value "$meta" branch)
+  state=$(metadata_value "$meta" cleanup_state)
+  repo_dir=$(repo_dir_for "$co" "$prod" "$repo")
+  [ -d "$repo_dir/.git" ] || return 0
+
+  salvage_worktree_artifacts "$wt_dir" "$co" "$prod" "$repo" "$id" >/dev/null 2>&1 || true
+  drop_salvaged_junk "$wt_dir" >/dev/null 2>&1 || true
+
+  # Keep unless safe to drop: clean+pushed, or already marked ready.
+  if ! is_clean_and_pushed "$wt_dir" && [ "$state" != "ready" ]; then
+    return 0
+  fi
+
+  git -C "$repo_dir" worktree remove "$wt_dir" >/dev/null 2>&1 || return 0
+  prune_branch_if_safe "$repo_dir" "$branch" >/dev/null 2>&1 || true
+  sync_vscode_project_manager >/dev/null 2>&1 || true
+}
+
 
 ready_workspace() {
   [ $# -eq 4 ] || { usage; exit 64; }
@@ -524,5 +557,6 @@ case "$cmd" in
   remove) remove_workspace "$@" ;;
   stale) stale_workspaces "$@" ;;
   prune-branches) prune_branches "$@" ;;
+  reap) reap_workspace "$@" ;;
   *) usage; exit 64 ;;
 esac

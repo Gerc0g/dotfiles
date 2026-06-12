@@ -343,6 +343,12 @@ _launch_session_path() {
   tmux set-environment -t "$session" AGENT_GIT_MODE "commit-local"
   tmux set-environment -t "$session" AGENT_GIT_PUSH "task"
   tmux set-environment -t "$session" AGENT_WORKSPACE_MODE "$AGENT_WORKSPACE_MODE"
+  # Reap the worktree when this session closes — safe: removes only if the
+  # worktree is clean+pushed (or ready), otherwise leaves it for stale/cleanup.
+  if [ "$AGENT_WORKSPACE_MODE" = "agent" ] && [ -f "$repo_dir/.agent-workspace" ]; then
+    tmux set-hook -t "$session" session-closed \
+      "run-shell \"bash $HOME/dotfiles/scripts/agent-workspace.sh reap '$repo_dir' >>$HOME/Library/Logs/agent-workspace-reap.log 2>&1\""
+  fi
   tmux set-option -t "$session" status-left " ${work_label} "
   tmux set-option -t "$session" set-titles on
   tmux set-option -t "$session" set-titles-string "${work_label}"

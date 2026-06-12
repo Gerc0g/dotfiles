@@ -78,7 +78,8 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `agent-workspace stale [days]` — active worktrees без tmux-сессии и коммитов N+ дней (default 3) для ручного triage; `start` подсказывает их количество.
 - `agent-workspace prune-branches [--dry-run]` — удалить `agent/*` ветки, не привязанные ни к одному worktree и при этом merged в base или полностью pushed; всё остальное keeping с причиной. `remove`/`cleanup` делают то же для ветки удаляемого worktree автоматически.
 **Git:** base branch = `dev`, иначе `main`; path = короткий id; branch = `agent/<task>-<id>`.
-**Salvage:** перед удалением worktree (`remove`/`cleanup`) oracle-ответы (`.agents/oracle/*.md`) и незакоммиченные `docs/epics/*.md` спасаются в WikiPedik `repos/<repo>/_salvage/<id>/`; куратор разбирает их при `wiki sync`. Untracked epic-доки после спасения удаляются (worktree становится removable), изменённые tracked-файлы по-прежнему блокируют remove.
+**Salvage:** перед удалением worktree (`remove`/`cleanup`/`reap`) oracle-ответы (`.agents/oracle/*.md`) и незакоммиченные `docs/epics/*.md` спасаются в WikiPedik `repos/<repo>/_salvage/<id>/`; куратор разбирает их при `wiki sync`. Untracked epic-доки после спасения удаляются (worktree становится removable), изменённые tracked-файлы по-прежнему блокируют remove.
+**Reap при закрытии tmux:** `launch` вешает `session-closed` hook на managed-сессию → при закрытии окна вызывается `agent-workspace reap <wt>`: salvage + удаление worktree ТОЛЬКО если он clean+pushed (или `ready`); dirty/unpushed работа остаётся нетронутой (её подберут `stale`/`cleanup`). Лог: `~/Library/Logs/agent-workspace-reap.log`.
 **VS Code:** start/launch/ready/remove/cleanup автоматически обновляют Project Manager через `vscode-projects-sync`.
 
 ## vscode-projects-sync
