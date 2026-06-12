@@ -7,6 +7,7 @@
 - Do not push, force-push, rebase pushed commits, edit `.env*`/`.envrc`, run migrations, or install globals without explicit ask. Exception: if `AGENT_GIT_MODE=commit-local`, commit each completed logical change with `agent-commit.sh` and explicit paths; finish completed tasks with `agent-finish.sh`.
 - After edits, run the smallest relevant check and report what changed/tested.
 - Durable lesson: use `lesson-append` if `docs/knowledge/_inbox.md` exists.
+- No tool attribution: never add `Co-Authored-By: Claude/Codex` to commits or a `Generated with Claude Code`/`🤖` footer to PR/MR bodies. Commits and reviews are authored as the user.
 
 References:
 - Platform: `~/dotfiles/agent-profiles/PLATFORM.md`

@@ -123,6 +123,10 @@ if settings.exists():
 else:
     data = {}
 
+# No "Co-Authored-By: Claude" in commits and no "Generated with Claude Code"
+# footer in PR/MR bodies — platform convention is clean attribution.
+data["includeCoAuthoredBy"] = False
+
 enabled = data.setdefault("enabledPlugins", {})
 enabled["pyright-lsp@claude-plugins-official"] = True
 enabled["vtsls@claude-code-lsps"] = True
