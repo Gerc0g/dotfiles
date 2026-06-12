@@ -172,6 +172,19 @@ echo "✓ Claude LSP plugins configured (pyright, vtsls, yaml-language-server)"
 mkdir -p ~/Desktop/Prokectfiles
 echo "✓ ~/Desktop/Prokectfiles/ ready"
 
+# === 12b. Daily transcript secret-scrubber (launchd) ===
+echo ""
+echo "→ Installing transcript-scrub launchd job..."
+mkdir -p ~/Library/LaunchAgents ~/Library/Logs
+cp ~/dotfiles/scripts/launchd/com.gerc0g.transcript-scrub.plist ~/Library/LaunchAgents/
+launchctl bootout "gui/$(id -u)/com.gerc0g.transcript-scrub" 2>/dev/null || true
+if launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.gerc0g.transcript-scrub.plist 2>/dev/null; then
+  echo "✓ transcript-scrub scheduled daily 03:30"
+else
+  echo "⚠ transcript-scrub job not loaded — run manually:"
+  echo "  launchctl bootstrap gui/\$(id -u) ~/Library/LaunchAgents/com.gerc0g.transcript-scrub.plist"
+fi
+
 # === 13. Подключить loader в .zshrc ===
 if ! grep -q "dotfiles/shell/_loader.zsh" ~/.zshrc 2>/dev/null; then
   echo "" >> ~/.zshrc
