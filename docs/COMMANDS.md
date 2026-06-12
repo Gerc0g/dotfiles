@@ -113,7 +113,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Запуск:** `wikipedik`
 **Панели:**
 - `~/Desktop/WikiPedik/dev` — project-memory curator (`wiki sync/status/synthesize`).
-- **меню памяти** (`scripts/wiki-menu.zsh`) — композер промптов: выбираешь действие (status/sync/synthesize/lint/ingest) и scope (компания→продукт→репо) по цифрам — готовый промпт ложится в буфер и впечатывается в инпут dev-чата, фокус прыгает туда, ты жмёшь Enter. Механика (rules-sync, hot-refresh, push, git status, bootstrap репо без памяти) выполняется сразу. Шпаргалка: `docs/wikipedik-cheatsheet.md`.
+- **меню памяти** (`tools/wiki-tui`, bubbletea; launcher `scripts/wiki-menu.sh`) — композер промптов: выбираешь действие (status/sync/synthesize/lint/ingest) и scope (компания→продукт→репо, стрелки/цифры) — готовый промпт ложится в буфер и впечатывается в инпут dev-чата, фокус прыгает туда, ты жмёшь Enter. Механика (rules-sync+hot-refresh, push, git status, bootstrap репо без памяти) выполняется сразу с выводом. Шпаргалка: `docs/wikipedik-cheatsheet.md`.
 - `~/Desktop/WikiPedik/research` — research/study agent для источников, статей, концептов и study notes.
 - `~/Desktop/WikiPedik/Personal Brand` — изолированный brand-agent для идей, черновиков, inbound и weekly metrics.
 **Правила brand-agent:**

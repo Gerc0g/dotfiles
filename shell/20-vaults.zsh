@@ -14,7 +14,7 @@ wikipedik() {
 
   # Memory ops: prompt composer for the dev chat + quick mechanical actions
   tmux split-window -h -t wikipedik:0.0 -c ~/Desktop/WikiPedik/dev
-  tmux send-keys -t wikipedik:0.1 'zsh ~/dotfiles/scripts/wiki-menu.zsh' Enter
+  tmux send-keys -t wikipedik:0.1 'bash ~/dotfiles/scripts/wiki-menu.sh' Enter
 
   tmux select-layout -t wikipedik:0 tiled
   tmux select-pane -t wikipedik:0.0

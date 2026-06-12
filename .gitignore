@@ -18,4 +18,5 @@ __pycache__/
 
 # Locally built TUI binaries; sources stay tracked
 tools/oracle-tui/oracle-tui
+tools/wiki-tui/wiki-tui
 tools/test-tui/test-tui
