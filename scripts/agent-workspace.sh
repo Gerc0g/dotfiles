@@ -561,7 +561,7 @@ reap_status() {
   [ -n "$wt" ] || return 0
   # Fast bail if the path is unreadable (e.g. tmux server without TCC access to
   # Desktop): never block or spam the status bar.
-  ls "$wt" >/dev/null 2>&1 || { printf '#[fg=red]● ?#[default]'; return 0; }
+  ls "$wt" >/dev/null 2>&1 || { printf '#[fg=black]? no-access#[default]'; return 0; }
   [ -d "$wt" ] || return 0
   [ -f "$wt/.agent-workspace" ] || return 0
 
@@ -569,13 +569,15 @@ reap_status() {
   dirty=$(git -C "$wt" status --porcelain 2>/dev/null | grep -c . || true)
   ahead=$(git -C "$wt" rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)
 
+  # Black text on the green status bar; always shown (synced state too) so the
+  # absence of the indicator is never ambiguous.
   if [ "${dirty:-0}" -eq 0 ] && { [ "${ahead:-0}" -eq 0 ] || [ "$state" = "ready" ]; }; then
-    printf '#[fg=green]● synced#[default]'
+    printf '#[fg=black]✓ synced#[default]'
   else
     local parts=""
     [ "${dirty:-0}" -gt 0 ] && parts="${dirty}✎"
     [ "${ahead:-0}" -gt 0 ] && parts="${parts:+$parts }${ahead}↑"
-    printf '#[fg=yellow]● %s hold#[default]' "$parts"
+    printf '#[fg=black,bold]● %s hold#[default]' "$parts"
   fi
 }
 

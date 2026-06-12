@@ -94,6 +94,34 @@ var (
 	helpStyle   = lipgloss.NewStyle().Foreground(muted)
 )
 
+// excludeAgentsDir hides the tooling's .agents/ output from git via the repo's
+// info/exclude (works for both a normal checkout and a worktree). Otherwise
+// untracked .agents/ makes the worktree look dirty and pins it in reap "hold".
+func excludeAgentsDir(repo string) {
+	out, err := exec.Command("git", "-C", repo, "rev-parse", "--git-path", "info/exclude").Output()
+	if err != nil {
+		return
+	}
+	excl := strings.TrimSpace(string(out))
+	if !filepath.IsAbs(excl) {
+		excl = filepath.Join(repo, excl)
+	}
+	if data, err := os.ReadFile(excl); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			if strings.TrimSpace(line) == ".agents/" {
+				return
+			}
+		}
+	}
+	_ = os.MkdirAll(filepath.Dir(excl), 0o755)
+	f, err := os.OpenFile(excl, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	_, _ = f.WriteString(".agents/\n")
+}
+
 func main() {
 	repo := "."
 	if len(os.Args) > 1 {
@@ -110,6 +138,7 @@ func main() {
 		os.Exit(1)
 	}
 	_ = os.WriteFile(filepath.Join(outDir, ".gitignore"), []byte("*\n!.gitignore\n"), 0o644)
+	excludeAgentsDir(repo)
 	reqDir := filepath.Join(outDir, "requests")
 	if err := os.MkdirAll(reqDir, 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "cannot create oracle requests directory: %s\n", err)
