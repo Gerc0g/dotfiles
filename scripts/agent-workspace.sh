@@ -106,11 +106,17 @@ metadata_value() {
 }
 
 ensure_worktree_excludes() {
-  local wt_dir=$1 exclude_file
+  local wt_dir=$1 exclude_file line
   exclude_file=$(git -C "$wt_dir" rev-parse --git-path info/exclude)
   mkdir -p "$(dirname "$exclude_file")"
   touch "$exclude_file"
-  grep -qxF '.agent-workspace' "$exclude_file" || echo '.agent-workspace' >> "$exclude_file"
+  # .agent-workspace = our metadata; .agents/ = runtime tooling junk (oracle
+  # answers, test logs). Excluding .agents/ keeps it from making the worktree
+  # look dirty — otherwise it pins the worktree in `hold` forever and blocks
+  # reap/cleanup. Tracked .agents/*/.gitignore in some repos is unaffected.
+  for line in '.agent-workspace' '.agents/'; do
+    grep -qxF "$line" "$exclude_file" || echo "$line" >> "$exclude_file"
+  done
 }
 
 # Working-memory salvage: before a worktree dies, copy artifacts that exist
