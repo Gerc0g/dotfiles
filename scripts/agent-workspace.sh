@@ -110,11 +110,13 @@ ensure_worktree_excludes() {
   exclude_file=$(git -C "$wt_dir" rev-parse --git-path info/exclude)
   mkdir -p "$(dirname "$exclude_file")"
   touch "$exclude_file"
-  # .agent-workspace = our metadata; .agents/ = runtime tooling junk (oracle
-  # answers, test logs). Excluding .agents/ keeps it from making the worktree
-  # look dirty — otherwise it pins the worktree in `hold` forever and blocks
-  # reap/cleanup. Tracked .agents/*/.gitignore in some repos is unaffected.
-  for line in '.agent-workspace' '.agents/'; do
+  # Things that must never count as "dirty" in a managed worktree, or they pin
+  # it in hold forever and block reap/cleanup/remove:
+  #   .agent-workspace            — our metadata
+  #   .agents/                    — runtime tooling junk (oracle answers, logs)
+  #   docs/{knowledge,…}          — WikiPedik memory symlinks (untracked by design)
+  # Tracked files matching these in some repos are unaffected by info/exclude.
+  for line in '.agent-workspace' '.agents/' 'docs/knowledge' 'docs/product-knowledge' 'docs/company-knowledge'; do
     grep -qxF "$line" "$exclude_file" || echo "$line" >> "$exclude_file"
   done
 }
@@ -381,6 +383,10 @@ start_workspace() {
     wt_dir=$(worktree_dir_for "$co" "$prod" "$repo" "$id")
   done
 
+  # Reap worktrees whose tmux session is already gone (clean+pushed only).
+  # tmux session-closed hooks are unreliable headless, so this sweep on every
+  # launch is the dependable path: closed → next launch removes it.
+  reap_closed >/dev/null 2>&1 || true
   cleanup_workspaces --days 7 --quiet || true
   local n_stale
   n_stale=$(stale_count 3)
@@ -581,11 +587,33 @@ reap_status() {
   fi
 }
 
+# Sweep: reap every managed worktree whose tmux session is gone. Driven by the
+# GLOBAL session-closed hook — a per-session session-closed hook does not fire
+# when its own session is killed (tmux destroys the hook context with it), so
+# we react to "any session closed" and check all worktrees.
+reap_closed() {
+  [ -d "$WORKTREES" ] || return 0
+  command -v tmux >/dev/null 2>&1 || return 0
+  local meta wt co prod repo id session
+  while IFS= read -r meta; do
+    [ -n "$meta" ] || continue
+    wt=${meta%/.agent-workspace}
+    co=$(metadata_value "$meta" company)
+    prod=$(metadata_value "$meta" product)
+    repo=$(metadata_value "$meta" repo)
+    id=$(metadata_value "$meta" id)
+    session="${co}-${prod}-${repo}-agent-${id}"
+    tmux has-session -t "$session" 2>/dev/null && continue
+    reap_workspace "$wt"
+  done < <(find "$WORKTREES" -name .agent-workspace -type f -print)
+}
+
 cmd=${1:-}
 shift || true
 case "$cmd" in
   start) start_workspace "$@" ;;
   reap-status) reap_status "$@" ;;
+  reap-closed) reap_closed "$@" ;;
   launch) start_workspace "$@" ;;
   list) list_workspaces ;;
   status) status_workspaces ;;

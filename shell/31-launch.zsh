@@ -356,8 +356,11 @@ _launch_session_path() {
   # Reap the worktree when this session closes — safe: removes only if the
   # worktree is clean+pushed (or ready), otherwise leaves it for stale/cleanup.
   if [ "$AGENT_WORKSPACE_MODE" = "agent" ] && [ -f "$repo_dir/.agent-workspace" ]; then
-    tmux set-hook -t "$session" session-closed \
-      "run-shell \"bash $HOME/dotfiles/scripts/agent-workspace.sh reap '$repo_dir' >>$HOME/Library/Logs/agent-workspace-reap.log 2>&1\""
+    # GLOBAL session-closed hook (not per-session: a per-session one does not
+    # fire when its own session is killed). On any session close, sweep all
+    # managed worktrees and reap those whose session is gone (clean+pushed only).
+    tmux set-hook -g session-closed \
+      "run-shell \"bash $HOME/dotfiles/scripts/agent-workspace.sh reap-closed >>$HOME/Library/Logs/agent-workspace-reap.log 2>&1\""
     # Live reap indicator goes into status-right (set by _launch_memory_status):
     # green ●synced = closing removes it, yellow ●…hold = unsynced work kept.
     tmux set-option -t "$session" status-interval 15
