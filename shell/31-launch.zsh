@@ -311,9 +311,13 @@ _launch_session_path() {
   local test_cmd
   test_cmd=$(_launch_detect_test "$repo_dir")
 
-  # Banner scripts written to temp dir
+  # Banner scripts written to temp dir. Clean up after a delay (disowned, NOT a
+  # function-EXIT trap): in zsh a trap…EXIT inside a function fires on function
+  # return, which in detached mode would delete the scripts before the panes
+  # run them. The panes execute each script once at startup, so a short grace
+  # period is enough for both attach and detached modes.
   local tmpdir=$(mktemp -d -t launch-${session}.XXXXXX)
-  trap "rm -rf $tmpdir" EXIT INT TERM
+  ( sleep 30; rm -rf "$tmpdir" ) &!
 
   _launch_write_banner_script "$tmpdir/plan.sh" \
     "🧠 PLAN" \
