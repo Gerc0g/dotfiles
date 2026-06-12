@@ -73,6 +73,8 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `agent-workspace list` — список agent worktrees с id/task/branch/state/dirty.
 - `agent-workspace status` — `git status` по всем agent worktrees.
 - `agent-workspace cleanup [--days N] [--dry-run]` — удалить только clean + pushed + ready/merged worktrees.
+- `agent-workspace open <wt-path> | <co> <prod> <repo> <id>` — переоткрыть стандартный 4-pane layout на СУЩЕСТВУЮЩЕМ worktree (без создания нового id). Метаданные берутся из `.agent-workspace`.
+- `agent-workspace reopen-all` — поднять detached-сессию на каждом active worktree, у которого нет живой tmux-сессии (например после `tmux kill-server`). Дальше `tmux attach -t <name>`.
 - `agent-workspace ready <co> <prod> <repo> <id>` — вручную пометить clean+pushed worktree готовым к cleanup.
 - `agent-workspace remove <co> <prod> <repo> <id>` — удалить clean worktree по короткому id.
 - `agent-workspace stale [days]` — active worktrees без tmux-сессии и коммитов N+ дней (default 3) для ручного triage; `start` подсказывает их количество.

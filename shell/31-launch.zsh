@@ -290,7 +290,7 @@ _launch_memory_status() {
 }
 
 _launch_session_path() {
-  local session=$1 repo_dir=$2 work_label=$3
+  local session=$1 repo_dir=$2 work_label=$3 mode=${4:-attach}
 
   [ -d "$repo_dir" ] || { echo "⚠ Not found: $repo_dir"; return 1; }
   [ -d "$repo_dir/.git" ] || [ -f "$repo_dir/.git" ] || { echo "⚠ Not a git worktree: $repo_dir"; return 1; }
@@ -390,5 +390,6 @@ _launch_session_path() {
   tmux rename-window -t "${session}:work" "${work_label}"
   _launch_memory_status "$repo_dir" "$session"
   bash "$HOME/dotfiles/scripts/wikipedik-autocommit.sh" --if-due 2>/dev/null || true
+  [ "$mode" = "detached" ] && return 0
   tmux attach -t "$session"
 }
