@@ -223,9 +223,15 @@ _launch_memory_status() {
   local repo_dir=$1 session=$2
   local kdir="$repo_dir/docs/knowledge"
 
+  # Live reap indicator (only for managed agent worktrees).
+  local reap_seg=""
+  if [ -f "$repo_dir/.agent-workspace" ]; then
+    reap_seg="#(bash $HOME/dotfiles/scripts/agent-workspace.sh reap-status '$repo_dir') | "
+  fi
+
   if [ ! -f "$kdir/hot.md" ]; then
     echo "⚠ wiki memory: не подключена (нет docs/knowledge/hot.md) — запусти wiki bootstrap"
-    tmux set-option -t "$session" status-right " wiki:✗ | %H:%M " 2>/dev/null
+    tmux set-option -t "$session" status-right "${reap_seg}wiki:✗ | %H:%M " 2>/dev/null
     return 0
   fi
 
@@ -245,9 +251,9 @@ _launch_memory_status() {
     fi
   fi
 
-  badge=" wiki:✓"
+  badge="wiki:✓"
   [ "$cand" -gt 0 ] && badge="$badge in:$cand"
-  tmux set-option -t "$session" status-right "$badge | %H:%M " 2>/dev/null
+  tmux set-option -t "$session" status-right "${reap_seg}${badge} | %H:%M " 2>/dev/null
 
   if [ "$cand" -ge 5 ] || [ -n "$age_note" ]; then
     echo "ℹ wiki memory: inbox $cand candidate${age_note:+ · $age_note} — пора wiki sync"
@@ -348,6 +354,9 @@ _launch_session_path() {
   if [ "$AGENT_WORKSPACE_MODE" = "agent" ] && [ -f "$repo_dir/.agent-workspace" ]; then
     tmux set-hook -t "$session" session-closed \
       "run-shell \"bash $HOME/dotfiles/scripts/agent-workspace.sh reap '$repo_dir' >>$HOME/Library/Logs/agent-workspace-reap.log 2>&1\""
+    # Live reap indicator goes into status-right (set by _launch_memory_status):
+    # green ●synced = closing removes it, yellow ●…hold = unsynced work kept.
+    tmux set-option -t "$session" status-interval 10
   fi
   tmux set-option -t "$session" status-left " ${work_label} "
   tmux set-option -t "$session" set-titles on

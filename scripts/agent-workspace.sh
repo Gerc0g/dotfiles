@@ -545,10 +545,35 @@ remove_workspace() {
   sync_vscode_project_manager
 }
 
+# Compact tmux-formatted indicator of what `reap` (session close) would do to a
+# worktree. Meant to be embedded in status-right via #(...): tmux refreshes it
+# every status-interval seconds, so the user always sees the live verdict.
+#   green  ● synced      → closing the window removes the worktree (nothing lost)
+#   yellow ● 3✎ 2↑ hold  → uncommitted/unpushed work; closing keeps it
+reap_status() {
+  local wt=${1:-} state dirty ahead
+  [ -n "$wt" ] && [ -d "$wt" ] || return 0
+  [ -f "$wt/.agent-workspace" ] || return 0
+
+  state=$(metadata_value "$wt/.agent-workspace" cleanup_state 2>/dev/null)
+  dirty=$(git -C "$wt" status --porcelain 2>/dev/null | grep -c . || true)
+  ahead=$(git -C "$wt" rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)
+
+  if [ "${dirty:-0}" -eq 0 ] && { [ "${ahead:-0}" -eq 0 ] || [ "$state" = "ready" ]; }; then
+    printf '#[fg=green]● synced#[default]'
+  else
+    local parts=""
+    [ "${dirty:-0}" -gt 0 ] && parts="${dirty}✎"
+    [ "${ahead:-0}" -gt 0 ] && parts="${parts:+$parts }${ahead}↑"
+    printf '#[fg=yellow]● %s hold#[default]' "$parts"
+  fi
+}
+
 cmd=${1:-}
 shift || true
 case "$cmd" in
   start) start_workspace "$@" ;;
+  reap-status) reap_status "$@" ;;
   launch) start_workspace "$@" ;;
   list) list_workspaces ;;
   status) status_workspaces ;;
