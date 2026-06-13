@@ -545,6 +545,12 @@ remove_workspace() {
   wt_dir=$(worktree_dir_for "$co" "$prod" "$repo" "$id")
   repo_dir=$(repo_dir_for "$co" "$prod" "$repo")
   [ -e "$wt_dir" ] || { echo "not found: $wt_dir" >&2; exit 66; }
+  # Never remove a worktree whose tmux session is live: the open pane keeps cwd
+  # on the deleted dir and recreates a git-less ghost folder.
+  if command -v tmux >/dev/null 2>&1 && tmux has-session -t "${co}-${prod}-${repo}-agent-${id}" 2>/dev/null; then
+    echo "error: tmux session ${co}-${prod}-${repo}-agent-${id} is live; close it before remove" >&2
+    exit 65
+  fi
   salvage_worktree_artifacts "$wt_dir" "$co" "$prod" "$repo" "$id"
   drop_salvaged_junk "$wt_dir"
   if [ -n "$(git -C "$wt_dir" status --short 2>/dev/null || true)" ]; then
