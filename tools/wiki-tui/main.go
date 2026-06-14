@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -268,6 +269,56 @@ func gatherStats(scope string) scopeStats {
 	return s
 }
 
+// productOverview is one row in the all-products dashboard.
+type productOverview struct {
+	scope      string // co/prod (or co for repos-direct companies like _platform)
+	candidates int
+	hotMaxDays int // worst (oldest) hot.md age across repos; -1 if unknown
+	rules      int
+}
+
+// urgency: higher = needs attention sooner. Drives the dashboard sort.
+func (p productOverview) urgency() int {
+	u := p.candidates * 10
+	if p.hotMaxDays > 14 {
+		u += p.hotMaxDays
+	}
+	return u
+}
+
+// allProducts scans every company/product and gathers a compact overview, so the
+// user sees at a glance WHERE work piled up without entering each product.
+func allProducts() []productOverview {
+	var out []productOverview
+	for _, co := range listDirs(projectsRoot) {
+		// company that holds repos/ directly (e.g. _platform) is a single scope
+		if _, err := os.Stat(filepath.Join(projectsRoot, co, "repos")); err == nil {
+			out = append(out, overviewFor(co))
+			continue
+		}
+		for _, prod := range listDirs(filepath.Join(projectsRoot, co)) {
+			if _, err := os.Stat(filepath.Join(projectsRoot, co, prod, "repos")); err != nil {
+				continue
+			}
+			out = append(out, overviewFor(co+"/"+prod))
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].urgency() > out[j].urgency()
+	})
+	return out
+}
+
+func overviewFor(scope string) productOverview {
+	s := gatherStats(scope)
+	return productOverview{
+		scope:      scope,
+		candidates: s.candidates,
+		hotMaxDays: s.hotAgeDays,
+		rules:      s.rules,
+	}
+}
+
 var reStamp = regexp.MustCompile(`last refreshed:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^\)\-]*|never)`)
 
 func missingMemoryRepos() []string {
@@ -358,6 +409,7 @@ const (
 	statePick
 	stateOutput
 	stateBootstrap
+	stateOverview
 )
 
 type model struct {
@@ -378,10 +430,11 @@ type model struct {
 	output   string
 
 	bootstrapItems []string
+	products       []productOverview
 }
 
 func initialModel() model {
-	m := model{st: stateMenu}
+	m := model{}
 	if b, err := os.ReadFile(scopeFile); err == nil {
 		m.scope = strings.TrimSpace(string(b))
 	}
@@ -389,10 +442,10 @@ func initialModel() model {
 	if parts := strings.Split(m.scope, "/"); len(parts) == 3 {
 		m.scope = parts[0] + "/" + parts[1]
 	}
-	if m.scope == "" {
-		m.st = statePick
-		m.pick = companyLevel()
-	} else {
+	// Start on the all-products overview so the user sees where work piled up.
+	m.st = stateOverview
+	m.products = allProducts()
+	if m.scope != "" {
 		m.stats = gatherStats(m.scope)
 		m.candidates = m.stats.candidates
 	}
@@ -436,9 +489,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 		case "s":
-			m.st = statePick
-			m.pick = companyLevel()
-			m.pickBase = ""
+			m.st = stateOverview
+			m.products = allProducts()
 			m.cursor = 0
 		case "enter":
 			return m.activate(actions[m.cursor])
@@ -447,6 +499,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if a.key == k {
 					return m.activate(a)
 				}
+			}
+		}
+
+	case stateOverview:
+		switch k {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "esc":
+			if m.scope != "" {
+				m.st = stateMenu
+				m.cursor = 0
+			}
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case "down", "j":
+			if m.cursor < len(m.products)-1 {
+				m.cursor++
+			}
+		case "enter":
+			if m.cursor < len(m.products) {
+				m.setScope(m.products[m.cursor].scope)
+				m.st = stateMenu
+				m.cursor = 0
 			}
 		}
 
@@ -541,6 +618,8 @@ func (m model) activate(a action) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	switch m.st {
+	case stateOverview:
+		return m.viewOverview()
 	case statePick:
 		return m.viewPick()
 	case stateOutput:
@@ -549,6 +628,56 @@ func (m model) View() string {
 		return m.viewBootstrap()
 	}
 	return m.viewMenu()
+}
+
+// viewOverview — all-products dashboard: where work piled up, sorted by urgency.
+func (m model) viewOverview() string {
+	w := m.width
+	if w < 40 {
+		w = 80
+	}
+	inner := w - 8
+	if inner < 20 {
+		inner = 20
+	}
+	var b strings.Builder
+	b.WriteString(stTitle.Render("WikiPedik · обзор продуктов") + "\n")
+	b.WriteString(stDesc.Render("где накопилась работа — enter: войти в продукт") + "\n")
+	b.WriteString(lipgloss.NewStyle().Foreground(cDim).Render(strings.Repeat("─", inner)) + "\n")
+
+	if len(m.products) == 0 {
+		b.WriteString(stDesc.Render("нет продуктов с памятью"))
+	}
+	for i, p := range m.products {
+		cursor := "  "
+		nameStyle := lipgloss.NewStyle().Foreground(cText)
+		if i == m.cursor {
+			cursor = stCursor.Render("▸ ")
+			nameStyle = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
+		}
+		name := nameStyle.Width(26).Render(p.scope)
+
+		// candidate badge — yellow when something waits
+		cand := stDesc.Render(fmt.Sprintf("%2d inbox", p.candidates))
+		if p.candidates > 0 {
+			cand = lipgloss.NewStyle().Foreground(cWarn).Bold(true).Render(fmt.Sprintf("%2d inbox", p.candidates))
+		}
+		// hot age — yellow when stale
+		hot := stDesc.Render("hot ок")
+		if p.hotMaxDays < 0 {
+			hot = lipgloss.NewStyle().Foreground(cWarn).Render("hot —")
+		} else if p.hotMaxDays > 14 {
+			hot = lipgloss.NewStyle().Foreground(cWarn).Render(fmt.Sprintf("hot %dд", p.hotMaxDays))
+		}
+		rules := stDesc.Render(fmt.Sprintf("rules %d", p.rules))
+
+		b.WriteString(cursor + name + "  " + cand + "   " + hot + "   " + rules + "\n")
+	}
+	b.WriteString("\n" + stDesc.Render("⚠ жёлтым — где пора разобрать (inbox) или обновить (hot.md)"))
+
+	frame := stMenuPanel.Width(w - 4).Render(b.String())
+	help := stHelp.Render(" ↑↓ · enter — войти · q выход")
+	return lipgloss.JoinVertical(lipgloss.Left, frame, help)
 }
 
 // fixedBlock pads text to exactly h lines (truncating if longer) so the frame
@@ -560,7 +689,7 @@ func fixedBlock(text string, inner, h int) string {
 func (m model) secScope() string {
 	return stTitle.Render("WikiPedik · память") + "\n" +
 		stDesc.Render("scope: ") + stScope.Render(m.scope) +
-		stDesc.Render("   (s — сменить продукт)")
+		stDesc.Render("   (s — обзор всех продуктов)")
 }
 
 func (m model) secActions() string {
