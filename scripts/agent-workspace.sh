@@ -503,6 +503,24 @@ reap_workspace() {
   repo_dir=$(repo_dir_for "$co" "$prod" "$repo")
   [ -d "$repo_dir/.git" ] || return 0
 
+  # SAFETY GATE: never reap a worktree that is in use. Each check fails SAFE
+  # (on any doubt → keep). This is what was missing — a clean+pushed worktree
+  # with a live session was being deleted out from under the user.
+  if command -v tmux >/dev/null 2>&1; then
+    # 1. exact session by metadata name
+    if tmux has-session -t "${co}-${prod}-${repo}-agent-${id}" 2>/dev/null; then
+      return 0
+    fi
+    # 2. ANY session whose name contains this worktree id (name drift safety)
+    if tmux list-sessions -F '#{session_name}' 2>/dev/null | grep -q -- "$id"; then
+      return 0
+    fi
+    # 3. ANY pane anywhere whose current path is inside this worktree
+    if tmux list-panes -a -F '#{pane_current_path}' 2>/dev/null | grep -qF -- "$wt_dir"; then
+      return 0
+    fi
+  fi
+
   salvage_worktree_artifacts "$wt_dir" "$co" "$prod" "$repo" "$id" >/dev/null 2>&1 || true
   drop_salvaged_junk "$wt_dir" >/dev/null 2>&1 || true
 
