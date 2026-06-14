@@ -192,6 +192,11 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Запуск:** `cerebro`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/cerebro/`
 **Repos:** cerebro
+
+## <company> (neurodesk / chimera / SupportOps-Core)
+**Что:** Вход с уровня компании: продукт → репо → launch. Команда на каждую компанию с `.company-config` регистрируется автоматически.
+**Запуск:** `neurodesk` (выбор продукта, затем репо) · `neurodesk agents` (выбор репо) · `neurodesk agents synapse` (сразу launch)
+**Иерархия:** компания (`neurodesk`) → продукт (`agents`) → продукт-шорткат сразу (`agents`).
 ---
 
 ### Bootstrap

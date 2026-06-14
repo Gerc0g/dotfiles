@@ -142,3 +142,28 @@ cerebro() {
     *) echo "Usage: cerebro [<repo>]"; return 1 ;;
   esac
 }
+
+# Company-level entry: <company> → pick product → pick repo → launch.
+# Universal for any company with a .company-config; no per-company code.
+_company_launch() {
+  local co=$1; shift
+  local prod="${1:-}" repo="${2:-}"
+  if [ -z "$prod" ]; then
+    local products=($(_launch_list_products "$co"))
+    [ ${#products[@]} -eq 0 ] && { echo "⚠ No products in $co"; return 1; }
+    prod=$(_launch_pick "Products in ${co}:" "${products[@]}") || return 1
+  fi
+  if [ -z "$repo" ]; then
+    local repos=($(_launch_list_repos "$co" "$prod"))
+    [ ${#repos[@]} -eq 0 ] && { echo "⚠ No repos in $co/$prod"; return 1; }
+    repo=$(_launch_pick "Repos in ${co}/${prod}:" "${repos[@]}") || return 1
+  fi
+  launch "$co" "$prod" "$repo"
+}
+
+# Register a command per company found on disk (neurodesk, chimera, ...).
+for _co_dir in "$HOME/Desktop/Prokectfiles"/*/.company-config(N); do
+  _co_name=${_co_dir:h:t}
+  functions[$_co_name]="_company_launch ${(q)_co_name} \"\$@\""
+done
+unset _co_dir _co_name
