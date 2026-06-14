@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -39,25 +40,34 @@ func envOr(key, def string) string {
 
 var (
 	cAccent = lipgloss.AdaptiveColor{Light: "#7D56F4", Dark: "#A78BFA"}
+	cAccent2 = lipgloss.AdaptiveColor{Light: "#0969DA", Dark: "#79C0FF"}
 	cDim    = lipgloss.AdaptiveColor{Light: "#9A9A9A", Dark: "#6B6B6B"}
+	cText   = lipgloss.AdaptiveColor{Light: "#1F2328", Dark: "#E6EDF3"}
 	cOk     = lipgloss.AdaptiveColor{Light: "#2E7D32", Dark: "#7EE787"}
 	cWarn   = lipgloss.AdaptiveColor{Light: "#B26A00", Dark: "#F0B72F"}
+	cPanel  = lipgloss.AdaptiveColor{Light: "#F4F4F8", Dark: "#161B22"}
 
 	stTitle   = lipgloss.NewStyle().Bold(true).Foreground(cAccent)
 	stScope   = lipgloss.NewStyle().Bold(true).Foreground(cOk)
-	stSection = lipgloss.NewStyle().Foreground(cDim).Bold(true).MarginTop(1)
+	stSection = lipgloss.NewStyle().Foreground(cDim).Bold(true)
 	stKey     = lipgloss.NewStyle().Bold(true).Foreground(cAccent).Width(3)
-	stName    = lipgloss.NewStyle().Bold(true).Width(13)
+	stName    = lipgloss.NewStyle().Bold(true).Width(12)
 	stDesc    = lipgloss.NewStyle().Foreground(cDim)
 	stCursor  = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
 	stFlashOk = lipgloss.NewStyle().Foreground(cOk).Bold(true)
 	stFlashWn = lipgloss.NewStyle().Foreground(cWarn).Bold(true)
-	stHelp    = lipgloss.NewStyle().Foreground(cDim).MarginTop(1)
-	stBox     = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(cAccent).
+	stHelp    = lipgloss.NewStyle().Foreground(cDim)
+	stStat    = lipgloss.NewStyle().Foreground(cWarn)
+
+	stMenuPanel = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).BorderForeground(cAccent).
 			Padding(1, 2)
-	stStat = lipgloss.NewStyle().Foreground(cWarn)
+	stCtxPanel = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).BorderForeground(cDim).
+			Padding(1, 2).Background(cPanel)
+	stSelRow = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
+	stCtxKey = lipgloss.NewStyle().Foreground(cDim)
+	stCtxVal = lipgloss.NewStyle().Foreground(cText).Bold(true)
 )
 
 // ─── actions ───
@@ -175,6 +185,73 @@ func countCandidates(scope string) int {
 	return count
 }
 
+// scopeStats gathers the live memory state of a scope for the context panel.
+type scopeStats struct {
+	candidates int
+	rules      int
+	salvage    int
+	hotOldest  string // oldest "last refreshed" stamp seen, or "" / "never"
+	hotAgeDays int    // -1 if unknown/never
+	lastLog    string // last product log line
+}
+
+func gatherStats(scope string) scopeStats {
+	s := scopeStats{candidates: countCandidates(scope), hotAgeDays: -1}
+	root := scopePath(scope)
+	now := time.Now()
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		name := info.Name()
+		switch {
+		case name == "hot.md":
+			if b, e := os.ReadFile(path); e == nil {
+				if m := reStamp.FindStringSubmatch(string(b)); m != nil {
+					stamp := m[1]
+					if t, e := time.Parse("2006-01-02", stamp[:min(10, len(stamp))]); e == nil {
+						d := int(now.Sub(t).Hours() / 24)
+						if d > s.hotAgeDays {
+							s.hotAgeDays = d
+							s.hotOldest = stamp
+						}
+					}
+				}
+			}
+		}
+		// rules/*.md under repo or shared
+		if strings.HasSuffix(name, ".md") && (strings.Contains(path, "/rules/")) {
+			s.rules++
+		}
+		return nil
+	})
+	// salvage zones
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err == nil && info.IsDir() && info.Name() == "_salvage" {
+			if entries, e := os.ReadDir(path); e == nil {
+				s.salvage += len(entries)
+			}
+		}
+		return nil
+	})
+	// last product log line
+	for _, lp := range []string{filepath.Join(root, "log.md"), filepath.Join(filepath.Dir(root), "log.md")} {
+		if b, e := os.ReadFile(lp); e == nil {
+			for _, ln := range strings.Split(string(b), "\n") {
+				if strings.HasPrefix(ln, "## [") {
+					s.lastLog = strings.TrimPrefix(ln, "## ")
+				}
+			}
+			if s.lastLog != "" {
+				break
+			}
+		}
+	}
+	return s
+}
+
+var reStamp = regexp.MustCompile(`last refreshed:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^\)\-]*|never)`)
+
 func missingMemoryRepos() []string {
 	var out []string
 	for _, co := range listDirs(workRoot) {
@@ -282,6 +359,9 @@ type model struct {
 	cursor     int
 	flash      string
 	flashWarn  bool
+	width      int
+	height     int
+	stats      scopeStats
 
 	pick     pickLevel
 	pickBase string
@@ -301,7 +381,8 @@ func initialModel() model {
 		m.st = statePick
 		m.pick = companyLevel()
 	} else {
-		m.candidates = countCandidates(m.scope)
+		m.stats = gatherStats(m.scope)
+		m.candidates = m.stats.candidates
 	}
 	return m
 }
@@ -310,12 +391,18 @@ func (m model) Init() tea.Cmd { return nil }
 
 func (m *model) setScope(scope string) {
 	m.scope = scope
-	m.candidates = countCandidates(scope)
+	m.stats = gatherStats(scope)
+	m.candidates = m.stats.candidates
 	_ = os.MkdirAll(filepath.Dir(scopeFile), 0o755)
 	_ = os.WriteFile(scopeFile, []byte(scope+"\n"), 0o644)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = ws.Width
+		m.height = ws.Height
+		return m, nil
+	}
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return m, nil
@@ -432,9 +519,8 @@ func (m model) activate(a action) (tea.Model, tea.Cmd) {
 		m.outTitle = a.name
 		m.output = a.run(m.scope)
 		m.st = stateOutput
-		if a.name == "rules-sync" || a.name == "push" {
-			m.candidates = countCandidates(m.scope)
-		}
+		m.stats = gatherStats(m.scope)
+		m.candidates = m.stats.candidates
 	}
 	return m, nil
 }
@@ -453,42 +539,110 @@ func (m model) View() string {
 	return m.viewMenu()
 }
 
-func (m model) header() string {
-	stats := ""
-	if m.candidates > 0 {
-		stats = stStat.Render(fmt.Sprintf("  inbox: %d candidate", m.candidates))
+func (m model) headerBar(width int) string {
+	left := stTitle.Render(" WikiPedik · память ")
+	right := stDesc.Render("scope: ") + stScope.Render(m.scope) + " "
+	gap := width - lipgloss.Width(left) - lipgloss.Width(right) - 2
+	if gap < 1 {
+		gap = 1
 	}
-	return stTitle.Render("WikiPedik · память") + "\n" +
-		stDesc.Render("scope: ") + stScope.Render(m.scope) + stats
+	line := lipgloss.NewStyle().Foreground(cDim).Render(strings.Repeat("─", gap))
+	return lipgloss.JoinHorizontal(lipgloss.Center, left, line, right)
 }
 
-func (m model) viewMenu() string {
+// menuColumn renders the action list (left panel).
+func (m model) menuColumn() string {
 	var b strings.Builder
-	b.WriteString(m.header() + "\n")
-
 	section := ""
 	for i, a := range actions {
 		if a.section != section {
+			if section != "" {
+				b.WriteString("\n")
+			}
 			section = a.section
 			b.WriteString(stSection.Render("── "+section+" ──") + "\n")
 		}
-		cursor := "  "
+		name := stName.Render(a.name)
+		desc := stDesc.Render(a.desc)
 		if i == m.cursor {
-			cursor = stCursor.Render("▸ ")
+			b.WriteString(stCursor.Render("▸ ") + stKey.Render(a.key) + stSelRow.Render(a.name) + " " + desc + "\n")
+		} else {
+			b.WriteString("  " + stKey.Render(a.key) + name + desc + "\n")
 		}
-		b.WriteString(fmt.Sprintf("%s%s%s%s\n",
-			cursor, stKey.Render(a.key), stName.Render(a.name), stDesc.Render(a.desc)))
 	}
-
 	if m.flash != "" {
 		style := stFlashOk
 		if m.flashWarn {
 			style = stFlashWn
 		}
-		b.WriteString("\n" + style.Render("→ "+m.flash) + "\n")
+		b.WriteString("\n" + style.Render("→ "+m.flash))
 	}
-	b.WriteString(stHelp.Render("↑↓/цифры · enter · s scope · q выход"))
-	return stBox.Render(b.String())
+	return b.String()
+}
+
+// contextColumn renders the live memory state + selected action preview (right).
+func (m model) contextColumn(width int) string {
+	var b strings.Builder
+	b.WriteString(stTitle.Render("Состояние памяти") + "\n\n")
+
+	row := func(k, v string, warn bool) {
+		val := stCtxVal
+		if warn {
+			val = lipgloss.NewStyle().Foreground(cWarn).Bold(true)
+		}
+		b.WriteString(stCtxKey.Render(fmt.Sprintf("%-12s", k)) + val.Render(v) + "\n")
+	}
+	s := m.stats
+	row("inbox", fmt.Sprintf("%d candidate", s.candidates), s.candidates >= 5)
+	if s.hotOldest == "" {
+		row("hot.md", "—", false)
+	} else if s.hotOldest == "never" || s.hotAgeDays < 0 {
+		row("hot.md", "не собирался", true)
+	} else {
+		row("hot.md", fmt.Sprintf("%s (%dд)", s.hotOldest[:min(10, len(s.hotOldest))], s.hotAgeDays), s.hotAgeDays > 14)
+	}
+	row("rules", fmt.Sprintf("%d", s.rules), false)
+	row("salvage", fmt.Sprintf("%d зон", s.salvage), s.salvage > 0)
+
+	b.WriteString("\n" + stSection.Render("── выбрано ──") + "\n")
+	a := actions[m.cursor]
+	b.WriteString(stCtxVal.Render(a.name) + " — " + stDesc.Render(a.desc) + "\n")
+	if a.prompt != nil {
+		b.WriteString(stCtxKey.Render("→ соберёт промпт в dev-чат") + "\n")
+	} else {
+		b.WriteString(stCtxKey.Render("→ выполнится сразу") + "\n")
+	}
+	if s.lastLog != "" {
+		b.WriteString("\n" + stSection.Render("── последнее в логе ──") + "\n")
+		ll := s.lastLog
+		if len(ll) > width-4 && width > 8 {
+			ll = ll[:width-7] + "…"
+		}
+		b.WriteString(stDesc.Render(ll) + "\n")
+	}
+	return b.String()
+}
+
+func (m model) viewMenu() string {
+	w := m.width
+	if w < 40 {
+		w = 88 // sane default before first WindowSizeMsg
+	}
+	header := m.headerBar(w)
+
+	// two columns when wide enough, stacked otherwise
+	if w >= 76 {
+		menuW := 42
+		ctxW := w - menuW - 6
+		menu := stMenuPanel.Width(menuW).Render(m.menuColumn())
+		ctx := stCtxPanel.Width(ctxW).Render(m.contextColumn(ctxW))
+		body := lipgloss.JoinHorizontal(lipgloss.Top, menu, " ", ctx)
+		help := stHelp.Render(" ↑↓/цифры · enter · s scope · q выход")
+		return lipgloss.JoinVertical(lipgloss.Left, header, body, help)
+	}
+	menu := stMenuPanel.Width(w - 4).Render(m.menuColumn())
+	help := stHelp.Render(" ↑↓/цифры · enter · s scope · q выход")
+	return lipgloss.JoinVertical(lipgloss.Left, header, menu, help)
 }
 
 func (m model) viewPick() string {
@@ -502,7 +656,7 @@ func (m model) viewPick() string {
 		b.WriteString(cursor + item + "\n")
 	}
 	b.WriteString(stHelp.Render("↑↓ · enter выбрать · esc назад · q выход"))
-	return stBox.Render(b.String())
+	return stMenuPanel.Render(b.String())
 }
 
 func (m model) viewOutput() string {
@@ -514,7 +668,7 @@ func (m model) viewOutput() string {
 	}
 	b.WriteString(strings.Join(lines, "\n") + "\n")
 	b.WriteString(stHelp.Render("любая клавиша — меню"))
-	return stBox.Render(b.String())
+	return stMenuPanel.Render(b.String())
 }
 
 func (m model) viewBootstrap() string {
@@ -531,11 +685,11 @@ func (m model) viewBootstrap() string {
 		b.WriteString(cursor + item + "\n")
 	}
 	b.WriteString(stHelp.Render("enter подключить · esc назад"))
-	return stBox.Render(b.String())
+	return stMenuPanel.Render(b.String())
 }
 
 func main() {
-	if _, err := tea.NewProgram(initialModel()).Run(); err != nil {
+	if _, err := tea.NewProgram(initialModel(), tea.WithAltScreen()).Run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
