@@ -329,21 +329,11 @@ func companyLevel() pickLevel {
 	return l
 }
 
+// childLevel lists products of a company as leaf scopes (we work at the
+// product level — no descent into individual repos).
 func childLevel(base string) pickLevel {
 	var l pickLevel
 	dir := scopePath(base)
-	if _, err := os.Stat(filepath.Join(dir, "repos")); err == nil {
-		l.title = "Репо (" + base + ")"
-		l.items = append(l.items, "· весь scope: "+base)
-		l.scopes = append(l.scopes, base)
-		l.descend = append(l.descend, "")
-		for _, repo := range listDirs(filepath.Join(dir, "repos")) {
-			l.items = append(l.items, repo)
-			l.scopes = append(l.scopes, base+"/"+repo)
-			l.descend = append(l.descend, "")
-		}
-		return l
-	}
 	l.title = "Продукт (" + base + ")"
 	l.items = append(l.items, "· вся компания: "+base)
 	l.scopes = append(l.scopes, base)
@@ -353,8 +343,8 @@ func childLevel(base string) pickLevel {
 			continue
 		}
 		l.items = append(l.items, prod)
-		l.scopes = append(l.scopes, "")
-		l.descend = append(l.descend, base+"/"+prod)
+		l.scopes = append(l.scopes, base+"/"+prod) // leaf: product scope
+		l.descend = append(l.descend, "")
 	}
 	return l
 }
@@ -394,6 +384,10 @@ func initialModel() model {
 	m := model{st: stateMenu}
 	if b, err := os.ReadFile(scopeFile); err == nil {
 		m.scope = strings.TrimSpace(string(b))
+	}
+	// We work at product level — trim a saved repo-level scope (co/prod/repo).
+	if parts := strings.Split(m.scope, "/"); len(parts) == 3 {
+		m.scope = parts[0] + "/" + parts[1]
 	}
 	if m.scope == "" {
 		m.st = statePick
@@ -557,19 +551,22 @@ func (m model) View() string {
 	return m.viewMenu()
 }
 
-func (m model) headerBar(width int) string {
-	left := stTitle.Render(" WikiPedik · память ")
-	right := stDesc.Render("scope: ") + stScope.Render(m.scope) + " "
-	gap := width - lipgloss.Width(left) - lipgloss.Width(right) - 2
-	if gap < 1 {
-		gap = 1
+func divider(inner int) string {
+	if inner < 1 {
+		inner = 1
 	}
-	line := lipgloss.NewStyle().Foreground(cDim).Render(strings.Repeat("─", gap))
-	return lipgloss.JoinHorizontal(lipgloss.Center, left, line, right)
+	return lipgloss.NewStyle().Foreground(cDim).Render(strings.Repeat("─", inner))
 }
 
-// menuColumn renders the action list (left panel).
-func (m model) menuColumn() string {
+// secScope — top section: which product the panel is aimed at.
+func (m model) secScope() string {
+	return stTitle.Render("WikiPedik · память") + "\n" +
+		stDesc.Render("scope: ") + stScope.Render(m.scope) +
+		stDesc.Render("   (s — сменить продукт)")
+}
+
+// secActions — middle section: the action list.
+func (m model) secActions() string {
 	var b strings.Builder
 	section := ""
 	for i, a := range actions {
@@ -583,9 +580,12 @@ func (m model) menuColumn() string {
 		name := stName.Render(a.name)
 		desc := stDesc.Render(a.desc)
 		if i == m.cursor {
-			b.WriteString(stCursor.Render("▸ ") + stKey.Render(a.key) + stSelRow.Render(a.name) + " " + desc + "\n")
+			b.WriteString(stCursor.Render("▸ ") + stKey.Render(a.key) + stSelRow.Render(a.name) + " " + desc)
 		} else {
-			b.WriteString("  " + stKey.Render(a.key) + name + desc + "\n")
+			b.WriteString("  " + stKey.Render(a.key) + name + desc)
+		}
+		if i < len(actions)-1 {
+			b.WriteString("\n")
 		}
 	}
 	if m.flash != "" {
@@ -593,22 +593,22 @@ func (m model) menuColumn() string {
 		if m.flashWarn {
 			style = stFlashWn
 		}
-		b.WriteString("\n" + style.Render("→ "+m.flash))
+		b.WriteString("\n\n" + style.Render("→ "+m.flash))
 	}
 	return b.String()
 }
 
-// contextColumn renders the live memory state + selected action preview (right).
-func (m model) contextColumn(width int) string {
+// secStats — bottom section: live memory state + selected action explanation.
+func (m model) secStats(inner int) string {
 	var b strings.Builder
-	b.WriteString(stTitle.Render("Состояние памяти") + "\n\n")
+	b.WriteString(stTitle.Render("Состояние памяти") + "\n")
 
 	row := func(k, v string, warn bool) {
 		val := stCtxVal
 		if warn {
 			val = lipgloss.NewStyle().Foreground(cWarn).Bold(true)
 		}
-		b.WriteString(stCtxKey.Render(fmt.Sprintf("%-12s", k)) + val.Render(v) + "\n")
+		b.WriteString(stCtxKey.Render(fmt.Sprintf("%-10s", k)) + val.Render(v) + "\n")
 	}
 	s := m.stats
 	row("inbox", fmt.Sprintf("%d candidate", s.candidates), s.candidates >= 5)
@@ -622,26 +622,13 @@ func (m model) contextColumn(width int) string {
 	row("rules", fmt.Sprintf("%d", s.rules), false)
 	row("salvage", fmt.Sprintf("%d зон", s.salvage), s.salvage > 0)
 
-	b.WriteString("\n" + stSection.Render("── выбрано ──") + "\n")
 	a := actions[m.cursor]
-	b.WriteString(stCtxVal.Render(a.name) + "\n")
-	wrapW := width - 2
-	if wrapW < 10 {
-		wrapW = 10
-	}
-	b.WriteString(lipgloss.NewStyle().Foreground(cText).Width(wrapW).Render(a.help) + "\n\n")
+	b.WriteString("\n" + stSection.Render("── что сделает: "+a.name+" ──") + "\n")
+	b.WriteString(lipgloss.NewStyle().Foreground(cText).Width(inner).Render(a.help) + "\n")
 	if a.prompt != nil {
-		b.WriteString(stCtxKey.Render("→ соберёт промпт куратору — ты жмёшь Enter") + "\n")
+		b.WriteString(stCtxKey.Render("→ соберёт промпт куратору — ты жмёшь Enter"))
 	} else {
-		b.WriteString(stCtxKey.Render("→ выполнится сразу, тут же") + "\n")
-	}
-	if s.lastLog != "" {
-		b.WriteString("\n" + stSection.Render("── последнее в логе ──") + "\n")
-		ll := s.lastLog
-		if len(ll) > width-4 && width > 8 {
-			ll = ll[:width-7] + "…"
-		}
-		b.WriteString(stDesc.Render(ll) + "\n")
+		b.WriteString(stCtxKey.Render("→ выполнится сразу, тут же"))
 	}
 	return b.String()
 }
@@ -649,23 +636,19 @@ func (m model) contextColumn(width int) string {
 func (m model) viewMenu() string {
 	w := m.width
 	if w < 40 {
-		w = 88 // sane default before first WindowSizeMsg
+		w = 80
 	}
-	header := m.headerBar(w)
-
-	// two columns when wide enough, stacked otherwise
-	if w >= 86 {
-		menuW := 54
-		ctxW := w - menuW - 6
-		menu := stMenuPanel.Width(menuW).Render(m.menuColumn())
-		ctx := stCtxPanel.Width(ctxW).Render(m.contextColumn(ctxW))
-		body := lipgloss.JoinHorizontal(lipgloss.Top, menu, " ", ctx)
-		help := stHelp.Render(" ↑↓/цифры · enter · s scope · q выход")
-		return lipgloss.JoinVertical(lipgloss.Left, header, body, help)
-	}
-	menu := stMenuPanel.Width(w - 4).Render(m.menuColumn())
+	inner := w - 6 // border(2) + padding(4)
+	body := lipgloss.JoinVertical(lipgloss.Left,
+		m.secScope(),
+		divider(inner),
+		m.secActions(),
+		divider(inner),
+		m.secStats(inner),
+	)
+	frame := stMenuPanel.Width(w - 4).Render(body)
 	help := stHelp.Render(" ↑↓/цифры · enter · s scope · q выход")
-	return lipgloss.JoinVertical(lipgloss.Left, header, menu, help)
+	return lipgloss.JoinVertical(lipgloss.Left, frame, help)
 }
 
 func (m model) viewPick() string {
