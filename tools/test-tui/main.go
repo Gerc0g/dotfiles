@@ -45,6 +45,12 @@ type runDoneMsg struct {
 
 type statusMsg string
 
+type tailTickMsg struct{}
+
+func tailTick() tea.Cmd {
+	return tea.Tick(300*time.Millisecond, func(time.Time) tea.Msg { return tailTickMsg{} })
+}
+
 type model struct {
 	repo      string
 	outDir    string
@@ -59,6 +65,12 @@ type model struct {
 	selected int
 	logs     []runLog
 	logTop   int
+
+	// run navigation + live tail
+	logSelected int    // which past run is shown (0 = newest)
+	runningFile string // path of the in-progress run's log
+	followTail  bool   // auto-scroll the log to the end while running
+	startedAt   time.Time
 
 	width   int
 	height  int
@@ -82,8 +94,34 @@ var (
 	titleStyle  = lipgloss.NewStyle().Foreground(accent).Bold(true)
 	inputStyle  = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(accent).Padding(0, 1).Background(panel)
 	boxStyle    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(dim).Padding(0, 1).Background(panel)
+	boxActive   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(accent).Padding(0, 1).Background(panel)
 	helpStyle   = lipgloss.NewStyle().Foreground(muted)
+
+	badgeOK   = lipgloss.NewStyle().Foreground(bg).Background(okTint).Bold(true).Padding(0, 1)
+	badgeFail = lipgloss.NewStyle().Foreground(bg).Background(errorTint).Bold(true).Padding(0, 1)
+	badgeRun  = lipgloss.NewStyle().Foreground(bg).Background(accent2).Bold(true).Padding(0, 1)
+
+	lineOK   = lipgloss.NewStyle().Foreground(okTint)
+	lineFail = lipgloss.NewStyle().Foreground(errorTint)
+	lineWarn = lipgloss.NewStyle().Foreground(warning)
+
+	rePass = regexp.MustCompile(`(?i)\b(pass(ed)?|ok|success(ful)?|✓|✔|\d+ passed)\b`)
+	reFail = regexp.MustCompile(`(?i)\b(fail(ed|ure)?|error|panic|traceback|assert(ion)?|✗|✘|\d+ failed|exception)\b`)
+	reWarn = regexp.MustCompile(`(?i)\b(warn(ing)?|skip(ped)?|deprecat)\b`)
 )
+
+// highlightLine colors a log line by pass/fail/warn keywords.
+func highlightLine(s string) string {
+	switch {
+	case reFail.MatchString(s):
+		return lineFail.Render(s)
+	case rePass.MatchString(s):
+		return lineOK.Render(s)
+	case reWarn.MatchString(s):
+		return lineWarn.Render(s)
+	}
+	return s
+}
 
 // excludeAgentsDir hides the tooling's .agents/ output from git via the repo's
 // info/exclude (works for both a normal checkout and a worktree). Otherwise
@@ -180,6 +218,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.recompute(), nil
 	case runDoneMsg:
 		m.running = false
+		m.runningFile = ""
+		m.logSelected = 0
 		if msg.Err != nil {
 			m.status = "Failed: " + shortPath(m.repo, msg.File)
 		} else {
@@ -189,6 +229,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statusMsg:
 		m.status = string(msg)
 		return m, nil
+	case tailTickMsg:
+		if !m.running {
+			return m, nil
+		}
+		return m, tailTick()
 	case spinner.TickMsg:
 		if !m.running {
 			return m, nil
@@ -215,22 +260,39 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "pgup", "ctrl+u":
+			m.followTail = false
 			m.logTop = max(0, m.logTop-previewStep(m.height))
 			return m, nil
 		case "pgdown", "ctrl+d":
 			m.logTop += previewStep(m.height)
 			return m, nil
+		case "[", "shift+tab":
+			// older run
+			if !m.running && m.logSelected < len(m.logs)-1 {
+				m.logSelected++
+				m.logTop = 0
+				m.followTail = false
+			}
+			return m, nil
+		case "]", "tab":
+			// newer run
+			if !m.running && m.logSelected > 0 {
+				m.logSelected--
+				m.logTop = 0
+				m.followTail = false
+			}
+			return m, nil
 		case "ctrl+r":
 			m.status = "Refreshed"
 			return m.recompute(), loadData(m.repo, m.outDir, m.suggested)
 		case "ctrl+y":
-			if selected, ok := m.latestLog(); ok {
+			if selected, ok := m.currentLog(); ok {
 				m.status = "Copied: " + selected.Name
 				return m, copyFile(selected.Path)
 			}
 			return m, nil
 		case "ctrl+o":
-			if selected, ok := m.latestLog(); ok {
+			if selected, ok := m.currentLog(); ok {
 				m.status = "Opened: " + selected.Name
 				return m, openFile(selected.Path)
 			}
@@ -241,8 +303,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if cmd, ok := m.commandToRun(); ok {
 				m.running = true
+				m.followTail = true
+				m.logSelected = 0
+				m.logTop = 0
+				m.startedAt = time.Now()
 				m.status = "Running: " + cmd.Label
-				return m, tea.Batch(m.spinner.Tick, runTest(m.repo, m.outDir, m.lastFile, cmd))
+				outputFile := filepath.Join(m.outDir, timestamp()+"-"+slugify(cmd.Label)+".md")
+				m.runningFile = outputFile
+				return m, tea.Batch(m.spinner.Tick, tailTick(), runTest(m.repo, outputFile, m.lastFile, cmd))
 			}
 			m.status = "No command selected"
 			return m, nil
@@ -284,7 +352,7 @@ func (m model) View() string {
 	inputBox := inputStyle.Width(inner - 2).Render(m.input.View())
 	status := renderStatus(m, inner)
 	content := renderContent(m, inner)
-	help := helpStyle.Width(inner).Render("Enter run · ↑↓ select · PgUp/PgDn log · ^Y copy log · ^O open log · ^R refresh · Esc clear · ^Q quit")
+	help := helpStyle.Width(inner).Render("Enter run · ↑↓ select · [ ] runs · PgUp/PgDn log · ^Y copy · ^O open · ^R refresh · ^Q quit")
 
 	body := lipgloss.JoinVertical(lipgloss.Left, header, inputBox, status, content, help)
 	return screenStyle.Width(w).Height(max(m.height, lipgloss.Height(body))).Render(lipgloss.PlaceHorizontal(w, lipgloss.Left, body))
@@ -363,32 +431,44 @@ func renderCommands(m model, width, height int) string {
 }
 
 func renderLog(m model, width, height int) string {
-	title := lipgloss.NewStyle().Foreground(accent2).Bold(true).Render("latest run")
-	lines := []string{lipgloss.NewStyle().Foreground(dim).Render("Run a test command to preview its log here.")}
-	if latest, ok := m.latestLog(); ok {
-		status := "exit " + latest.Exit
-		statusStyle := lipgloss.NewStyle().Foreground(errorTint).Bold(true)
-		if latest.Exit == "0" {
-			statusStyle = lipgloss.NewStyle().Foreground(okTint).Bold(true)
+	box := boxStyle
+	var badge, name, lines = "", "", []string{lipgloss.NewStyle().Foreground(dim).Render("Run a test command to preview its log here.")}
+	pos := ""
+
+	if m.running && m.runningFile != "" {
+		box = boxActive
+		badge = badgeRun.Render(m.spinner.View() + " RUN " + time.Since(m.startedAt).Round(time.Second).String())
+		name = truncate(filepath.Base(m.runningFile), max(12, width-26))
+		lines = readPreviewLines(m.runningFile)
+		if len(lines) == 0 {
+			lines = []string{lipgloss.NewStyle().Foreground(dim).Render("…starting…")}
 		}
-		title = lipgloss.JoinHorizontal(
-			lipgloss.Center,
-			lipgloss.NewStyle().Foreground(accent2).Bold(true).Render(truncate(latest.Name, max(12, width-16))),
-			" ",
-			statusStyle.Render(status),
-		)
-		lines = readPreviewLines(latest.Path)
+	} else if sel, ok := m.currentLog(); ok {
+		if sel.Exit == "0" {
+			badge = badgeOK.Render("PASS")
+		} else {
+			badge = badgeFail.Render("FAIL " + sel.Exit)
+		}
+		name = truncate(sel.Name, max(12, width-30))
+		if len(m.logs) > 1 {
+			pos = lipgloss.NewStyle().Foreground(muted).Render(fmt.Sprintf("  run %d/%d", m.logSelected+1, len(m.logs)))
+		}
+		lines = readPreviewLines(sel.Path)
 		if len(lines) == 0 {
 			lines = []string{lipgloss.NewStyle().Foreground(dim).Render("Empty log.")}
 		}
 	}
 
 	visible := max(1, height-3)
-	top := min(max(0, m.logTop), max(0, len(lines)-visible))
+	top := m.logTop
+	if m.followTail {
+		top = max(0, len(lines)-visible)
+	}
+	top = min(max(0, top), max(0, len(lines)-visible))
 	end := min(len(lines), top+visible)
 	rendered := make([]string, 0, visible)
 	for _, line := range lines[top:end] {
-		rendered = append(rendered, truncate(line, max(8, width-6)))
+		rendered = append(rendered, highlightLine(truncate(line, max(8, width-6))))
 	}
 	for len(rendered) < visible {
 		rendered = append(rendered, "")
@@ -396,10 +476,14 @@ func renderLog(m model, width, height int) string {
 
 	scroll := ""
 	if len(lines) > visible {
-		scroll = lipgloss.NewStyle().Foreground(muted).Render(fmt.Sprintf(" %d-%d/%d", top+1, end, len(lines)))
+		scroll = lipgloss.NewStyle().Foreground(muted).Render(fmt.Sprintf("  %d-%d/%d", top+1, end, len(lines)))
 	}
-	header := lipgloss.JoinHorizontal(lipgloss.Center, title, scroll)
-	return boxStyle.Width(width - 2).Height(height).Render(lipgloss.JoinVertical(lipgloss.Left, header, strings.Join(rendered, "\n")))
+	header := lipgloss.JoinHorizontal(lipgloss.Center,
+		badge, "  ",
+		lipgloss.NewStyle().Foreground(accent2).Bold(true).Render(name),
+		pos, scroll,
+	)
+	return box.Width(width - 2).Height(height).Render(lipgloss.JoinVertical(lipgloss.Left, header, strings.Join(rendered, "\n")))
 }
 
 func (m model) commandToRun() (testCommand, bool) {
@@ -418,6 +502,21 @@ func (m model) latestLog() (runLog, bool) {
 		return runLog{}, false
 	}
 	return m.logs[0], true
+}
+
+// currentLog is the run shown in the preview (selected, clamped).
+func (m model) currentLog() (runLog, bool) {
+	if len(m.logs) == 0 {
+		return runLog{}, false
+	}
+	i := m.logSelected
+	if i < 0 {
+		i = 0
+	}
+	if i >= len(m.logs) {
+		i = len(m.logs) - 1
+	}
+	return m.logs[i], true
 }
 
 func loadData(repo, outDir, suggested string) tea.Cmd {
@@ -500,18 +599,25 @@ func readMakefile(repo string) []testCommand {
 	if err != nil {
 		return nil
 	}
-	allowed := map[string]bool{
-		"help": true, "install": true, "dev": true, "run": true, "build": true,
-		"test": true, "test-one": true, "test-watch": true, "test-unit": true, "test-integration": true, "test-e2e": true, "test-cov": true,
-		"lint": true, "format": true, "typecheck": true, "check": true, "verify": true,
-	}
-	re := regexp.MustCompile(`^([a-zA-Z0-9_.-]+):`)
+	// All real targets, not a whitelist. Skip pattern rules (%), special
+	// targets (.PHONY etc.), and variable assignments.
+	re := regexp.MustCompile(`^([a-zA-Z0-9][a-zA-Z0-9_.-]*):(?:[^=]|$)`)
 	var commands []testCommand
+	seen := map[string]bool{}
 	for _, line := range strings.Split(string(data), "\n") {
-		match := re.FindStringSubmatch(line)
-		if len(match) == 2 && allowed[match[1]] {
-			commands = append(commands, testCommand{Label: "make " + match[1], Cmd: "make " + match[1]})
+		if strings.HasPrefix(line, "\t") || strings.HasPrefix(line, " ") {
+			continue
 		}
+		match := re.FindStringSubmatch(line)
+		if len(match) < 2 {
+			continue
+		}
+		name := match[1]
+		if name == "PHONY" || strings.HasPrefix(name, ".") || strings.Contains(name, "%") || seen[name] {
+			continue
+		}
+		seen[name] = true
+		commands = append(commands, testCommand{Label: "make " + name, Cmd: "make " + name})
 	}
 	return commands
 }
@@ -584,35 +690,44 @@ func loadLogs(outDir string) []runLog {
 	return logs
 }
 
-func runTest(repo, outDir, lastFile string, command testCommand) tea.Cmd {
+func runTest(repo, outputFile, lastFile string, command testCommand) tea.Cmd {
 	return func() tea.Msg {
 		start := time.Now()
-		outputFile := filepath.Join(outDir, timestamp()+"-"+slugify(command.Label)+".md")
-		var file bytes.Buffer
-		fmt.Fprintf(&file, "# Test Run\n\n")
-		fmt.Fprintf(&file, "- Time: `%s`\n", start.Format("2006-01-02 15:04:05"))
-		fmt.Fprintf(&file, "- Repo: `%s`\n", repo)
-		fmt.Fprintf(&file, "- Label: `%s`\n", command.Label)
-		fmt.Fprintf(&file, "- Command: `%s`\n", command.Cmd)
+
+		// Write the header first, then stream the process output straight into
+		// the same file so the tail-tick can show it live as it grows.
+		f, err := os.Create(outputFile)
+		if err != nil {
+			return runDoneMsg{File: outputFile, Err: err}
+		}
+		fmt.Fprintf(f, "# Test Run\n\n")
+		fmt.Fprintf(f, "- Time: `%s`\n", start.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(f, "- Repo: `%s`\n", repo)
+		fmt.Fprintf(f, "- Label: `%s`\n", command.Label)
+		fmt.Fprintf(f, "- Command: `%s`\n\n---\n\n## Output\n\n", command.Cmd)
+		_ = f.Sync()
+
 		cmd := exec.Command("bash", "-lc", command.Cmd)
 		cmd.Dir = repo
-		out, err := cmd.CombinedOutput()
+		cmd.Stdout = f
+		cmd.Stderr = f
+		runErr := cmd.Run()
+
 		exitText := "0"
-		if err != nil {
-			exitText = err.Error()
-			if exitErr, ok := err.(*exec.ExitError); ok {
+		if runErr != nil {
+			exitText = runErr.Error()
+			if exitErr, ok := runErr.(*exec.ExitError); ok {
 				exitText = fmt.Sprintf("%d", exitErr.ExitCode())
 			}
 		}
-		fmt.Fprintf(&file, "- Exit: `%s`\n", exitText)
-		fmt.Fprintf(&file, "- Duration: `%s`\n\n---\n\n## Output\n\n", time.Since(start).Round(time.Millisecond))
-		file.Write(cleanTestOutput(out))
+		fmt.Fprintf(f, "\n\n---\n\n- Exit: `%s`\n", exitText)
+		fmt.Fprintf(f, "- Duration: `%s`\n", time.Since(start).Round(time.Millisecond))
+		_ = f.Close()
 
-		if writeErr := os.WriteFile(outputFile, file.Bytes(), 0o644); writeErr != nil {
-			return runDoneMsg{File: outputFile, Err: writeErr}
+		if data, e := os.ReadFile(outputFile); e == nil {
+			_ = os.WriteFile(lastFile, data, 0o644)
 		}
-		_ = os.WriteFile(lastFile, file.Bytes(), 0o644)
-		return runDoneMsg{File: outputFile, Err: err}
+		return runDoneMsg{File: outputFile, Err: runErr}
 	}
 }
 
