@@ -76,6 +76,7 @@ type action struct {
 	key     string
 	name    string
 	desc    string
+	help    string // plain-language explanation for the context panel
 	section string
 	prompt  func(scope string) string // nil => mechanical
 	run     func(scope string) string // mechanical: returns output
@@ -122,15 +123,24 @@ func runPush(string) string {
 }
 
 var actions = []action{
-	{key: "1", name: "status", desc: "что накопилось, что делать", section: "промпт → dev-чат", prompt: promptStatus},
-	{key: "2", name: "sync", desc: "разобрать inbox + сейф", section: "промпт → dev-чат", prompt: promptSync},
-	{key: "3", name: "synthesize", desc: "повторы → паттерны/правила", section: "промпт → dev-чат", prompt: promptSynth},
-	{key: "4", name: "lint", desc: "протухание и противоречия", section: "промпт → dev-чат", prompt: promptLint},
-	{key: "5", name: "ingest", desc: "майнинг сессий за 2 недели", section: "промпт → dev-чат", prompt: promptIngest},
-	{key: "6", name: "rules-sync", desc: "правила → репо + hot.md", section: "механика", run: runRulesSync},
-	{key: "7", name: "git status", desc: "вольт: незакоммиченное", section: "механика", run: runGitStatus},
-	{key: "8", name: "push", desc: "вольт → GitHub", section: "механика", run: runPush},
-	{key: "b", name: "bootstrap", desc: "подключить репо без памяти", section: "механика"},
+	{key: "1", name: "status", desc: "что накопилось, что делать", section: "промпт → dev-чат", prompt: promptStatus,
+		help: "Куратор осмотрит память и расскажет: сколько новых уроков ждёт разбора, что устарело, что пора сделать. Ничего не меняет — просто отчёт."},
+	{key: "2", name: "sync", desc: "разобрать inbox + сейф", section: "промпт → dev-чат", prompt: promptSync,
+		help: "Куратор разбирает накопленные черновики уроков: дубли склеивает, мусор выкидывает, полезное раскладывает по полкам и обновляет шпаргалку (hot.md). Это главное действие — превращает сырые заметки в готовую память."},
+	{key: "3", name: "synthesize", desc: "повторы → паттерны/правила", section: "промпт → dev-чат", prompt: promptSynth,
+		help: "Куратор ищет уроки, которые повторились в разных репозиториях, и поднимает их в общие паттерны продукта. Самые важные превращает в правила, которые агенты обязаны соблюдать."},
+	{key: "4", name: "lint", desc: "протухание и противоречия", section: "промпт → dev-чат", prompt: promptLint,
+		help: "Проверка здоровья памяти: куратор ищет устаревшие уроки, противоречия и заметки, на которые никто не ссылается. Гигиена — раз в месяц, чтобы память не врала."},
+	{key: "5", name: "ingest", desc: "майнинг сессий за 2 недели", section: "промпт → dev-чат", prompt: promptIngest,
+		help: "Куратор перечитывает историю твоих рабочих сессий за 2 недели и вытаскивает уроки, которые агенты не записали по ходу дела. Пополняет память из прошлого."},
+	{key: "6", name: "rules-sync", desc: "правила → репо + hot.md", section: "механика", run: runRulesSync,
+		help: "Разносит готовые правила из памяти прямо в репозитории (чтобы агенты их видели) и пересобирает шпаргалки hot.md. Жми после того, как куратор создал новое правило. Безопасно, выполнится сразу."},
+	{key: "7", name: "git status", desc: "вольт: незакоммиченное", section: "механика", run: runGitStatus,
+		help: "Показывает, что в памяти ещё не сохранено в git и сколько изменений не отправлено на GitHub. Просто посмотреть — ничего не меняет."},
+	{key: "8", name: "push", desc: "вольт → GitHub", section: "механика", run: runPush,
+		help: "Отправляет всю память на GitHub — бэкап и доступ с других машин. Единственное действие «наружу», поэтому отдельной кнопкой и только по твоему нажатию."},
+	{key: "b", name: "bootstrap", desc: "подключить репо без памяти", section: "механика",
+		help: "Находит репозитории, у которых ещё нет памяти, и подключает выбранный: заводит ему место в вольте и симлинки. После этого репо начинает копить уроки. Разово на новый проект."},
 }
 
 // ─── helpers ───
@@ -614,11 +624,16 @@ func (m model) contextColumn(width int) string {
 
 	b.WriteString("\n" + stSection.Render("── выбрано ──") + "\n")
 	a := actions[m.cursor]
-	b.WriteString(stCtxVal.Render(a.name) + " — " + stDesc.Render(a.desc) + "\n")
+	b.WriteString(stCtxVal.Render(a.name) + "\n")
+	wrapW := width - 2
+	if wrapW < 10 {
+		wrapW = 10
+	}
+	b.WriteString(lipgloss.NewStyle().Foreground(cText).Width(wrapW).Render(a.help) + "\n\n")
 	if a.prompt != nil {
-		b.WriteString(stCtxKey.Render("→ соберёт промпт в dev-чат") + "\n")
+		b.WriteString(stCtxKey.Render("→ соберёт промпт куратору — ты жмёшь Enter") + "\n")
 	} else {
-		b.WriteString(stCtxKey.Render("→ выполнится сразу") + "\n")
+		b.WriteString(stCtxKey.Render("→ выполнится сразу, тут же") + "\n")
 	}
 	if s.lastLog != "" {
 		b.WriteString("\n" + stSection.Render("── последнее в логе ──") + "\n")
