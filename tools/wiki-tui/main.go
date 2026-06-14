@@ -159,7 +159,13 @@ func listDirs(path string) []string {
 	return out
 }
 
+// scopePath maps a scope to its vault directory. Repo-level scopes
+// (co/prod/repo) live under .../<prod>/repos/<repo>, so insert "repos".
 func scopePath(scope string) string {
+	parts := strings.Split(scope, "/")
+	if len(parts) == 3 {
+		return filepath.Join(projectsRoot, parts[0], parts[1], "repos", parts[2])
+	}
 	return filepath.Join(projectsRoot, filepath.FromSlash(scope))
 }
 
@@ -234,9 +240,10 @@ func gatherStats(scope string) scopeStats {
 		}
 		return nil
 	})
-	// last product log line
-	for _, lp := range []string{filepath.Join(root, "log.md"), filepath.Join(filepath.Dir(root), "log.md")} {
-		if b, e := os.ReadFile(lp); e == nil {
+	// last product log line — walk up from scope dir to the nearest log.md
+	dir := root
+	for i := 0; i < 4 && strings.HasPrefix(dir, projectsRoot); i++ {
+		if b, e := os.ReadFile(filepath.Join(dir, "log.md")); e == nil {
 			for _, ln := range strings.Split(string(b), "\n") {
 				if strings.HasPrefix(ln, "## [") {
 					s.lastLog = strings.TrimPrefix(ln, "## ")
@@ -246,6 +253,7 @@ func gatherStats(scope string) scopeStats {
 				break
 			}
 		}
+		dir = filepath.Dir(dir)
 	}
 	return s
 }
@@ -631,8 +639,8 @@ func (m model) viewMenu() string {
 	header := m.headerBar(w)
 
 	// two columns when wide enough, stacked otherwise
-	if w >= 76 {
-		menuW := 42
+	if w >= 86 {
+		menuW := 54
 		ctxW := w - menuW - 6
 		menu := stMenuPanel.Width(menuW).Render(m.menuColumn())
 		ctx := stCtxPanel.Width(ctxW).Render(m.contextColumn(ctxW))
