@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -146,12 +147,29 @@ var actions = []action{
 
 // ─── helpers ───
 
-func capture(name string, args ...string) string {
-	cmd := exec.Command(name, args...)
+// runWith runs a command with a hard timeout so a stuck tmux/git call can
+// never freeze the single-threaded UI.
+func runWith(timeout time.Duration, stdin string, name string, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
+	if stdin != "" {
+		cmd.Stdin = strings.NewReader(stdin)
+	}
 	out, err := cmd.CombinedOutput()
-	s := strings.TrimRight(string(out), "\n")
+	if ctx.Err() == context.DeadlineExceeded {
+		return "", ctx.Err()
+	}
+	return strings.TrimRight(string(out), "\n"), err
+}
+
+func capture(name string, args ...string) string {
+	s, err := runWith(20*time.Second, "", name, args...)
 	if err != nil && s == "" {
-		s = "error: " + err.Error()
+		if err == context.DeadlineExceeded {
+			return "таймаут: команда не ответила"
+		}
+		return "error: " + err.Error()
 	}
 	return s
 }
@@ -341,17 +359,19 @@ func missingMemoryRepos() []string {
 }
 
 func deliverPrompt(prompt string) string {
-	pb := exec.Command("pbcopy")
-	pb.Stdin = strings.NewReader(prompt)
-	_ = pb.Run()
+	// Clipboard first — always works, even if tmux is wedged.
+	_, _ = runWith(3*time.Second, prompt, "pbcopy")
 
 	session := strings.SplitN(devPane, ":", 2)[0]
-	if exec.Command("tmux", "has-session", "-t", session).Run() == nil {
-		_ = exec.Command("tmux", "send-keys", "-t", devPane, "-l", "--", prompt).Run()
-		_ = exec.Command("tmux", "select-pane", "-t", devPane).Run()
-		return "промпт в инпуте dev-чата (и в буфере) — проверь и жми Enter"
+	if _, err := runWith(2*time.Second, "", "tmux", "has-session", "-t", session); err != nil {
+		return "промпт в буфере обмена (dev-сессии нет — вставь вручную)"
 	}
-	return "tmux-сессии нет — промпт в буфере обмена"
+	// send-keys can hang if the dev pane's program is busy; cap it hard.
+	if _, err := runWith(2*time.Second, "", "tmux", "send-keys", "-t", devPane, "-l", "--", prompt); err != nil {
+		return "промпт в буфере обмена (panel занят — вставь вручную, Cmd+V)"
+	}
+	_, _ = runWith(2*time.Second, "", "tmux", "select-pane", "-t", devPane)
+	return "промпт в инпуте dev-чата (и в буфере) — проверь и жми Enter"
 }
 
 // ─── scope picker data ───
