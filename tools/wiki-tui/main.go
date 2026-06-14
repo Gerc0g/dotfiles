@@ -551,21 +551,18 @@ func (m model) View() string {
 	return m.viewMenu()
 }
 
-func divider(inner int) string {
-	if inner < 1 {
-		inner = 1
-	}
-	return lipgloss.NewStyle().Foreground(cDim).Render(strings.Repeat("─", inner))
+// fixedBlock pads text to exactly h lines (truncating if longer) so the frame
+// height never changes when the cursor moves between actions.
+func fixedBlock(text string, inner, h int) string {
+	return lipgloss.NewStyle().Width(inner).Height(h).MaxHeight(h).Render(text)
 }
 
-// secScope — top section: which product the panel is aimed at.
 func (m model) secScope() string {
 	return stTitle.Render("WikiPedik · память") + "\n" +
 		stDesc.Render("scope: ") + stScope.Render(m.scope) +
 		stDesc.Render("   (s — сменить продукт)")
 }
 
-// secActions — middle section: the action list.
 func (m model) secActions() string {
 	var b strings.Builder
 	section := ""
@@ -577,32 +574,22 @@ func (m model) secActions() string {
 			section = a.section
 			b.WriteString(stSection.Render("── "+section+" ──") + "\n")
 		}
-		name := stName.Render(a.name)
 		desc := stDesc.Render(a.desc)
 		if i == m.cursor {
-			b.WriteString(stCursor.Render("▸ ") + stKey.Render(a.key) + stSelRow.Render(a.name) + " " + desc)
+			selName := lipgloss.NewStyle().Foreground(cAccent).Bold(true).Width(12).Render(a.name)
+			b.WriteString(stCursor.Render("▸ ") + stKey.Render(a.key) + selName + desc)
 		} else {
-			b.WriteString("  " + stKey.Render(a.key) + name + desc)
+			b.WriteString("  " + stKey.Render(a.key) + stName.Render(a.name) + desc)
 		}
 		if i < len(actions)-1 {
 			b.WriteString("\n")
 		}
 	}
-	if m.flash != "" {
-		style := stFlashOk
-		if m.flashWarn {
-			style = stFlashWn
-		}
-		b.WriteString("\n\n" + style.Render("→ "+m.flash))
-	}
 	return b.String()
 }
 
-// secStats — bottom section: live memory state + selected action explanation.
 func (m model) secStats(inner int) string {
 	var b strings.Builder
-	b.WriteString(stTitle.Render("Состояние памяти") + "\n")
-
 	row := func(k, v string, warn bool) {
 		val := stCtxVal
 		if warn {
@@ -623,12 +610,22 @@ func (m model) secStats(inner int) string {
 	row("salvage", fmt.Sprintf("%d зон", s.salvage), s.salvage > 0)
 
 	a := actions[m.cursor]
+	tail := "→ соберёт промпт куратору — ты жмёшь Enter"
+	if a.prompt == nil {
+		tail = "→ выполнится сразу, тут же"
+	}
+	// help block padded to a FIXED height so switching actions never resizes.
+	help := lipgloss.NewStyle().Foreground(cText).Width(inner).Render(a.help)
+	helpBlock := fixedBlock(help+"\n"+stCtxKey.Render(tail), inner, 5)
+
 	b.WriteString("\n" + stSection.Render("── что сделает: "+a.name+" ──") + "\n")
-	b.WriteString(lipgloss.NewStyle().Foreground(cText).Width(inner).Render(a.help) + "\n")
-	if a.prompt != nil {
-		b.WriteString(stCtxKey.Render("→ соберёт промпт куратору — ты жмёшь Enter"))
-	} else {
-		b.WriteString(stCtxKey.Render("→ выполнится сразу, тут же"))
+	b.WriteString(helpBlock)
+	if m.flash != "" {
+		style := stFlashOk
+		if m.flashWarn {
+			style = stFlashWn
+		}
+		b.WriteString("\n" + style.Render("→ "+m.flash))
 	}
 	return b.String()
 }
@@ -638,14 +635,18 @@ func (m model) viewMenu() string {
 	if w < 40 {
 		w = 80
 	}
-	inner := w - 6 // border(2) + padding(4)
-	body := lipgloss.JoinVertical(lipgloss.Left,
+	inner := w - 8 // frame Width(w-4) minus padding(2+2); border sits outside Width
+	if inner < 10 {
+		inner = 10
+	}
+	line := lipgloss.NewStyle().Foreground(cDim).Render(strings.Repeat("─", inner))
+	body := strings.Join([]string{
 		m.secScope(),
-		divider(inner),
+		line,
 		m.secActions(),
-		divider(inner),
+		line,
 		m.secStats(inner),
-	)
+	}, "\n")
 	frame := stMenuPanel.Width(w - 4).Render(body)
 	help := stHelp.Render(" ↑↓/цифры · enter · s scope · q выход")
 	return lipgloss.JoinVertical(lipgloss.Left, frame, help)
