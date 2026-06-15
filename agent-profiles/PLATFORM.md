@@ -6,33 +6,39 @@ Company- or repo-level files may add more or override.
 
 ## Local infrastructure
 
-dev-stack (Docker Compose via OrbStack):
+dev-stack (Docker Compose via OrbStack). Host is `${DEV_STACK_HOST}` (default
+`localhost`; switches to the home Ubuntu box later without other changes).
+Canonical list: `dev-stack urls`. Source of truth: `services/dev-stack/`.
+
 - Postgres `localhost:5432` (user `dev`, pass `dev`, default db `postgres`)
 - Redis `localhost:6379` (no auth)
+- MinIO S3 API `http://localhost:9000` (key `dev`, secret `devsecret123`), console `:9001`
+- Qdrant `http://localhost:6333` (REST), gRPC `:6334`
+- ClickHouse `http://localhost:8123` (user `dev`, pass `dev`)
 - Prometheus `http://localhost:9090`
-- Grafana `http://localhost:3030` (`dev`/`dev`)
-- MinIO S3 API `http://localhost:9000` (key `dev`, secret `devsecret123`)
-- MinIO Console `http://localhost:9001`
-- MLflow tracking `http://localhost:5000` (no auth)
+- Grafana `http://localhost:3030` (`dev`/`dev`) — Prometheus/Loki/Tempo pre-wired
+- Loki `http://localhost:3100` (logs), Tempo `http://localhost:3200` (traces)
+- OTel Collector ingest `localhost:4317` (gRPC) / `:4318` (http) → fans out to Loki/Tempo/Prometheus
+- Langfuse `http://localhost:3001` (LLM observability)
+- Ollama `http://localhost:11434` (local models)
+- Metabase `http://localhost:3002` (BI), CloudBeaver `http://localhost:8978` (DB viewer, pg+clickhouse)
 
 Lifecycle (shell, not in repo):
-- `dev-stack up` / `dev-stack down` / `dev-stack status`
-- `dev-stack psql [db]` / `dev-stack redis-cli`
+- `dev-stack up [svc...]` / `dev-stack down` / `dev-stack status` / `dev-stack urls`
+- `dev-stack psql [db]` / `dev-stack redis-cli` / `dev-stack clickhouse`
 - `dev-stack db-create <name>` / `dev-stack db-drop <name>`
 
 Rules — repo needs:
-- Postgres → connect to `localhost:5432`, not embedded
-- Redis → `localhost:6379`
-- S3-compatible storage → MinIO at `localhost:9000` (use `boto3` with
-  `endpoint_url=http://localhost:9000`, key=`dev`, secret=`devsecret123`)
-- ML experiment tracking → MLflow at `localhost:5000` (set
-  `MLFLOW_TRACKING_URI=http://localhost:5000` via `secret add` or direct env)
+- Postgres → `localhost:5432`, not embedded. Vector store → Qdrant `:6333`.
+- Redis → `localhost:6379`. OLAP/analytics → ClickHouse `:8123`.
+- S3-compatible storage → MinIO `:9000` (`boto3` `endpoint_url=http://localhost:9000`, key=`dev`, secret=`devsecret123`)
+- LLM tracing → Langfuse `:3001`. Telemetry (metrics/logs/traces) → OTLP to OTel Collector `:4317`.
+- Local LLM → Ollama `:11434`.
 
 Don't:
-- Add Postgres/Redis/MinIO/MLflow service to repo's docker-compose.yml
-- Suggest `brew install postgresql`/`redis`/`minio`
+- Add Postgres/Redis/MinIO/Qdrant/ClickHouse/Langfuse to a repo's docker-compose.yml
+- Suggest `brew install postgresql`/`redis` etc. — use the shared stack
 - Suggest cloud AWS S3 for local dev (use MinIO)
-- Set up MLflow locally inside repo when shared instance available
 
 Stack down → suggest `dev-stack up`.
 

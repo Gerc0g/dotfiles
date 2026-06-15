@@ -289,11 +289,13 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ### Local infrastructure
 
 ## dev-stack
-**Что:** Локальный Docker stack: Postgres :5432, Redis :6379, Prometheus :9090, Grafana :3030, MinIO :9000, MLflow :5000.
+**Что:** Единый локальный Docker-стек инфры для всех проектов. Сервисы: Postgres :5432, Redis :6379, MinIO :9000/9001, Qdrant :6333, ClickHouse :8123, Prometheus :9090, Grafana :3030, Loki :3100, Tempo :3200, OTel Collector :4317/4318, Langfuse :3001, Ollama :11434, Metabase :3002, CloudBeaver :8978. Host = `$DEV_STACK_HOST` (default localhost; под будущий домашний Ubuntu-ноут через Tailscale). Источник правды: `services/dev-stack/`.
 **Запуск:**
-- `dev-stack up` / `dev-stack down` / `dev-stack status`
-- `dev-stack psql [db]` / `dev-stack redis-cli`
-- `dev-stack db-create <name>` / `dev-stack db-drop <name>`
+- `dev-stack up [svc...]` (всё или точечно) / `dev-stack down` / `dev-stack status` / `dev-stack pull`
+- `dev-stack urls` — все адреса (учитывает DEV_STACK_HOST)
+- `dev-stack psql [db]` / `dev-stack redis-cli` / `dev-stack clickhouse`
+- `dev-stack db-create <name>` / `dev-stack db-drop <name>` / `dev-stack logs [svc]` / `dev-stack nuke`
+**Файлы:** `services/dev-stack/docker-compose.yml`, `services/dev-stack/config/`, `shell/60-devstack.zsh`.
 
 ---
 

@@ -1,27 +1,72 @@
+# Shared local dev infrastructure control.
+#
+# DEV_STACK_HOST is where the stack lives. Default localhost (runs on this Mac).
+# When the stack moves to the Ubuntu laptop, set DEV_STACK_HOST=<tailnet-name>
+# in your shell — connection strings / URLs follow it, no other change needed.
+: "${DEV_STACK_HOST:=localhost}"
+
 dev-stack() {
   local cmd="${1:-status}"
   local compose=~/dotfiles/services/dev-stack/docker-compose.yml
-  
+  local h="${DEV_STACK_HOST:-localhost}"
+
+  case "$cmd" in
+    urls)
+      cat <<URLS
+Dev stack @ ${h}
+
+  core
+    Postgres      ${h}:5432            user=dev pass=dev
+    Redis         ${h}:6379
+  storage / vectors
+    MinIO  S3     http://${h}:9000     key=dev secret=devsecret123
+    MinIO  UI     http://${h}:9001
+    Qdrant        http://${h}:6333     (gRPC ${h}:6334)
+    ClickHouse    http://${h}:8123     user=dev pass=dev
+  observability
+    Prometheus    http://${h}:9090
+    Grafana       http://${h}:3030     user=dev pass=dev
+    Loki          http://${h}:3100
+    Tempo         http://${h}:3200
+    OTel ingest   ${h}:4317 (grpc) / ${h}:4318 (http)
+  llm / ml
+    Langfuse      http://${h}:3001
+    Ollama        http://${h}:11434
+  bi / viewer
+    Metabase      http://${h}:3002
+    CloudBeaver   http://${h}:8978
+URLS
+      return 0
+      ;;
+  esac
+
+  # Everything below talks to the local docker engine.
   if ! docker ps >/dev/null 2>&1; then
     echo "⚠ Docker не запущен. Запусти OrbStack (Spotlight → OrbStack)."
     return 1
   fi
-  
+
   case "$cmd" in
     up|start)
-      docker compose -f "$compose" up -d
+      shift
+      docker compose -f "$compose" up -d "$@"   # no args = all; or `up qdrant langfuse`
       echo ""
-      echo "✓ Dev stack running:"
-      echo "   Postgres    localhost:5432  (user=dev, pass=dev)"
-      echo "   Redis       localhost:6379"
-      echo "   Prometheus  http://localhost:9090"
-      echo "   Grafana     http://localhost:3030  (user=dev, pass=dev)"
+      if [ $# -eq 0 ]; then
+        echo "✓ Dev stack up. Adresa: dev-stack urls"
+      else
+        echo "✓ Started: $*"
+      fi
       ;;
     down|stop)
-      docker compose -f "$compose" down
+      shift
+      docker compose -f "$compose" down "$@"
       ;;
     restart)
-      docker compose -f "$compose" restart
+      shift
+      docker compose -f "$compose" restart "$@"
+      ;;
+    pull)
+      docker compose -f "$compose" pull
       ;;
     logs)
       shift
@@ -35,6 +80,9 @@ dev-stack() {
       ;;
     redis-cli)
       docker exec -it dev-redis redis-cli
+      ;;
+    ch|clickhouse)
+      docker exec -it dev-clickhouse clickhouse-client -u dev --password dev
       ;;
     db-create)
       [ -z "$2" ] && { echo "Usage: dev-stack db-create <name>"; return 1; }
@@ -57,24 +105,24 @@ dev-stack() {
 Usage: dev-stack <command>
 
 Lifecycle:
-  up | start          Start all services in background
-  down | stop         Stop services (data persists)
-  restart             Restart services
-  status | ps         Show running containers
-  logs [service]      Tail logs (all or specific)
-  nuke                Stop AND delete all data (confirm)
+  up | start [svc...]   Start all (or only named services) in background
+  down | stop [svc...]  Stop (data persists)
+  restart [svc...]      Restart
+  pull                  Pull latest images
+  status | ps           Show containers
+  logs [service]        Tail logs
+  nuke                  Stop AND delete all data (confirm)
 
-Quick access:
-  psql [db]           Open psql (default db: postgres)
-  redis-cli           Open redis-cli
-  db-create <name>    Create new DB in dev-postgres
-  db-drop <name>      Drop DB (confirms)
+Access:
+  urls                  Print all service URLs (honours DEV_STACK_HOST)
+  psql [db]             Open psql (default: postgres)
+  redis-cli             Open redis-cli
+  ch | clickhouse       Open clickhouse-client
+  db-create <name>      Create DB in dev-postgres
+  db-drop <name>        Drop DB (confirms)
 
-Services:
-  Postgres    localhost:5432  (user=dev, pass=dev)
-  Redis       localhost:6379
-  Prometheus  http://localhost:9090
-  Grafana     http://localhost:3030  (user=dev, pass=dev)
+Stack: Postgres Redis MinIO Qdrant ClickHouse Prometheus Grafana Loki Tempo
+       OTel-Collector Langfuse Ollama Metabase CloudBeaver
 USAGE
       ;;
   esac

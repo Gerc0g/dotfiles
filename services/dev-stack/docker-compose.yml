@@ -1,4 +1,19 @@
+# Shared local dev infrastructure. One stack, all projects connect to it.
+# `dev-stack up` brings up everything; `dev-stack up <svc>` brings up one.
+# Host-port map is conflict-free (ClickHouse native 9000 is internal-only —
+# MinIO owns host :9000; Langfuse reaches ClickHouse over the docker network).
+#
+# Built local-first but server-ready: nothing here binds to a public IP. To
+# move the whole stack to a home/remote box, run it there and point the Mac at
+# it via DEV_STACK_HOST (see shell/60-devstack.zsh) — no compose change needed.
+
+name: dev-stack
+
+x-restart: &restart
+  restart: unless-stopped
+
 services:
+  # ─── core ───
   postgres:
     image: postgres:16-alpine
     container_name: dev-postgres
@@ -9,7 +24,13 @@ services:
       POSTGRES_DB: postgres
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    restart: unless-stopped
+      - ./init/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    <<: *restart
 
   redis:
     image: redis:7-alpine
@@ -17,16 +38,118 @@ services:
     ports: ["6379:6379"]
     volumes:
       - redis-data:/data
-    restart: unless-stopped
+    <<: *restart
 
+  # ─── storage / vectors ───
+  minio:
+    image: minio/minio:latest
+    container_name: dev-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # console
+    environment:
+      MINIO_ROOT_USER: dev
+      MINIO_ROOT_PASSWORD: devsecret123
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    <<: *restart
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: dev-minio-init
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 dev devsecret123; do sleep 2; done;
+      mc mb -p local/dev || true;
+      mc mb -p local/langfuse || true;
+      mc mb -p local/mlflow || true;
+      exit 0;
+      "
+    restart: "no"
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: dev-qdrant
+    ports:
+      - "6333:6333"   # REST
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant-data:/qdrant/storage
+    <<: *restart
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: dev-clickhouse
+    ports:
+      - "8123:8123"   # HTTP (native 9000 stays internal — MinIO owns host :9000)
+    environment:
+      CLICKHOUSE_USER: dev
+      CLICKHOUSE_PASSWORD: dev
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    <<: *restart
+
+  # ─── observability ───
   prometheus:
     image: prom/prometheus:latest
     container_name: dev-prometheus
     ports: ["9090:9090"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-remote-write-receiver
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
-    restart: unless-stopped
+    <<: *restart
+
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: dev-loki
+    ports: ["3100:3100"]
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./config/loki.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    <<: *restart
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: dev-tempo
+    ports: ["3200:3200"]   # query; OTLP receivers stay internal (OTel collector fans in)
+    command: -config.file=/etc/tempo/tempo.yml
+    volumes:
+      - ./config/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo-data:/var/tempo
+    <<: *restart
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: dev-otel
+    ports:
+      - "4317:4317"   # OTLP gRPC — single ingest point
+      - "4318:4318"   # OTLP HTTP
+    command: ["--config=/etc/otel/config.yml"]
+    volumes:
+      - ./config/otel-collector.yml:/etc/otel/config.yml:ro
+    depends_on: [loki, tempo, prometheus]
+    <<: *restart
 
   grafana:
     image: grafana/grafana:latest
@@ -39,12 +162,84 @@ services:
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
     volumes:
       - grafana-data:/var/lib/grafana
-    restart: unless-stopped
+      - ./config/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    depends_on: [prometheus, loki, tempo]
+    <<: *restart
+
+  # ─── LLM / ML ───
+  langfuse:
+    image: langfuse/langfuse:3
+    container_name: dev-langfuse
+    ports: ["3001:3000"]
     depends_on:
-      - prometheus
+      postgres: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+      minio: { condition: service_started }
+      redis: { condition: service_started }
+    environment:
+      DATABASE_URL: postgresql://dev:dev@postgres:5432/langfuse
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_USER: dev
+      CLICKHOUSE_PASSWORD: dev
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      REDIS_CONNECTION_STRING: redis://redis:6379
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: dev
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: devsecret123
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      SALT: dev-langfuse-salt-change-me
+      ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      NEXTAUTH_SECRET: dev-langfuse-nextauth-secret
+      NEXTAUTH_URL: http://localhost:3001
+      TELEMETRY_ENABLED: "false"
+      LANGFUSE_INIT_ORG_ID: dev
+      LANGFUSE_INIT_PROJECT_ID: dev
+    <<: *restart
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: dev-ollama
+    ports: ["11434:11434"]
+    volumes:
+      - ollama-data:/root/.ollama
+    <<: *restart
+
+  # ─── BI / DB viewer ───
+  metabase:
+    image: metabase/metabase:latest
+    container_name: dev-metabase
+    ports: ["3002:3000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: dev
+      MB_DB_PASS: dev
+      MB_DB_HOST: postgres
+    <<: *restart
+
+  cloudbeaver:
+    image: dbeaver/cloudbeaver:latest
+    container_name: dev-cloudbeaver
+    ports: ["8978:8978"]
+    volumes:
+      - cloudbeaver-data:/opt/cloudbeaver/workspace
+    <<: *restart
 
 volumes:
   postgres-data:
   redis-data:
+  minio-data:
+  qdrant-data:
+  clickhouse-data:
   prometheus-data:
+  loki-data:
+  tempo-data:
   grafana-data:
+  ollama-data:
+  cloudbeaver-data:
