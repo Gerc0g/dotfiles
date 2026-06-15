@@ -68,12 +68,19 @@ type model struct {
 	running    bool
 	status     string
 	previewTop int
+	startedAt  time.Time // when the current compose/send started
 
 	stage             flowStage
 	pendingPrompt     string
 	pendingUserPrompt string
 	pendingFile       string
 	pendingFiles      []string
+}
+
+type elapsedTickMsg struct{}
+
+func elapsedTick() tea.Cmd {
+	return tea.Tick(time.Second, func(time.Time) tea.Msg { return elapsedTickMsg{} })
 }
 
 var (
@@ -198,7 +205,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stage = flowDone
 		}
 		if msg.Err != nil {
-			m.status = "Saved with error: " + shortPath(m.repo, msg.File)
+			m.status = "Oracle error (" + msg.Err.Error() + "): " + shortPath(m.repo, msg.File)
 		} else {
 			m.status = "Saved: " + shortPath(m.repo, msg.File)
 		}
@@ -236,6 +243,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statusMsg:
 		m.status = string(msg)
 		return m, nil
+	case elapsedTickMsg:
+		if !m.running {
+			return m, nil
+		}
+		return m, elapsedTick()
 	case spinner.TickMsg:
 		if !m.running {
 			return m, nil
@@ -310,16 +322,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.stage == flowReview && m.pendingPrompt != "" && !m.running {
 				m.running = true
 				m.stage = flowSending
+				m.startedAt = time.Now()
 				m.status = "Sending to oracle..."
 				m.input.Placeholder = "Sending to oracle..."
-				return m, tea.Batch(m.spinner.Tick, runOracle(m.repo, m.outDir, m.lastFile, m.pendingUserPrompt, m.pendingPrompt, m.pendingFiles))
+				return m, tea.Batch(m.spinner.Tick, elapsedTick(), runOracle(m.repo, m.outDir, m.lastFile, m.pendingUserPrompt, m.pendingPrompt, m.pendingFiles))
 			}
 			if prompt != "" && !m.running {
 				m.running = true
 				m.stage = flowComposing
+				m.startedAt = time.Now()
 				m.status = "Composing Oracle prompt with Codex..."
 				m.input.Placeholder = "Composing..."
-				return m, tea.Batch(m.spinner.Tick, composeOraclePrompt(m.repo, m.reqDir, prompt))
+				return m, tea.Batch(m.spinner.Tick, elapsedTick(), composeOraclePrompt(m.repo, m.reqDir, prompt))
 			}
 			m.status = "Type a prompt, then press Enter"
 			return m, nil
@@ -367,38 +381,50 @@ func renderHeader(m model, width int) string {
 func renderStatus(m model, width int) string {
 	style := lipgloss.NewStyle().Foreground(muted).Padding(0, 2).Width(width)
 	status := truncate(m.status, max(20, width-4))
-	if strings.Contains(strings.ToLower(m.status), "error") {
-		style = style.Foreground(errorTint)
+	if m.stage == flowError || strings.Contains(strings.ToLower(m.status), "error") {
+		return style.Foreground(errorTint).Render("✗ " + status)
+	}
+	if m.stage == flowDone {
+		return style.Foreground(accent).Render("✓ " + status)
 	}
 	if m.running {
-		return style.Foreground(warning).Render(m.spinner.View() + " " + truncate(m.status, max(18, width-6)))
+		el := time.Since(m.startedAt).Round(time.Second).String()
+		return style.Foreground(warning).Render(m.spinner.View() + " " + truncate(m.status, max(18, width-12)) + "  " + el)
 	}
 	return style.Render(status)
 }
 
 func renderProgress(m model, width int) string {
-	steps := []struct {
-		label string
-		on    bool
-	}{
-		{"compose", m.stage == flowComposing || m.stage == flowReview || m.stage == flowSending || m.stage == flowDone},
-		{"send", m.stage == flowSending || m.stage == flowDone},
-		{"save", m.stage == flowDone},
+	type st struct{ label string; done, active bool }
+	steps := []st{
+		{"compose", m.stage == flowReview || m.stage == flowSending || m.stage == flowDone, m.stage == flowComposing},
+		{"review", m.stage == flowSending || m.stage == flowDone, m.stage == flowReview},
+		{"send", m.stage == flowDone, m.stage == flowSending},
+		{"save", m.stage == flowDone, false},
 	}
 	parts := make([]string, 0, len(steps))
-	for _, step := range steps {
-		style := lipgloss.NewStyle().Foreground(dim)
-		bullet := "○"
-		if step.on {
-			style = style.Foreground(accent).Bold(true)
-			bullet = "●"
+	for i, s := range steps {
+		var seg string
+		switch {
+		case m.stage == flowError && s.active:
+			seg = lipgloss.NewStyle().Foreground(bg).Background(errorTint).Bold(true).Padding(0, 1).Render("✗ " + s.label)
+		case s.active:
+			seg = lipgloss.NewStyle().Foreground(bg).Background(accent2).Bold(true).Padding(0, 1).Render(m.spinner.View() + " " + s.label)
+		case s.done:
+			seg = lipgloss.NewStyle().Foreground(accent).Bold(true).Render("✓ " + s.label)
+		default:
+			seg = lipgloss.NewStyle().Foreground(dim).Render("○ " + s.label)
 		}
-		if m.stage == flowError {
-			style = style.Foreground(errorTint)
+		parts = append(parts, seg)
+		if i < len(steps)-1 {
+			arrow := lipgloss.NewStyle().Foreground(dim).Render(" → ")
+			if s.done {
+				arrow = lipgloss.NewStyle().Foreground(accent).Render(" → ")
+			}
+			parts = append(parts, arrow)
 		}
-		parts = append(parts, style.Render(bullet+" "+step.label))
 	}
-	return lipgloss.NewStyle().Padding(0, 2).Width(width).Render(strings.Join(parts, "   "))
+	return lipgloss.NewStyle().Padding(0, 2).Width(width).Render(strings.Join(parts, ""))
 }
 
 func renderContent(m model, width int) string {
@@ -619,8 +645,13 @@ func runOracle(repo, outDir, lastFile, userPrompt, oraclePrompt string, files []
 		if cleaned != "" {
 			fmt.Fprintf(&file, "## Answer\n\n%s\n", cleaned)
 		}
-		if cleaned == "" && err != nil {
-			fmt.Fprintf(&file, "oracle failed: %s\n", err)
+		if cleaned == "" {
+			// Empty answer is a failure even if the process exited 0.
+			fmt.Fprintf(&file, "## Answer\n\n_(oracle returned no answer)_\n")
+			if err == nil {
+				err = fmt.Errorf("empty answer")
+			}
+			fmt.Fprintf(&file, "\n```\n%s\n```\n", strings.TrimSpace(string(out)))
 		}
 
 		if writeErr := os.WriteFile(outputFile, file.Bytes(), 0o644); writeErr != nil {
