@@ -383,15 +383,15 @@ start_workspace() {
     wt_dir=$(worktree_dir_for "$co" "$prod" "$repo" "$id")
   done
 
-  # Reap worktrees whose tmux session is already gone (clean+pushed only).
-  # tmux session-closed hooks are unreliable headless, so this sweep on every
-  # launch is the dependable path: closed → next launch removes it.
-  reap_closed >/dev/null 2>&1 || true
-  cleanup_workspaces --days 7 --quiet || true
+  # NO automatic reaping here. A clean+pushed worktree is NOT abandoned — you
+  # may be actively working in it (just pushed, kept going). Auto-reap on every
+  # `start` deleted live work twice. Worktrees are removed ONLY explicitly
+  # (`agent-workspace remove`) or by `cleanup` (needs ready-flag + 7 days).
+  # Surface stale ones for manual triage, never delete them.
   local n_stale
   n_stale=$(stale_count 3)
   if [ "${n_stale:-0}" -gt 0 ]; then
-    echo "ℹ $n_stale stale active worktree(s) — triage with: agent-workspace stale" >&2
+    echo "ℹ $n_stale stale active worktree(s) — triage: agent-workspace stale" >&2
   fi
 
   base_ref=$(base_ref_for "$repo_dir")

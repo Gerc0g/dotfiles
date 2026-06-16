@@ -353,16 +353,11 @@ _launch_session_path() {
   tmux set-environment -t "$session" AGENT_GIT_MODE "commit-local"
   tmux set-environment -t "$session" AGENT_GIT_PUSH "task"
   tmux set-environment -t "$session" AGENT_WORKSPACE_MODE "$AGENT_WORKSPACE_MODE"
-  # Reap the worktree when this session closes — safe: removes only if the
-  # worktree is clean+pushed (or ready), otherwise leaves it for stale/cleanup.
+  # No session-closed auto-reap hook — closing a window must NEVER delete a
+  # worktree (it twice removed live work). Worktrees go only via explicit
+  # `agent-workspace remove`. The status-bar indicator stays as an info hint.
   if [ "$AGENT_WORKSPACE_MODE" = "agent" ] && [ -f "$repo_dir/.agent-workspace" ]; then
-    # GLOBAL session-closed hook (not per-session: a per-session one does not
-    # fire when its own session is killed). On any session close, sweep all
-    # managed worktrees and reap those whose session is gone (clean+pushed only).
-    tmux set-hook -g session-closed \
-      "run-shell \"bash $HOME/dotfiles/scripts/agent-workspace.sh reap-closed >>$HOME/Library/Logs/agent-workspace-reap.log 2>&1\""
-    # Live reap indicator goes into status-right (set by _launch_memory_status):
-    # green ●synced = closing removes it, yellow ●…hold = unsynced work kept.
+    tmux set-hook -gu session-closed 2>/dev/null   # drop any stale global hook
     tmux set-option -t "$session" status-interval 15
   fi
   tmux set-option -t "$session" status-left " ${work_label} "
