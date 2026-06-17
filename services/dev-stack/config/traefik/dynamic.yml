@@ -1,57 +1,60 @@
 # Traefik dynamic config — Host(name) → internal container.
 #
-# Names use sslip.io wildcard DNS: `<svc>.100.73.117.50.sslip.io` resolves to
-# 100.73.117.50 (the tailnet IP) with zero client-side DNS config, from any
-# tailnet device. Change the IP here if the server's tailnet IP ever changes.
+# Two name schemes, both routed here:
+#  • sslip.io  `<svc>.100.73.117.50.sslip.io` — public wildcard DNS, resolves the
+#    embedded tailnet IP from ANY device, zero client config (use on phone etc.).
+#  • pretty    `<svc>.test` + bare `dev` — require a one-line /etc/hosts entry on
+#    the client (see docs), but read nicely in the browser. `.test` avoids the
+#    forced-HTTPS of `.dev`. Mac has the hosts entry; other devices use sslip.
 # Add a service = one router + one service stanza (and a Homepage tile).
 http:
   routers:
     homepage:
-      rule: "Host(`gerc0g`) || Host(`100.73.117.50.sslip.io`) || Host(`hub.100.73.117.50.sslip.io`)"
+      rule: "Host(`gerc0g`) || Host(`dev`) || Host(`dev.test`) || Host(`100.73.117.50.sslip.io`) || Host(`hub.100.73.117.50.sslip.io`)"
       service: homepage
       entryPoints: [web]
     minio:
-      rule: "Host(`minio.100.73.117.50.sslip.io`)"
+      rule: "Host(`minio.100.73.117.50.sslip.io`) || Host(`minio.test`)"
       service: minio
       entryPoints: [web]
     qdrant:
-      rule: "Host(`qdrant.100.73.117.50.sslip.io`)"
+      rule: "Host(`qdrant.100.73.117.50.sslip.io`) || Host(`qdrant.test`)"
       service: qdrant
       entryPoints: [web]
     clickhouse:
-      rule: "Host(`clickhouse.100.73.117.50.sslip.io`)"
+      rule: "Host(`clickhouse.100.73.117.50.sslip.io`) || Host(`clickhouse.test`)"
       service: clickhouse
       entryPoints: [web]
     prometheus:
-      rule: "Host(`prometheus.100.73.117.50.sslip.io`)"
+      rule: "Host(`prometheus.100.73.117.50.sslip.io`) || Host(`prometheus.test`)"
       service: prometheus
       entryPoints: [web]
     grafana:
-      rule: "Host(`grafana.100.73.117.50.sslip.io`)"
+      rule: "Host(`grafana.100.73.117.50.sslip.io`) || Host(`grafana.test`)"
       service: grafana
       entryPoints: [web]
     loki:
-      rule: "Host(`loki.100.73.117.50.sslip.io`)"
+      rule: "Host(`loki.100.73.117.50.sslip.io`) || Host(`loki.test`)"
       service: loki
       entryPoints: [web]
     tempo:
-      rule: "Host(`tempo.100.73.117.50.sslip.io`)"
+      rule: "Host(`tempo.100.73.117.50.sslip.io`) || Host(`tempo.test`)"
       service: tempo
       entryPoints: [web]
     langfuse:
-      rule: "Host(`langfuse.100.73.117.50.sslip.io`)"
+      rule: "Host(`langfuse.100.73.117.50.sslip.io`) || Host(`langfuse.test`)"
       service: langfuse
       entryPoints: [web]
     ollama:
-      rule: "Host(`ollama.100.73.117.50.sslip.io`)"
+      rule: "Host(`ollama.100.73.117.50.sslip.io`) || Host(`ollama.test`)"
       service: ollama
       entryPoints: [web]
     metabase:
-      rule: "Host(`metabase.100.73.117.50.sslip.io`)"
+      rule: "Host(`metabase.100.73.117.50.sslip.io`) || Host(`metabase.test`)"
       service: metabase
       entryPoints: [web]
     cloudbeaver:
-      rule: "Host(`cloudbeaver.100.73.117.50.sslip.io`)"
+      rule: "Host(`cloudbeaver.100.73.117.50.sslip.io`) || Host(`cloudbeaver.test`)"
       service: cloudbeaver
       entryPoints: [web]
 

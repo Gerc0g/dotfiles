@@ -1,34 +1,38 @@
-# Tiles link to name-based URLs (Traefik → sslip.io). Live status/stats per tile
-# come from docker (server: my-docker, container: dev-*). DB tiles have no web UI,
-# so they show status only — connect with a client at the host:port shown.
+# Tiles use pretty `.test` names (need the /etc/hosts line on the client; from
+# other devices use the sslip.io names instead). Live status/stats come from
+# docker (server: my-docker, container: dev-*).
+# NOTE: Loki, Tempo, Ollama are backend APIs with NO web UI — Loki/Tempo are
+# viewed inside Grafana (Explore); Ollama answers on /api/*. Their tiles point
+# where you actually use them.
 - Core:
     - Postgres:
         icon: postgres.png
-        description: gerc0g:5432 · dev/dev
+        description: gerc0g:5432 · dev/dev · (DB — open in CloudBeaver)
+        href: http://cloudbeaver.test
         server: my-docker
         container: dev-postgres
     - Redis:
         icon: redis.png
-        description: gerc0g:6379
+        description: gerc0g:6379 · (no UI)
         server: my-docker
         container: dev-redis
 
 - Storage & Vectors:
     - MinIO:
         icon: minio.png
-        href: http://minio.100.73.117.50.sslip.io
+        href: http://minio.test
         description: S3 gerc0g:9000 · console
         server: my-docker
         container: dev-minio
     - Qdrant:
         icon: qdrant.png
-        href: http://qdrant.100.73.117.50.sslip.io/dashboard
+        href: http://qdrant.test/dashboard
         description: vector DB · gerc0g:6333
         server: my-docker
         container: dev-qdrant
     - ClickHouse:
         icon: clickhouse.png
-        href: http://clickhouse.100.73.117.50.sslip.io/play
+        href: http://clickhouse.test/play
         description: OLAP · gerc0g:8123 · dev/dev
         server: my-docker
         container: dev-clickhouse
@@ -36,51 +40,51 @@
 - Observability:
     - Grafana:
         icon: grafana.png
-        href: http://grafana.100.73.117.50.sslip.io
+        href: http://grafana.test
         description: dashboards · dev/dev
         server: my-docker
         container: dev-grafana
     - Prometheus:
         icon: prometheus.png
-        href: http://prometheus.100.73.117.50.sslip.io
+        href: http://prometheus.test
         description: metrics
         server: my-docker
         container: dev-prometheus
     - Loki:
         icon: loki.png
-        href: http://loki.100.73.117.50.sslip.io
-        description: logs
+        href: http://grafana.test/explore
+        description: logs · смотреть в Grafana Explore (API, без UI)
         server: my-docker
         container: dev-loki
     - Tempo:
         icon: grafana-tempo.png
-        href: http://tempo.100.73.117.50.sslip.io
-        description: traces
+        href: http://grafana.test/explore
+        description: traces · смотреть в Grafana Explore (API, без UI)
         server: my-docker
         container: dev-tempo
 
 - LLM & BI:
     - Langfuse:
         icon: langfuse.png
-        href: http://langfuse.100.73.117.50.sslip.io
+        href: http://langfuse.test
         description: LLM traces
         server: my-docker
         container: dev-langfuse
     - Ollama:
         icon: ollama.png
-        href: http://ollama.100.73.117.50.sslip.io
-        description: local LLM · :11434
+        href: http://ollama.test
+        description: local LLM · API :11434 ("running" = жив, UI нет)
         server: my-docker
         container: dev-ollama
     - Metabase:
         icon: metabase.png
-        href: http://metabase.100.73.117.50.sslip.io
+        href: http://metabase.test
         description: BI
         server: my-docker
         container: dev-metabase
     - CloudBeaver:
         icon: cloudbeaver.png
-        href: http://cloudbeaver.100.73.117.50.sslip.io
-        description: DB viewer
+        href: http://cloudbeaver.test
+        description: DB viewer (Postgres/ClickHouse)
         server: my-docker
         container: dev-cloudbeaver
