@@ -89,3 +89,14 @@
         description: DB viewer (Postgres/ClickHouse)
         server: my-docker
         container: dev-cloudbeaver
+
+- Infra:
+    - Traefik:
+        icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/traefik.svg
+        href: http://dev:8080
+        description: reverse-proxy · роуты имён
+        server: my-docker
+        container: dev-traefik
+        widget:
+          type: traefik
+          url: http://dev-traefik:8080

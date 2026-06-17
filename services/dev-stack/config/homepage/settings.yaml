@@ -18,3 +18,6 @@ layout:
   LLM & BI:
     style: row
     columns: 4
+  Infra:
+    style: row
+    columns: 4

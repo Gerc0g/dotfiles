@@ -1,7 +1,3 @@
-- Infra:
-    - Traefik dashboard:
-        - abbr: TR
-          href: http://dev:8080
-    - Ollama API (models):
-        - abbr: AI
-          href: http://ollama.test/api/tags
+# Bookmarks intentionally empty — infra tools (Traefik) live as proper tiles in
+# services.yaml under the "Infra" group.
+[]
