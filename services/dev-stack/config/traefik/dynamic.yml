@@ -13,6 +13,10 @@ http:
       rule: "Host(`gerc0g`) || Host(`dev`) || Host(`dev.test`) || Host(`100.73.117.50.sslip.io`) || Host(`hub.100.73.117.50.sslip.io`)"
       service: homepage
       entryPoints: [web]
+    redis:
+      rule: "Host(`redis.100.73.117.50.sslip.io`) || Host(`redis.test`)"
+      service: redis
+      entryPoints: [web]
     minio:
       rule: "Host(`minio.100.73.117.50.sslip.io`) || Host(`minio.test`)"
       service: minio
@@ -62,6 +66,9 @@ http:
     homepage:
       loadBalancer:
         servers: [{ url: "http://dev-homepage:3000" }]
+    redis:
+      loadBalancer:
+        servers: [{ url: "http://dev-redis-commander:8081" }]
     minio:
       loadBalancer:
         servers: [{ url: "http://dev-minio:9001" }]

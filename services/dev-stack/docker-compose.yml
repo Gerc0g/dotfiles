@@ -232,8 +232,23 @@ services:
     image: dbeaver/cloudbeaver:latest
     container_name: dev-cloudbeaver
     ports: ["8978:8978"]
+    environment:
+      # auto-init admin so the container boots fully configured — avoids the
+      # first-run wizard and its "configuration time expired" timeout.
+      CB_SERVER_NAME: Dev Stack
+      CB_ADMIN_NAME: dev
+      CB_ADMIN_PASSWORD: devadmin123
     volumes:
       - cloudbeaver-data:/opt/cloudbeaver/workspace
+    <<: *restart
+
+  redis-commander:
+    image: ghcr.io/joeferner/redis-commander:latest
+    container_name: dev-redis-commander
+    environment:
+      REDIS_HOSTS: "local:redis:6379"   # auto-connects — opens straight onto the data
+    ports: ["8081:8081"]
+    depends_on: [redis]
     <<: *restart
 
   # ─── hub: name-based reverse-proxy + landing dashboard ───
