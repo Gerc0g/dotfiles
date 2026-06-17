@@ -99,8 +99,9 @@ services:
       nofile: { soft: 262144, hard: 262144 }
     volumes:
       - clickhouse-data:/var/lib/clickhouse
+      - ./config/clickhouse-listen.xml:/etc/clickhouse-server/config.d/listen.xml:ro
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8123/ping"]   # 127.0.0.1 not localhost: container /etc/hosts maps localhost→::1 (IPv6), where CH doesn't listen
       interval: 15s
       timeout: 5s
       retries: 5
@@ -130,7 +131,7 @@ services:
     <<: *restart
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.6.1   # pinned — :latest drifts its config schema and rejects ingester/compactor
     container_name: dev-tempo
     ports: ["3200:3200"]   # query; OTLP receivers stay internal (OTel collector fans in)
     command: -config.file=/etc/tempo/tempo.yml
@@ -191,7 +192,9 @@ services:
       LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: devsecret123
       LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
       SALT: dev-langfuse-salt-change-me
-      ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      # quoted: an all-digit value gets parsed by YAML as a number and reaches the
+      # container mangled, failing langfuse's "64 hex chars" check. dev-only key.
+      ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
       NEXTAUTH_SECRET: dev-langfuse-nextauth-secret
       NEXTAUTH_URL: http://localhost:3001
       TELEMETRY_ENABLED: "false"

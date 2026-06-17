@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!-- Force IPv4 listen. Hosts with IPv6 disabled (e.g. the Ubuntu dev-server)
+     fail to bind the default [::] listener, so ClickHouse never serves. -->
+<clickhouse>
+    <listen_host>0.0.0.0</listen_host>
+</clickhouse>

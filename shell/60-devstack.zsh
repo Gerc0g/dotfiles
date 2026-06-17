@@ -1,9 +1,10 @@
 # Shared local dev infrastructure control.
 #
-# DEV_STACK_HOST is where the stack lives. Default localhost (runs on this Mac).
-# When the stack moves to the Ubuntu laptop, set DEV_STACK_HOST=<tailnet-name>
-# in your shell — connection strings / URLs follow it, no other change needed.
-: "${DEV_STACK_HOST:=localhost}"
+# DEV_STACK_HOST is where the stack lives. Default `gerc0g` — the home Ubuntu
+# dev-server (MagicDNS name → tailnet 100.73.117.50), which hosts the stack 24/7.
+# Override with DEV_STACK_HOST=localhost to talk to a stack running on this Mac.
+# Connection strings / URLs follow it, no other change needed.
+: "${DEV_STACK_HOST:=gerc0g}"
 
 dev-stack() {
   local cmd="${1:-status}"
