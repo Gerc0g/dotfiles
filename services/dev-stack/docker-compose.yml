@@ -256,7 +256,7 @@ services:
     container_name: dev-homepage
     ports: ["3000:3000"]
     environment:
-      HOMEPAGE_ALLOWED_HOSTS: "gerc0g,gerc0g:3000,100.73.117.50.sslip.io,hub.100.73.117.50.sslip.io,localhost:3000,100.73.117.50:3000"
+      HOMEPAGE_ALLOWED_HOSTS: "dev,dev.test,gerc0g,gerc0g:3000,localhost:3000,100.73.117.50:3000,100.73.117.50.sslip.io,hub.100.73.117.50.sslip.io"
     volumes:
       - ./config/homepage:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro   # live container status
