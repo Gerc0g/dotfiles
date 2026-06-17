@@ -53,6 +53,10 @@ http:
       rule: "Host(`ollama.100.73.117.50.sslip.io`) || Host(`ollama.test`)"
       service: ollama
       entryPoints: [web]
+    chat:
+      rule: "Host(`chat.100.73.117.50.sslip.io`) || Host(`chat.test`)"
+      service: openwebui
+      entryPoints: [web]
     metabase:
       rule: "Host(`metabase.100.73.117.50.sslip.io`) || Host(`metabase.test`)"
       service: metabase
@@ -96,6 +100,9 @@ http:
     ollama:
       loadBalancer:
         servers: [{ url: "http://dev-ollama:11434" }]
+    openwebui:
+      loadBalancer:
+        servers: [{ url: "http://dev-open-webui:8080" }]
     metabase:
       loadBalancer:
         servers: [{ url: "http://dev-metabase:3000" }]

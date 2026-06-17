@@ -71,12 +71,12 @@
         description: LLM traces
         server: my-docker
         container: dev-langfuse
-    - Ollama:
-        icon: ollama.png
-        href: http://ollama.test
-        description: local LLM · API :11434 ("running" = жив, UI нет)
+    - Ollama (chat):
+        icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/open-webui.svg
+        href: http://chat.test
+        description: чат с локальной LLM (Open WebUI → Ollama GPU)
         server: my-docker
-        container: dev-ollama
+        container: dev-open-webui
     - Metabase:
         icon: metabase.png
         href: http://metabase.test
