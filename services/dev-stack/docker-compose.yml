@@ -208,6 +208,8 @@ services:
     image: ollama/ollama:latest
     container_name: dev-ollama
     ports: ["11434:11434"]
+    environment:
+      OLLAMA_KEEP_ALIVE: "-1"   # держать модель в VRAM (не выгружать по простою) — чат всегда тёплый
     volumes:
       - ollama-data:/root/.ollama
     deploy:               # GPU passthrough (NVIDIA GTX 1650) — needs nvidia-container-toolkit
