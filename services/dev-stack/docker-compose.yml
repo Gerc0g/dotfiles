@@ -51,6 +51,7 @@ services:
     environment:
       MINIO_ROOT_USER: dev
       MINIO_ROOT_PASSWORD: devsecret123
+      MINIO_BROWSER_REDIRECT_URL: http://minio.100.73.117.50.sslip.io   # console behind Traefik
     volumes:
       - minio-data:/data
     healthcheck:
@@ -161,6 +162,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: dev
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_SERVER_ROOT_URL: http://grafana.100.73.117.50.sslip.io   # correct redirects behind Traefik
     volumes:
       - grafana-data:/var/lib/grafana
       - ./config/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
@@ -196,7 +198,7 @@ services:
       # container mangled, failing langfuse's "64 hex chars" check. dev-only key.
       ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
       NEXTAUTH_SECRET: dev-langfuse-nextauth-secret
-      NEXTAUTH_URL: http://localhost:3001
+      NEXTAUTH_URL: http://langfuse.100.73.117.50.sslip.io
       TELEMETRY_ENABLED: "false"
       LANGFUSE_INIT_ORG_ID: dev
       LANGFUSE_INIT_PROJECT_ID: dev
@@ -232,6 +234,32 @@ services:
     ports: ["8978:8978"]
     volumes:
       - cloudbeaver-data:/opt/cloudbeaver/workspace
+    <<: *restart
+
+  # ─── hub: name-based reverse-proxy + landing dashboard ───
+  # Traefik routes http://<svc>.100.73.117.50.sslip.io → the right container.
+  # Homepage is the single landing page (live status) at http://gerc0g/.
+  # Direct host ports (e.g. gerc0g:3030) keep working — this only adds a name layer.
+  traefik:
+    image: traefik:v3
+    container_name: dev-traefik
+    ports:
+      - "80:80"       # name-based routing
+      - "8080:8080"   # traefik dashboard (dev-only, tailnet-only)
+    volumes:
+      - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./config/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    <<: *restart
+
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: dev-homepage
+    ports: ["3000:3000"]
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: "gerc0g,gerc0g:3000,100.73.117.50.sslip.io,hub.100.73.117.50.sslip.io,localhost:3000,100.73.117.50:3000"
+    volumes:
+      - ./config/homepage:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro   # live container status
     <<: *restart
 
 volumes:

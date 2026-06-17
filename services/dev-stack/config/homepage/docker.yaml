@@ -1,0 +1,3 @@
+# Live container status comes from the local docker socket (mounted read-only).
+my-docker:
+  socket: /var/run/docker.sock

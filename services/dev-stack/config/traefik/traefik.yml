@@ -1,0 +1,21 @@
+# Traefik static config — dev-stack name-based hub.
+# Routing rules live in dynamic.yml (file provider, hot-reloaded).
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: true
+  insecure: true        # dashboard on :8080 — dev-only, reachable only over tailnet
+
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+log:
+  level: INFO

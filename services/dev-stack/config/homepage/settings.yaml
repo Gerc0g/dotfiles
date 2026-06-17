@@ -1,0 +1,20 @@
+title: Dev Stack @ gerc0g
+theme: dark
+color: slate
+headerStyle: clean
+hideVersion: true
+disableUpdateCheck: true
+
+layout:
+  Core:
+    style: row
+    columns: 2
+  Storage & Vectors:
+    style: row
+    columns: 3
+  Observability:
+    style: row
+    columns: 4
+  LLM & BI:
+    style: row
+    columns: 4

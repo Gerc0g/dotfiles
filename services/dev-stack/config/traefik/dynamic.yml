@@ -1,0 +1,94 @@
+# Traefik dynamic config — Host(name) → internal container.
+#
+# Names use sslip.io wildcard DNS: `<svc>.100.73.117.50.sslip.io` resolves to
+# 100.73.117.50 (the tailnet IP) with zero client-side DNS config, from any
+# tailnet device. Change the IP here if the server's tailnet IP ever changes.
+# Add a service = one router + one service stanza (and a Homepage tile).
+http:
+  routers:
+    homepage:
+      rule: "Host(`gerc0g`) || Host(`100.73.117.50.sslip.io`) || Host(`hub.100.73.117.50.sslip.io`)"
+      service: homepage
+      entryPoints: [web]
+    minio:
+      rule: "Host(`minio.100.73.117.50.sslip.io`)"
+      service: minio
+      entryPoints: [web]
+    qdrant:
+      rule: "Host(`qdrant.100.73.117.50.sslip.io`)"
+      service: qdrant
+      entryPoints: [web]
+    clickhouse:
+      rule: "Host(`clickhouse.100.73.117.50.sslip.io`)"
+      service: clickhouse
+      entryPoints: [web]
+    prometheus:
+      rule: "Host(`prometheus.100.73.117.50.sslip.io`)"
+      service: prometheus
+      entryPoints: [web]
+    grafana:
+      rule: "Host(`grafana.100.73.117.50.sslip.io`)"
+      service: grafana
+      entryPoints: [web]
+    loki:
+      rule: "Host(`loki.100.73.117.50.sslip.io`)"
+      service: loki
+      entryPoints: [web]
+    tempo:
+      rule: "Host(`tempo.100.73.117.50.sslip.io`)"
+      service: tempo
+      entryPoints: [web]
+    langfuse:
+      rule: "Host(`langfuse.100.73.117.50.sslip.io`)"
+      service: langfuse
+      entryPoints: [web]
+    ollama:
+      rule: "Host(`ollama.100.73.117.50.sslip.io`)"
+      service: ollama
+      entryPoints: [web]
+    metabase:
+      rule: "Host(`metabase.100.73.117.50.sslip.io`)"
+      service: metabase
+      entryPoints: [web]
+    cloudbeaver:
+      rule: "Host(`cloudbeaver.100.73.117.50.sslip.io`)"
+      service: cloudbeaver
+      entryPoints: [web]
+
+  services:
+    homepage:
+      loadBalancer:
+        servers: [{ url: "http://dev-homepage:3000" }]
+    minio:
+      loadBalancer:
+        servers: [{ url: "http://dev-minio:9001" }]
+    qdrant:
+      loadBalancer:
+        servers: [{ url: "http://dev-qdrant:6333" }]
+    clickhouse:
+      loadBalancer:
+        servers: [{ url: "http://dev-clickhouse:8123" }]
+    prometheus:
+      loadBalancer:
+        servers: [{ url: "http://dev-prometheus:9090" }]
+    grafana:
+      loadBalancer:
+        servers: [{ url: "http://dev-grafana:3000" }]
+    loki:
+      loadBalancer:
+        servers: [{ url: "http://dev-loki:3100" }]
+    tempo:
+      loadBalancer:
+        servers: [{ url: "http://dev-tempo:3200" }]
+    langfuse:
+      loadBalancer:
+        servers: [{ url: "http://dev-langfuse:3000" }]
+    ollama:
+      loadBalancer:
+        servers: [{ url: "http://dev-ollama:11434" }]
+    metabase:
+      loadBalancer:
+        servers: [{ url: "http://dev-metabase:3000" }]
+    cloudbeaver:
+      loadBalancer:
+        servers: [{ url: "http://dev-cloudbeaver:8978" }]

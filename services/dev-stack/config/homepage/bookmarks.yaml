@@ -1,0 +1,7 @@
+- Infra:
+    - Traefik dashboard:
+        - abbr: TR
+          href: http://gerc0g:8080
+    - dev-stack repo:
+        - abbr: GH
+          href: http://gerc0g:8978
