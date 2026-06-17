@@ -52,13 +52,13 @@
         server: my-docker
         container: dev-prometheus
     - Loki:
-        icon: loki.png
+        icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/loki.svg
         href: "http://grafana.test/explore?schemaVersion=1&panes=%7B%22lok%22%3A%7B%22datasource%22%3A%22loki%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22loki%22%7D%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22now-1h%22%2C%22to%22%3A%22now%22%7D%7D%7D&orgId=1"
         description: logs → Grafana Explore (Loki выбран)
         server: my-docker
         container: dev-loki
     - Tempo:
-        icon: grafana-tempo.png
+        icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/tempo.svg
         href: "http://grafana.test/explore?schemaVersion=1&panes=%7B%22tem%22%3A%7B%22datasource%22%3A%22tempo%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22tempo%22%7D%2C%22queryType%22%3A%22traceqlSearch%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22now-1h%22%2C%22to%22%3A%22now%22%7D%7D%7D&orgId=1"
         description: traces → Grafana Explore (Tempo выбран)
         server: my-docker
@@ -66,7 +66,7 @@
 
 - LLM & BI:
     - Langfuse:
-        icon: langfuse.png
+        icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/langfuse.svg
         href: http://langfuse.test
         description: LLM traces
         server: my-docker
