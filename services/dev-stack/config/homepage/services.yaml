@@ -91,6 +91,12 @@
         container: dev-cloudbeaver
 
 - Infra:
+    - Agent Board:
+        icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/plane.svg
+        href: http://board.test
+        description: Plane pilot · cross-repo agent board
+        server: my-docker
+        container: plane-proxy
     - Traefik:
         icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/traefik.svg
         href: http://dev:8080

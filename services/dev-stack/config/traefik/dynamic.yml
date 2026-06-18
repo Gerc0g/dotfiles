@@ -65,6 +65,10 @@ http:
       rule: "Host(`cloudbeaver.100.73.117.50.sslip.io`) || Host(`cloudbeaver.test`)"
       service: cloudbeaver
       entryPoints: [web]
+    board:
+      rule: "Host(`board.100.73.117.50.sslip.io`) || Host(`board.test`)"
+      service: board
+      entryPoints: [web]
 
   services:
     homepage:
@@ -109,3 +113,6 @@ http:
     cloudbeaver:
       loadBalancer:
         servers: [{ url: "http://dev-cloudbeaver:8978" }]
+    board:
+      loadBalancer:
+        servers: [{ url: "http://plane-proxy:80" }]
