@@ -104,12 +104,20 @@ var (
 	okColor   = lipgloss.Color("#9ADBC5")
 	warnColor = lipgloss.Color("#F0C674")
 	badColor  = lipgloss.Color("#FF8FA3")
+	hotBg     = lipgloss.Color("#3A2430")
+	okBg      = lipgloss.Color("#1D332F")
+	warnBg    = lipgloss.Color("#3A3320")
 
 	screenStyle = lipgloss.NewStyle().Background(bg).Foreground(text)
 	titleStyle  = lipgloss.NewStyle().Foreground(accent).Bold(true)
 	mutedStyle  = lipgloss.NewStyle().Foreground(muted)
 	dimStyle    = lipgloss.NewStyle().Foreground(dim)
 	helpStyle   = lipgloss.NewStyle().Foreground(muted)
+	heroStyle   = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(accent).
+			Background(panel2).
+			Padding(1, 2)
 
 	cardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -191,9 +199,9 @@ func (m model) View() string {
 	} else if m.snap.Time.IsZero() {
 		body = append(body, cardStyle.Width(w-4).Render("loading..."))
 	} else {
-		body = append(body, renderOverview(m.snap, w))
+		body = append(body, renderVerdict(m.snap, w))
+		body = append(body, renderCommandCenter(m.snap, w))
 		body = append(body, renderMiddle(m.snap, w))
-		body = append(body, renderTables(m.snap, w))
 		if len(m.snap.Notes) > 0 {
 			body = append(body, renderNotes(m.snap, w))
 		}
@@ -218,12 +226,230 @@ func renderHeader(m model, width int) string {
 	if m.loading {
 		status = status + " · refresh"
 	}
-	left := titleStyle.Render("Agent System Status")
+	left := titleStyle.Render("Состояние агентов")
 	right := styleSeverity(sev).Render(status)
 	meta := mutedStyle.Render(fmt.Sprintf("%s  ·  %s  ·  %s", emptyDash(s.Host), emptyDash(s.OS), time.Now().Format("15:04:05")))
 	lineWidth := max(1, width-lipgloss.Width(left)-lipgloss.Width(right)-lipgloss.Width(meta)-8)
 	line := dimStyle.Render(strings.Repeat("─", lineWidth))
 	return lipgloss.JoinHorizontal(lipgloss.Center, "  ", left, " ", line, " ", meta, " ", right)
+}
+
+func renderVerdict(s snapshot, width int) string {
+	sev := s.PressureSeverity
+	headline := "Система в норме"
+	switch sev {
+	case sevCritical:
+		headline = "Mac перегружен"
+	case sevWarn:
+		headline = "Mac на границе"
+	}
+
+	over := s.ActiveAgentCount - s.LocalAgentLimit
+	agentLine := fmt.Sprintf("живых агентов: %d / %d", s.ActiveAgentCount, s.LocalAgentLimit)
+	if over > 0 {
+		agentLine += fmt.Sprintf("  ·  лишних: %d", over)
+	}
+	swap := metricValue(s.Memory, "swap")
+	compressor := metricValue(s.Memory, "compressor")
+	wired := metricValue(s.Memory, "wired")
+	details := fmt.Sprintf("%s  ·  swap %s  ·  compressor %s  ·  wired %s", agentLine, emptyDash(swap), emptyDash(compressor), emptyDash(wired))
+
+	status := pill(strings.ToUpper(severityLabel(sev)), sev)
+	title := lipgloss.NewStyle().Bold(true).Foreground(severityColor(sev)).Render(headline)
+	line := mutedStyle.Render("Решение: оставь 1-2 активных агента, остальное усыпляй или закрывай.")
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", status),
+		mutedStyle.Render(details),
+		line,
+	)
+	return heroStyle.BorderForeground(severityColor(sev)).Width(width - 4).Render(content)
+}
+
+func renderCommandCenter(s snapshot, width int) string {
+	gap := 2
+	left := (width - 4 - gap*2) / 3
+	mid := left
+	right := width - 4 - gap*2 - left - mid
+	if right < 28 {
+		right = 28
+	}
+	return lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		renderMemoryCard(s, left),
+		strings.Repeat(" ", gap),
+		renderAgentCard(s, mid),
+		strings.Repeat(" ", gap),
+		renderActionCard(s, right),
+	)
+}
+
+func renderMemoryCard(s snapshot, width int) string {
+	ram := metricByName(s.Memory, "ram")
+	swap := metricByName(s.Memory, "swap")
+	comp := metricByName(s.Memory, "compressor")
+	wired := metricByName(s.Memory, "wired")
+	lines := []string{sectionTitle("Память", maxMetricSeverity(s.Memory))}
+	lines = append(lines, metricBarLine("RAM", ram, width))
+	lines = append(lines, metricBarLine("Swap", swap, width))
+	lines = append(lines, compactMetric("Compressor", comp, width))
+	lines = append(lines, compactMetric("Wired", wired, width))
+	return hotCard(maxMetricSeverity(s.Memory)).Width(width).Height(10).Render(strings.Join(lines, "\n"))
+}
+
+func renderAgentCard(s snapshot, width int) string {
+	sev := limitSeverity(s.ActiveAgentCount, s.LocalAgentLimit)
+	over := max(0, s.ActiveAgentCount-s.LocalAgentLimit)
+	lines := []string{sectionTitle("Агенты", sev)}
+	lines = append(lines, bigNumber(fmt.Sprintf("%d/%d", s.ActiveAgentCount, s.LocalAgentLimit), sev)+"  "+mutedStyle.Render("живые Claude+Codex"))
+	if over > 0 {
+		lines = append(lines, styleSeverity(sevCritical).Render(fmt.Sprintf("перебор: +%d процессов", over)))
+	} else {
+		lines = append(lines, styleSeverity(sevOK).Render("в пределах лимита"))
+	}
+	lines = append(lines, "")
+	lines = append(lines, chip("Claude", strconv.Itoa(s.ClaudeCount), sevForCount(s.ClaudeCount, 2, 5))+"  "+chip("Codex", strconv.Itoa(s.CodexCount), sevForCount(s.CodexCount, 2, 5)))
+	lines = append(lines, chip("tmux", strconv.Itoa(s.TmuxSessionCount), sevForCount(s.TmuxSessionCount, 3, 7))+"  "+chip("test/oracle", strconv.Itoa(s.TestOracleCount), sevForCount(s.TestOracleCount, 2, 6)))
+	return hotCard(sev).Width(width).Height(10).Render(strings.Join(lines, "\n"))
+}
+
+func renderActionCard(s snapshot, width int) string {
+	lines := []string{sectionTitle("Что делать", s.PressureSeverity)}
+	over := s.ActiveAgentCount - s.LocalAgentLimit
+	if over > 0 {
+		lines = append(lines, actionLine("1", fmt.Sprintf("усыпить или закрыть %d лишних agent-процессов", over)))
+	} else {
+		lines = append(lines, actionLine("1", "держать текущий лимит активных агентов"))
+	}
+	if metricAtLeast(s.Memory, "swap", sevWarn) {
+		lines = append(lines, actionLine("2", "после чистки перезапустить терминал, чтобы сбросить GUI/scrollback память"))
+	} else {
+		lines = append(lines, actionLine("2", "swap в норме, можно продолжать"))
+	}
+	lines = append(lines, actionLine("3", "новые задачи держать на борде/checkpoint, не живыми процессами"))
+	return hotCard(s.PressureSeverity).Width(width).Height(10).Render(strings.Join(lines, "\n"))
+}
+
+func sectionTitle(title string, sev severity) string {
+	return lipgloss.JoinHorizontal(lipgloss.Center,
+		styleSeverity(sev).Render(symbol(sev)),
+		" ",
+		titleStyle.Render(title),
+	)
+}
+
+func metricBarLine(label string, m metric, width int) string {
+	pct := percentFromMetric(m)
+	barWidth := max(8, width-26)
+	left := mutedStyle.Width(6).Render(label)
+	value := styleSeverity(m.Severity).Bold(true).Width(11).Render(m.Value)
+	return lipgloss.JoinHorizontal(lipgloss.Center, left, value, bar(pct, barWidth, m.Severity))
+}
+
+func compactMetric(label string, m metric, width int) string {
+	left := mutedStyle.Width(11).Render(label)
+	value := styleSeverity(m.Severity).Bold(true).Width(9).Render(emptyDash(m.Value))
+	detail := dimStyle.Render(truncate(m.Detail, max(1, width-25)))
+	return lipgloss.JoinHorizontal(lipgloss.Top, left, value, detail)
+}
+
+func hotCard(sev severity) lipgloss.Style {
+	bgColor := panel
+	if sev == sevCritical {
+		bgColor = hotBg
+	} else if sev == sevWarn {
+		bgColor = warnBg
+	} else if sev == sevOK {
+		bgColor = okBg
+	}
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(severityColor(sev)).
+		Background(bgColor).
+		Padding(0, 1)
+}
+
+func bigNumber(value string, sev severity) string {
+	return lipgloss.NewStyle().
+		Foreground(severityColor(sev)).
+		Bold(true).
+		Render(value)
+}
+
+func chip(label, value string, sev severity) string {
+	return lipgloss.NewStyle().
+		Foreground(bg).
+		Background(severityColor(sev)).
+		Bold(true).
+		Padding(0, 1).
+		Render(label + " " + value)
+}
+
+func actionLine(num, text string) string {
+	badge := lipgloss.NewStyle().
+		Foreground(bg).
+		Background(accent).
+		Bold(true).
+		Padding(0, 1).
+		Render(num)
+	return lipgloss.JoinHorizontal(lipgloss.Top, badge, " ", text)
+}
+
+func pill(label string, sev severity) string {
+	return lipgloss.NewStyle().
+		Foreground(bg).
+		Background(severityColor(sev)).
+		Bold(true).
+		Padding(0, 1).
+		Render(label)
+}
+
+func bar(pct float64, width int, sev severity) string {
+	if width <= 0 {
+		return ""
+	}
+	pct = math.Max(0, math.Min(100, pct))
+	fill := int(math.Round(float64(width) * pct / 100))
+	if fill > width {
+		fill = width
+	}
+	full := strings.Repeat("█", fill)
+	empty := strings.Repeat("░", width-fill)
+	return styleSeverity(sev).Render(full) + dimStyle.Render(empty)
+}
+
+func metricByName(metrics []metric, name string) metric {
+	for _, m := range metrics {
+		if m.Name == name {
+			return m
+		}
+	}
+	return metric{Name: name, Value: "—", Detail: "нет данных", Severity: sevUnknown}
+}
+
+func metricValue(metrics []metric, name string) string {
+	return metricByName(metrics, name).Value
+}
+
+func percentFromMetric(m metric) float64 {
+	fields := strings.Fields(m.Detail)
+	for _, f := range fields {
+		if strings.HasSuffix(f, "%") {
+			v, err := strconv.ParseFloat(strings.TrimSuffix(f, "%"), 64)
+			if err == nil {
+				return v
+			}
+		}
+	}
+	switch m.Severity {
+	case sevCritical:
+		return 95
+	case sevWarn:
+		return 70
+	case sevOK:
+		return 35
+	default:
+		return 0
+	}
 }
 
 func renderOverview(s snapshot, width int) string {
@@ -296,9 +522,9 @@ func row(name, value string, sev severity, width int) string {
 }
 
 func renderSessions(s snapshot, width int) string {
-	lines := []string{titleStyle.Render("tmux sessions")}
+	lines := []string{sectionTitle("Сессии tmux", sevForCount(s.TmuxSessionCount, 3, 7))}
 	if len(s.Sessions) == 0 {
-		lines = append(lines, dimStyle.Render("no tmux sessions detected"))
+		lines = append(lines, dimStyle.Render("tmux-сессий нет"))
 	} else {
 		for _, sess := range firstSessions(s.Sessions, max(4, min(10, 100))) {
 			name := truncate(sess.Name, max(10, width-31))
@@ -310,33 +536,33 @@ func renderSessions(s snapshot, width int) string {
 			lines = append(lines, fmt.Sprintf("%s  %s  %s",
 				styleSeverity(sev).Render(symbol(sev)),
 				lipgloss.NewStyle().Foreground(text).Width(max(10, width-31)).Render(name),
-				dimStyle.Render(truncate(sess.Agents, 22)),
+				mutedStyle.Render(truncate(sess.Agents, 22)),
 			))
 		}
 	}
-	return cardStyle.Width(width).Height(13).Render(strings.Join(lines, "\n"))
+	return cardStyle.Width(width).Height(14).Render(strings.Join(lines, "\n"))
 }
 
 func renderProcesses(s snapshot, width int) string {
-	lines := []string{titleStyle.Render("top offenders")}
+	lines := []string{sectionTitle("Главные потребители", sevWarn)}
 	if len(s.Processes) == 0 {
-		lines = append(lines, dimStyle.Render("no process data"))
+		lines = append(lines, dimStyle.Render("нет данных по процессам"))
 	} else {
 		for _, p := range firstProcesses(s.Processes, 10) {
-			kind := dimStyle.Width(9).Render(p.Kind)
+			kind := dimStyle.Width(10).Render(processKindRu(p.Kind))
 			mem := lipgloss.NewStyle().Foreground(accent2).Width(8).Render(p.Memory)
 			name := truncate(p.Name, max(8, width-31))
 			lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top, kind, mem, name))
 		}
 	}
-	return cardStyle.Width(width).Height(13).Render(strings.Join(lines, "\n"))
+	return cardStyle.Width(width).Height(14).Render(strings.Join(lines, "\n"))
 }
 
 func renderNotes(s snapshot, width int) string {
 	var lines []string
-	lines = append(lines, titleStyle.Render("recommendations"))
+	lines = append(lines, sectionTitle("Пояснение", s.PressureSeverity))
 	for _, n := range s.Notes {
-		lines = append(lines, "  "+n)
+		lines = append(lines, "  "+translateNote(n))
 	}
 	return cardStyle.Width(width - 4).Render(strings.Join(lines, "\n"))
 }
@@ -354,14 +580,14 @@ func renderLegend(width int) string {
 }
 
 func renderHelp(width int) string {
-	help := "q/esc exit · r refresh · auto-refresh 5s · limits: STATUS_LOCAL_AGENT_LIMIT"
+	help := "q/esc выход · r обновить · автообновление 5с · лимит: STATUS_LOCAL_AGENT_LIMIT"
 	return helpStyle.Width(width).Render("  " + help)
 }
 
 func renderPlain(s snapshot) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Agent System Status  %s  %s\n", s.Host, s.Time.Format(time.RFC3339))
-	fmt.Fprintf(&b, "Pressure: %s\n\n", severityLabel(s.PressureSeverity))
+	fmt.Fprintf(&b, "Состояние агентов  %s  %s\n", s.Host, s.Time.Format(time.RFC3339))
+	fmt.Fprintf(&b, "Вердикт: %s\n\n", severityLabel(s.PressureSeverity))
 	for _, m := range append(s.Memory, s.Agents...) {
 		fmt.Fprintf(&b, "%-14s %-12s %s [%s]\n", m.Name, m.Value, m.Detail, severityLabel(m.Severity))
 	}
@@ -577,6 +803,10 @@ func sessionAgents(name string, procs []processArgs) string {
 		l := strings.ToLower(p.Args)
 		if strings.Contains(l, strings.ToLower(name)) {
 			switch {
+			case strings.Contains(l, "masko-agent-wrap.sh codex"):
+				counts["codex"]++
+			case strings.Contains(l, "masko-agent-wrap.sh claudecode") || strings.Contains(l, "masko-agent-wrap.sh claude"):
+				counts["claude"]++
 			case isClaudeProcess(p):
 				counts["claude"]++
 			case isCodexProcess(p):
@@ -713,6 +943,27 @@ func processKind(name string) string {
 	}
 }
 
+func processKindRu(kind string) string {
+	switch kind {
+	case "agent":
+		return "агент"
+	case "term":
+		return "терминал"
+	case "gui":
+		return "окна"
+	case "browser":
+		return "браузер"
+	case "ide":
+		return "IDE"
+	case "dev":
+		return "dev"
+	case "agent-ui":
+		return "панель"
+	default:
+		return "app"
+	}
+}
+
 func recommendations(s snapshot) []string {
 	var out []string
 	if s.ActiveAgentCount > s.LocalAgentLimit {
@@ -731,6 +982,23 @@ func recommendations(s snapshot) []string {
 		out = append(out, "within configured limits")
 	}
 	return out
+}
+
+func translateNote(note string) string {
+	switch {
+	case strings.HasPrefix(note, "active agents exceed local limit"):
+		return "живых агентов больше лимита; лишние лучше усыпить или закрыть"
+	case strings.HasPrefix(note, "swap is high"):
+		return "swap высокий; закрытие idle-процессов полезнее, чем detach tmux"
+	case strings.HasPrefix(note, "compressor is high"):
+		return "compressor высокий; старые сессии будут лагать при возврате"
+	case strings.HasPrefix(note, "many tmux sessions"):
+		return "много живых tmux-сессий; лучше paused/checkpoint вместо живых процессов"
+	case strings.HasPrefix(note, "within configured limits"):
+		return "в пределах настроенных лимитов"
+	default:
+		return note
+	}
 }
 
 func run(timeout time.Duration, name string, args ...string) (string, error) {
