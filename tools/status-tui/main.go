@@ -1,0 +1,1111 @@
+package main
+
+import (
+	"bufio"
+	"context"
+	"fmt"
+	"math"
+	"os"
+	"os/exec"
+	"runtime"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+type severity int
+
+const (
+	sevOK severity = iota
+	sevWarn
+	sevCritical
+	sevUnknown
+)
+
+type metric struct {
+	Name     string
+	Value    string
+	Detail   string
+	Severity severity
+}
+
+type processInfo struct {
+	PID     string
+	Name    string
+	Memory  string
+	CPU     string
+	Threads string
+	Kind    string
+}
+
+type processArgs struct {
+	PID  string
+	Comm string
+	Args string
+}
+
+type sessionInfo struct {
+	Name   string
+	State  string
+	Agents string
+	Age    string
+}
+
+type snapshot struct {
+	Host              string
+	OS                string
+	Time              time.Time
+	Memory            []metric
+	Agents            []metric
+	Sessions          []sessionInfo
+	Processes         []processInfo
+	Notes             []string
+	LocalAgentLimit   int
+	ActiveAgentCount  int
+	ClaudeCount       int
+	CodexCount        int
+	TmuxSessionCount  int
+	TestOracleCount   int
+	PressureSeverity  severity
+	CollectionWarning string
+}
+
+type model struct {
+	width     int
+	height    int
+	snap      snapshot
+	loading   bool
+	err       string
+	refreshes int
+}
+
+type snapshotMsg struct {
+	Snap snapshot
+	Err  error
+}
+
+type tickMsg struct{}
+
+const refreshEvery = 5 * time.Second
+
+var (
+	bg        = lipgloss.Color("#151821")
+	panel     = lipgloss.Color("#202534")
+	panel2    = lipgloss.Color("#252B3A")
+	accent    = lipgloss.Color("#9ADBC5")
+	accent2   = lipgloss.Color("#F3C969")
+	text      = lipgloss.Color("#E8EAF2")
+	muted     = lipgloss.Color("#8F96AA")
+	dim       = lipgloss.Color("#5D6374")
+	okColor   = lipgloss.Color("#9ADBC5")
+	warnColor = lipgloss.Color("#F0C674")
+	badColor  = lipgloss.Color("#FF8FA3")
+
+	screenStyle = lipgloss.NewStyle().Background(bg).Foreground(text)
+	titleStyle  = lipgloss.NewStyle().Foreground(accent).Bold(true)
+	mutedStyle  = lipgloss.NewStyle().Foreground(muted)
+	dimStyle    = lipgloss.NewStyle().Foreground(dim)
+	helpStyle   = lipgloss.NewStyle().Foreground(muted)
+
+	cardStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(dim).
+			Background(panel).
+			Padding(0, 1)
+	cardHotStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(accent).
+			Background(panel).
+			Padding(0, 1)
+)
+
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--once" {
+		s, err := collectSnapshot()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Print(renderPlain(s))
+		return
+	}
+
+	m := model{loading: true}
+	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "status tui failed: %s\n", err)
+		os.Exit(1)
+	}
+}
+
+func (m model) Init() tea.Cmd {
+	return tea.Batch(loadSnapshot(), tick())
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "esc", "ctrl+c":
+			return m, tea.Quit
+		case "r":
+			m.loading = true
+			return m, loadSnapshot()
+		}
+	case tickMsg:
+		m.loading = true
+		return m, tea.Batch(loadSnapshot(), tick())
+	case snapshotMsg:
+		m.loading = false
+		m.refreshes++
+		if msg.Err != nil {
+			m.err = msg.Err.Error()
+			return m, nil
+		}
+		m.err = ""
+		m.snap = msg.Snap
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m model) View() string {
+	w := m.width
+	if w <= 0 {
+		w = 100
+	}
+	if w < 76 {
+		w = 76
+	}
+
+	body := []string{renderHeader(m, w)}
+	if m.err != "" {
+		body = append(body, cardStyle.Width(w-4).Render(styleSeverity(sevCritical).Render("collection error")+"  "+m.err))
+	} else if m.snap.Time.IsZero() {
+		body = append(body, cardStyle.Width(w-4).Render("loading..."))
+	} else {
+		body = append(body, renderOverview(m.snap, w))
+		body = append(body, renderMiddle(m.snap, w))
+		body = append(body, renderTables(m.snap, w))
+		if len(m.snap.Notes) > 0 {
+			body = append(body, renderNotes(m.snap, w))
+		}
+	}
+
+	body = append(body, renderHelp(w))
+	out := lipgloss.JoinVertical(lipgloss.Left, body...)
+	if m.height > lipgloss.Height(out) {
+		out += strings.Repeat("\n", m.height-lipgloss.Height(out))
+	}
+	return screenStyle.Width(w).Render(out)
+}
+
+func renderHeader(m model, width int) string {
+	s := m.snap
+	status := "COLLECTING"
+	sev := sevUnknown
+	if !s.Time.IsZero() {
+		status = strings.ToUpper(severityLabel(s.PressureSeverity))
+		sev = s.PressureSeverity
+	}
+	if m.loading {
+		status = status + " · refresh"
+	}
+	left := titleStyle.Render("Agent System Status")
+	right := styleSeverity(sev).Render(status)
+	meta := mutedStyle.Render(fmt.Sprintf("%s  ·  %s  ·  %s", emptyDash(s.Host), emptyDash(s.OS), time.Now().Format("15:04:05")))
+	lineWidth := max(1, width-lipgloss.Width(left)-lipgloss.Width(right)-lipgloss.Width(meta)-8)
+	line := dimStyle.Render(strings.Repeat("─", lineWidth))
+	return lipgloss.JoinHorizontal(lipgloss.Center, "  ", left, " ", line, " ", meta, " ", right)
+}
+
+func renderOverview(s snapshot, width int) string {
+	col := (width - 6) / 3
+	if col < 22 {
+		col = 22
+	}
+	return lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		renderMetricCard("Memory pressure", s.Memory, col),
+		"  ",
+		renderMetricCard("Agent slots", s.Agents, col),
+		"  ",
+		renderSummaryCard(s, width-6-col*2-4),
+	)
+}
+
+func renderMiddle(s snapshot, width int) string {
+	leftW := (width - 6) / 2
+	rightW := width - 6 - leftW - 2
+	return lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		renderSessions(s, leftW),
+		"  ",
+		renderProcesses(s, rightW),
+	)
+}
+
+func renderTables(s snapshot, width int) string {
+	return cardStyle.Width(width - 4).Render(renderLegend(width - 8))
+}
+
+func renderMetricCard(title string, metrics []metric, width int) string {
+	var lines []string
+	lines = append(lines, titleStyle.Render(title))
+	for _, m := range metrics {
+		name := lipgloss.NewStyle().Foreground(muted).Width(13).Render(m.Name)
+		value := styleSeverity(m.Severity).Bold(true).Width(11).Render(m.Value)
+		detail := dimStyle.Render(truncate(m.Detail, max(1, width-31)))
+		lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top, name, value, detail))
+	}
+	style := cardStyle
+	if hasHot(metrics) {
+		style = cardHotStyle.BorderForeground(severityColor(maxMetricSeverity(metrics)))
+	}
+	return style.Width(width).Height(8).Render(strings.Join(lines, "\n"))
+}
+
+func renderSummaryCard(s snapshot, width int) string {
+	if width < 24 {
+		width = 24
+	}
+	lines := []string{titleStyle.Render("Limits")}
+	lines = append(lines, row("local active", fmt.Sprintf("%d / %d", s.ActiveAgentCount, s.LocalAgentLimit), limitSeverity(s.ActiveAgentCount, s.LocalAgentLimit), width))
+	lines = append(lines, row("claude", strconv.Itoa(s.ClaudeCount), sevForCount(s.ClaudeCount, 2, 5), width))
+	lines = append(lines, row("codex", strconv.Itoa(s.CodexCount), sevForCount(s.CodexCount, 2, 5), width))
+	lines = append(lines, row("tmux", strconv.Itoa(s.TmuxSessionCount), sevForCount(s.TmuxSessionCount, 3, 7), width))
+	lines = append(lines, row("test/oracle", strconv.Itoa(s.TestOracleCount), sevForCount(s.TestOracleCount, 2, 6), width))
+	if s.CollectionWarning != "" {
+		lines = append(lines, "")
+		lines = append(lines, styleSeverity(sevWarn).Render(truncate(s.CollectionWarning, width-4)))
+	}
+	return cardStyle.Width(width).Height(8).Render(strings.Join(lines, "\n"))
+}
+
+func row(name, value string, sev severity, width int) string {
+	left := mutedStyle.Width(14).Render(name)
+	right := styleSeverity(sev).Bold(true).Render(value)
+	return lipgloss.JoinHorizontal(lipgloss.Top, left, right)
+}
+
+func renderSessions(s snapshot, width int) string {
+	lines := []string{titleStyle.Render("tmux sessions")}
+	if len(s.Sessions) == 0 {
+		lines = append(lines, dimStyle.Render("no tmux sessions detected"))
+	} else {
+		for _, sess := range firstSessions(s.Sessions, max(4, min(10, 100))) {
+			name := truncate(sess.Name, max(10, width-31))
+			state := sess.State
+			sev := sevOK
+			if strings.Contains(state, "active") || strings.Contains(state, "attached") {
+				sev = sevWarn
+			}
+			lines = append(lines, fmt.Sprintf("%s  %s  %s",
+				styleSeverity(sev).Render(symbol(sev)),
+				lipgloss.NewStyle().Foreground(text).Width(max(10, width-31)).Render(name),
+				dimStyle.Render(truncate(sess.Agents, 22)),
+			))
+		}
+	}
+	return cardStyle.Width(width).Height(13).Render(strings.Join(lines, "\n"))
+}
+
+func renderProcesses(s snapshot, width int) string {
+	lines := []string{titleStyle.Render("top offenders")}
+	if len(s.Processes) == 0 {
+		lines = append(lines, dimStyle.Render("no process data"))
+	} else {
+		for _, p := range firstProcesses(s.Processes, 10) {
+			kind := dimStyle.Width(9).Render(p.Kind)
+			mem := lipgloss.NewStyle().Foreground(accent2).Width(8).Render(p.Memory)
+			name := truncate(p.Name, max(8, width-31))
+			lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top, kind, mem, name))
+		}
+	}
+	return cardStyle.Width(width).Height(13).Render(strings.Join(lines, "\n"))
+}
+
+func renderNotes(s snapshot, width int) string {
+	var lines []string
+	lines = append(lines, titleStyle.Render("recommendations"))
+	for _, n := range s.Notes {
+		lines = append(lines, "  "+n)
+	}
+	return cardStyle.Width(width - 4).Render(strings.Join(lines, "\n"))
+}
+
+func renderLegend(width int) string {
+	parts := []string{
+		styleSeverity(sevOK).Render("OK"),
+		dimStyle.Render("within limit"),
+		styleSeverity(sevWarn).Render("WARN"),
+		dimStyle.Render("watch it"),
+		styleSeverity(sevCritical).Render("CRITICAL"),
+		dimStyle.Render("act now"),
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Center, parts...)
+}
+
+func renderHelp(width int) string {
+	help := "q/esc exit · r refresh · auto-refresh 5s · limits: STATUS_LOCAL_AGENT_LIMIT"
+	return helpStyle.Width(width).Render("  " + help)
+}
+
+func renderPlain(s snapshot) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Agent System Status  %s  %s\n", s.Host, s.Time.Format(time.RFC3339))
+	fmt.Fprintf(&b, "Pressure: %s\n\n", severityLabel(s.PressureSeverity))
+	for _, m := range append(s.Memory, s.Agents...) {
+		fmt.Fprintf(&b, "%-14s %-12s %s [%s]\n", m.Name, m.Value, m.Detail, severityLabel(m.Severity))
+	}
+	return b.String()
+}
+
+func loadSnapshot() tea.Cmd {
+	return func() tea.Msg {
+		s, err := collectSnapshot()
+		return snapshotMsg{Snap: s, Err: err}
+	}
+}
+
+func tick() tea.Cmd {
+	return tea.Tick(refreshEvery, func(time.Time) tea.Msg { return tickMsg{} })
+}
+
+func collectSnapshot() (snapshot, error) {
+	host, _ := os.Hostname()
+	s := snapshot{
+		Host:            host,
+		OS:              runtime.GOOS,
+		Time:            time.Now(),
+		LocalAgentLimit: envInt("STATUS_LOCAL_AGENT_LIMIT", 2),
+	}
+
+	var warnings []string
+	if runtime.GOOS == "darwin" {
+		mem, warn := collectDarwinMemory()
+		s.Memory = mem
+		warnings = append(warnings, warn...)
+	} else if runtime.GOOS == "linux" {
+		mem, warn := collectLinuxMemory()
+		s.Memory = mem
+		warnings = append(warnings, warn...)
+	} else {
+		s.Memory = []metric{{Name: "memory", Value: "unknown", Detail: runtime.GOOS, Severity: sevUnknown}}
+	}
+
+	procs, warn := collectProcesses()
+	warnings = append(warnings, warn...)
+	s.Processes = procs
+	fullProcs, warn := collectProcessArgs()
+	warnings = append(warnings, warn...)
+
+	sessions, warn := collectTmuxSessions(fullProcs)
+	warnings = append(warnings, warn...)
+	s.Sessions = sessions
+	s.TmuxSessionCount = len(sessions)
+
+	s.ClaudeCount = countMatchingArgs(fullProcs, isClaudeProcess)
+	s.CodexCount = countMatchingArgs(fullProcs, isCodexProcess)
+	s.TestOracleCount = countMatchingArgs(fullProcs, func(p processArgs) bool {
+		comm := baseName(p.Comm)
+		return comm == "test-tui" || comm == "oracle-tui" || strings.Contains(p.Args, "/tools/test-tui/test-tui") || strings.Contains(p.Args, "/tools/oracle-tui/oracle-tui")
+	})
+	s.ActiveAgentCount = s.ClaudeCount + s.CodexCount
+	s.Agents = []metric{
+		{Name: "active", Value: fmt.Sprintf("%d/%d", s.ActiveAgentCount, s.LocalAgentLimit), Detail: "claude + codex", Severity: limitSeverity(s.ActiveAgentCount, s.LocalAgentLimit)},
+		{Name: "claude", Value: strconv.Itoa(s.ClaudeCount), Detail: "live processes", Severity: sevForCount(s.ClaudeCount, 2, 5)},
+		{Name: "codex", Value: strconv.Itoa(s.CodexCount), Detail: "live processes", Severity: sevForCount(s.CodexCount, 2, 5)},
+		{Name: "tmux", Value: strconv.Itoa(s.TmuxSessionCount), Detail: "sessions", Severity: sevForCount(s.TmuxSessionCount, 3, 7)},
+		{Name: "test/oracle", Value: strconv.Itoa(s.TestOracleCount), Detail: "panes", Severity: sevForCount(s.TestOracleCount, 2, 6)},
+	}
+
+	s.PressureSeverity = maxMetricSeverity(append(s.Memory, s.Agents...))
+	s.CollectionWarning = strings.Join(nonEmpty(warnings), " · ")
+	s.Notes = recommendations(s)
+	return s, nil
+}
+
+func collectDarwinMemory() ([]metric, []string) {
+	var out []metric
+	var warnings []string
+
+	memBytes := int64(0)
+	if s, err := run(2*time.Second, "sysctl", "-n", "hw.memsize"); err == nil {
+		memBytes = parseInt64(strings.TrimSpace(s))
+	} else {
+		warnings = append(warnings, "hw.memsize unavailable")
+	}
+
+	swapUsed, swapTotal := parseDarwinSwap()
+	if swapTotal > 0 {
+		pct := float64(swapUsed) / float64(swapTotal) * 100
+		out = append(out, metric{Name: "swap", Value: fmt.Sprintf("%s/%s", bytesHuman(swapUsed), bytesHuman(swapTotal)), Detail: fmt.Sprintf("%.0f%% used", pct), Severity: pctSeverity(pct, 45, 75)})
+	} else {
+		out = append(out, metric{Name: "swap", Value: "unknown", Detail: "vm.swapusage", Severity: sevUnknown})
+	}
+
+	vm, err := run(2*time.Second, "vm_stat")
+	if err == nil {
+		pageSize := int64(16384)
+		if strings.Contains(vm, "page size of") {
+			pageSize = parseVMPageSize(vm, pageSize)
+		}
+		free := parseVMStat(vm, "Pages free") + parseVMStat(vm, "Pages speculative")
+		wired := parseVMStat(vm, "Pages wired down")
+		comp := parseVMStat(vm, "Pages occupied by compressor")
+		if memBytes > 0 {
+			used := memBytes - free*pageSize
+			out = append([]metric{{Name: "ram", Value: fmt.Sprintf("%s/%s", bytesHuman(used), bytesHuman(memBytes)), Detail: fmt.Sprintf("%d%% not free", int(float64(used)/float64(memBytes)*100)), Severity: pctSeverity(float64(used)/float64(memBytes)*100, 82, 92)}}, out...)
+		}
+		out = append(out,
+			metric{Name: "wired", Value: bytesHuman(wired * pageSize), Detail: "system/GPU/kernel", Severity: pctSeverity(percentOf(wired*pageSize, memBytes), 35, 50)},
+			metric{Name: "compressor", Value: bytesHuman(comp * pageSize), Detail: "compressed pages", Severity: pctSeverity(percentOf(comp*pageSize, memBytes), 12, 20)},
+		)
+	} else {
+		warnings = append(warnings, "vm_stat unavailable")
+	}
+
+	load := loadAverage()
+	if load != "" {
+		out = append(out, metric{Name: "load", Value: load, Detail: "1m/5m/15m", Severity: sevOK})
+	}
+	return out, warnings
+}
+
+func collectLinuxMemory() ([]metric, []string) {
+	mem := readMeminfo()
+	total := mem["MemTotal"] * 1024
+	avail := mem["MemAvailable"] * 1024
+	swapTotal := mem["SwapTotal"] * 1024
+	swapFree := mem["SwapFree"] * 1024
+	var out []metric
+	if total > 0 {
+		used := total - avail
+		pct := float64(used) / float64(total) * 100
+		out = append(out, metric{Name: "ram", Value: fmt.Sprintf("%s/%s", bytesHuman(used), bytesHuman(total)), Detail: fmt.Sprintf("%.0f%% pressure", pct), Severity: pctSeverity(pct, 82, 92)})
+	}
+	if swapTotal > 0 {
+		swapUsed := swapTotal - swapFree
+		pct := float64(swapUsed) / float64(swapTotal) * 100
+		out = append(out, metric{Name: "swap", Value: fmt.Sprintf("%s/%s", bytesHuman(swapUsed), bytesHuman(swapTotal)), Detail: fmt.Sprintf("%.0f%% used", pct), Severity: pctSeverity(pct, 45, 75)})
+	}
+	if load := loadAverage(); load != "" {
+		out = append(out, metric{Name: "load", Value: load, Detail: "1m/5m/15m", Severity: sevOK})
+	}
+	return out, nil
+}
+
+func collectProcesses() ([]processInfo, []string) {
+	if runtime.GOOS == "darwin" {
+		out, err := run(4*time.Second, "top", "-l", "1", "-o", "mem", "-n", "40", "-stats", "pid,command,cpu,mem,rsize,vsize,threads")
+		if err == nil {
+			return parseDarwinTop(out), nil
+		}
+		psOut, psErr := run(3*time.Second, "ps", "-axo", "pid,comm,rss,%cpu")
+		if psErr == nil {
+			return parsePS(psOut), []string{"top unavailable; using ps"}
+		}
+		return nil, []string{"process list unavailable"}
+	}
+
+	out, err := run(3*time.Second, "ps", "-axo", "pid,comm,rss,%cpu", "--sort=-rss")
+	if err != nil {
+		out, err = run(3*time.Second, "ps", "-axo", "pid,comm,rss,%cpu")
+	}
+	if err != nil {
+		return nil, []string{"process list unavailable"}
+	}
+	return parsePS(out), nil
+}
+
+func collectProcessArgs() ([]processArgs, []string) {
+	out, err := run(3*time.Second, "ps", "-axo", "pid,comm,args")
+	if err != nil {
+		return nil, []string{"full ps unavailable"}
+	}
+	var procs []processArgs
+	sc := bufio.NewScanner(strings.NewReader(out))
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		fields := strings.Fields(line)
+		if len(fields) < 3 || !isDigits(fields[0]) {
+			continue
+		}
+		procs = append(procs, processArgs{PID: fields[0], Comm: fields[1], Args: strings.Join(fields[2:], " ")})
+	}
+	return procs, nil
+}
+
+func collectTmuxSessions(procs []processArgs) ([]sessionInfo, []string) {
+	out, err := run(2*time.Second, "tmux", "ls")
+	if err != nil {
+		return nil, nil
+	}
+	var sessions []sessionInfo
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		name := strings.SplitN(line, ":", 2)[0]
+		state := "detached"
+		if strings.Contains(line, "attached") {
+			state = "attached"
+		}
+		sessions = append(sessions, sessionInfo{
+			Name:   name,
+			State:  state,
+			Agents: sessionAgents(name, procs),
+			Age:    "",
+		})
+	}
+	sort.Slice(sessions, func(i, j int) bool { return sessions[i].Name < sessions[j].Name })
+	return sessions, nil
+}
+
+func sessionAgents(name string, procs []processArgs) string {
+	counts := map[string]int{}
+	for _, p := range procs {
+		l := strings.ToLower(p.Args)
+		if strings.Contains(l, strings.ToLower(name)) {
+			switch {
+			case isClaudeProcess(p):
+				counts["claude"]++
+			case isCodexProcess(p):
+				counts["codex"]++
+			case strings.Contains(l, "test-tui"):
+				counts["test"]++
+			case strings.Contains(l, "oracle-tui"):
+				counts["oracle"]++
+			}
+		}
+	}
+	if len(counts) == 0 {
+		return "shell"
+	}
+	keys := []string{"claude", "codex", "test", "oracle"}
+	var parts []string
+	for _, k := range keys {
+		if counts[k] > 0 {
+			parts = append(parts, fmt.Sprintf("%s:%d", k, counts[k]))
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+func isClaudeProcess(p processArgs) bool {
+	comm := baseName(p.Comm)
+	l := strings.ToLower(p.Args)
+	if strings.Contains(l, "claude helper") || strings.Contains(l, "claude.app/contents") {
+		return false
+	}
+	return comm == "claude" || comm == "claude.exe"
+}
+
+func isCodexProcess(p processArgs) bool {
+	comm := baseName(p.Comm)
+	l := strings.ToLower(p.Args)
+	if strings.Contains(l, "codexbar") || strings.Contains(l, "app-server") || strings.Contains(l, "visual studio code") || strings.Contains(l, "code helper") {
+		return false
+	}
+	if comm == "codex" {
+		return !strings.Contains(l, "@openai/codex")
+	}
+	return comm == "node" && strings.Contains(l, "/bin/codex") && !strings.Contains(l, "@openai/codex")
+}
+
+func parseDarwinTop(out string) []processInfo {
+	var procs []processInfo
+	sc := bufio.NewScanner(strings.NewReader(out))
+	inRows := false
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if strings.HasPrefix(line, "PID ") {
+			inRows = true
+			continue
+		}
+		if !inRows || line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 5 || !isDigits(fields[0]) {
+			continue
+		}
+		pid := fields[0]
+		cpuIdx := -1
+		for i := 1; i < len(fields); i++ {
+			if strings.HasSuffix(fields[i], "%") || looksFloat(fields[i]) {
+				cpuIdx = i
+				break
+			}
+		}
+		if cpuIdx < 2 || cpuIdx+2 >= len(fields) {
+			continue
+		}
+		name := strings.Join(fields[1:cpuIdx], " ")
+		procs = append(procs, processInfo{
+			PID:     pid,
+			Name:    name,
+			CPU:     strings.TrimSuffix(fields[cpuIdx], "%"),
+			Memory:  fields[cpuIdx+1],
+			Threads: fields[len(fields)-1],
+			Kind:    processKind(name),
+		})
+	}
+	return procs
+}
+
+func parsePS(out string) []processInfo {
+	var procs []processInfo
+	sc := bufio.NewScanner(strings.NewReader(out))
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		fields := strings.Fields(line)
+		if len(fields) < 4 || !isDigits(fields[0]) {
+			continue
+		}
+		rssKB := parseInt64(fields[len(fields)-2])
+		name := strings.Join(fields[1:len(fields)-2], " ")
+		procs = append(procs, processInfo{
+			PID:    fields[0],
+			Name:   name,
+			Memory: bytesHuman(rssKB * 1024),
+			CPU:    fields[len(fields)-1],
+			Kind:   processKind(name),
+		})
+	}
+	sort.Slice(procs, func(i, j int) bool { return memSortValue(procs[i].Memory) > memSortValue(procs[j].Memory) })
+	if len(procs) > 40 {
+		return procs[:40]
+	}
+	return procs
+}
+
+func processKind(name string) string {
+	l := strings.ToLower(name)
+	switch {
+	case strings.Contains(l, "claude"):
+		return "agent"
+	case strings.Contains(l, "codex"):
+		return "agent"
+	case strings.Contains(l, "ghostty") || strings.Contains(l, "tmux"):
+		return "term"
+	case strings.Contains(l, "windowserver"):
+		return "gui"
+	case strings.Contains(l, "arc") || strings.Contains(l, "browser helper"):
+		return "browser"
+	case strings.Contains(l, "code helper") || strings.Contains(l, "visual studio code"):
+		return "ide"
+	case strings.Contains(l, "node") || strings.Contains(l, "tsserver") || strings.Contains(l, "pyright"):
+		return "dev"
+	case strings.Contains(l, "test-tui") || strings.Contains(l, "oracle-tui"):
+		return "agent-ui"
+	default:
+		return "app"
+	}
+}
+
+func recommendations(s snapshot) []string {
+	var out []string
+	if s.ActiveAgentCount > s.LocalAgentLimit {
+		out = append(out, fmt.Sprintf("active agents exceed local limit: %d/%d; sleep or move extra sessions", s.ActiveAgentCount, s.LocalAgentLimit))
+	}
+	if metricAtLeast(s.Memory, "swap", sevWarn) {
+		out = append(out, "swap is high; killing idle processes helps more than detaching tmux")
+	}
+	if metricAtLeast(s.Memory, "compressor", sevWarn) {
+		out = append(out, "compressor is high; expect lag when resuming old sessions")
+	}
+	if s.TmuxSessionCount > 6 {
+		out = append(out, "many tmux sessions are alive; prefer paused/checkpointed worktrees")
+	}
+	if len(out) == 0 {
+		out = append(out, "within configured limits")
+	}
+	return out
+}
+
+func run(timeout time.Duration, name string, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return "", ctx.Err()
+	}
+	return strings.TrimSpace(string(out)), err
+}
+
+func parseDarwinSwap() (used int64, total int64) {
+	out, err := run(2*time.Second, "sysctl", "vm.swapusage")
+	if err != nil {
+		return 0, 0
+	}
+	fields := strings.Fields(out)
+	for i := 0; i < len(fields)-2; i++ {
+		switch fields[i] {
+		case "total":
+			total = parseFloatMB(fields[i+2])
+		case "used":
+			used = parseFloatMB(fields[i+2])
+		}
+	}
+	return used, total
+}
+
+func parseFloatMB(s string) int64 {
+	f, _ := strconv.ParseFloat(strings.TrimRight(s, "M"), 64)
+	return int64(f * 1024 * 1024)
+}
+
+func parseVMPageSize(s string, fallback int64) int64 {
+	idx := strings.Index(s, "page size of")
+	if idx < 0 {
+		return fallback
+	}
+	rest := s[idx:]
+	for _, f := range strings.Fields(rest) {
+		if isDigits(f) {
+			return parseInt64(f)
+		}
+	}
+	return fallback
+}
+
+func parseVMStat(s, key string) int64 {
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, key+":") {
+			v := strings.TrimSpace(strings.TrimSuffix(strings.SplitN(line, ":", 2)[1], "."))
+			return parseInt64(v)
+		}
+	}
+	return 0
+}
+
+func readMeminfo() map[string]int64 {
+	out := map[string]int64{}
+	f, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return out
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) >= 2 {
+			out[strings.TrimSuffix(fields[0], ":")] = parseInt64(fields[1])
+		}
+	}
+	return out
+}
+
+func loadAverage() string {
+	if runtime.GOOS == "linux" {
+		if b, err := os.ReadFile("/proc/loadavg"); err == nil {
+			fields := strings.Fields(string(b))
+			if len(fields) >= 3 {
+				return strings.Join(fields[:3], " ")
+			}
+		}
+	}
+	out, err := run(2*time.Second, "sysctl", "-n", "vm.loadavg")
+	if err == nil {
+		out = strings.Trim(out, "{} ")
+		fields := strings.Fields(out)
+		if len(fields) >= 3 {
+			return strings.Join(fields[:3], " ")
+		}
+	}
+	return ""
+}
+
+func countProcess(procs []processInfo, needle string) int {
+	n := 0
+	for _, p := range procs {
+		if strings.Contains(strings.ToLower(p.Name), strings.ToLower(needle)) {
+			n++
+		}
+	}
+	return n
+}
+
+func countMatchingArgs(procs []processArgs, match func(processArgs) bool) int {
+	n := 0
+	for _, p := range procs {
+		if match(p) {
+			n++
+		}
+	}
+	return n
+}
+
+func firstProcesses(in []processInfo, n int) []processInfo {
+	if len(in) <= n {
+		return in
+	}
+	return in[:n]
+}
+
+func firstSessions(in []sessionInfo, n int) []sessionInfo {
+	if len(in) <= n {
+		return in
+	}
+	return in[:n]
+}
+
+func hasHot(metrics []metric) bool {
+	for _, m := range metrics {
+		if m.Severity >= sevWarn && m.Severity != sevUnknown {
+			return true
+		}
+	}
+	return false
+}
+
+func maxMetricSeverity(metrics []metric) severity {
+	maxSev := sevOK
+	for _, m := range metrics {
+		if m.Severity != sevUnknown && m.Severity > maxSev {
+			maxSev = m.Severity
+		}
+	}
+	return maxSev
+}
+
+func metricAtLeast(metrics []metric, name string, sev severity) bool {
+	for _, m := range metrics {
+		if m.Name == name && m.Severity >= sev {
+			return true
+		}
+	}
+	return false
+}
+
+func pctSeverity(pct, warn, critical float64) severity {
+	switch {
+	case pct >= critical:
+		return sevCritical
+	case pct >= warn:
+		return sevWarn
+	default:
+		return sevOK
+	}
+}
+
+func limitSeverity(value, limit int) severity {
+	if limit <= 0 {
+		return sevUnknown
+	}
+	switch {
+	case value > limit:
+		return sevCritical
+	case value == limit:
+		return sevWarn
+	default:
+		return sevOK
+	}
+}
+
+func sevForCount(value, warn, critical int) severity {
+	switch {
+	case value >= critical:
+		return sevCritical
+	case value >= warn:
+		return sevWarn
+	default:
+		return sevOK
+	}
+}
+
+func styleSeverity(sev severity) lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(severityColor(sev))
+}
+
+func severityColor(sev severity) lipgloss.Color {
+	switch sev {
+	case sevOK:
+		return okColor
+	case sevWarn:
+		return warnColor
+	case sevCritical:
+		return badColor
+	default:
+		return muted
+	}
+}
+
+func severityLabel(sev severity) string {
+	switch sev {
+	case sevOK:
+		return "ok"
+	case sevWarn:
+		return "warn"
+	case sevCritical:
+		return "critical"
+	default:
+		return "unknown"
+	}
+}
+
+func symbol(sev severity) string {
+	switch sev {
+	case sevOK:
+		return "●"
+	case sevWarn:
+		return "▲"
+	case sevCritical:
+		return "■"
+	default:
+		return "○"
+	}
+}
+
+func percentOf(value, total int64) float64 {
+	if total <= 0 {
+		return 0
+	}
+	return float64(value) / float64(total) * 100
+}
+
+func bytesHuman(b int64) string {
+	if b <= 0 {
+		return "0B"
+	}
+	units := []string{"B", "K", "M", "G", "T"}
+	f := float64(b)
+	i := 0
+	for f >= 1024 && i < len(units)-1 {
+		f /= 1024
+		i++
+	}
+	if i <= 1 {
+		return fmt.Sprintf("%.0f%s", f, units[i])
+	}
+	return fmt.Sprintf("%.1f%s", f, units[i])
+}
+
+func memSortValue(s string) float64 {
+	if s == "" {
+		return 0
+	}
+	mult := 1.0
+	switch s[len(s)-1] {
+	case 'G':
+		mult = 1024
+	case 'M':
+		mult = 1
+	case 'K':
+		mult = 1.0 / 1024
+	}
+	f, _ := strconv.ParseFloat(strings.TrimRight(s, "GMKB"), 64)
+	return f * mult
+}
+
+func truncate(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if lipgloss.Width(s) <= width {
+		return s
+	}
+	if width <= 1 {
+		return "…"
+	}
+	rs := []rune(s)
+	for lipgloss.Width(string(rs)+"…") > width && len(rs) > 0 {
+		rs = rs[:len(rs)-1]
+	}
+	return string(rs) + "…"
+}
+
+func parseInt64(s string) int64 {
+	s = strings.TrimSpace(strings.TrimRight(s, "."))
+	v, _ := strconv.ParseInt(s, 10, 64)
+	return v
+}
+
+func envInt(key string, def int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return def
+}
+
+func isDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func looksFloat(s string) bool {
+	s = strings.TrimSuffix(s, "%")
+	if s == "" {
+		return false
+	}
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
+}
+
+func emptyDash(s string) string {
+	if s == "" {
+		return "—"
+	}
+	return s
+}
+
+func baseName(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	path = strings.TrimRight(path, "/")
+	if i := strings.LastIndex(path, "/"); i >= 0 {
+		path = path[i+1:]
+	}
+	return strings.ToLower(path)
+}
+
+func nonEmpty(in []string) []string {
+	var out []string
+	for _, s := range in {
+		if strings.TrimSpace(s) != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func round(f float64) int {
+	return int(math.Round(f))
+}

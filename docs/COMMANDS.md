@@ -19,6 +19,18 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 
 ---
 
+### System status
+
+## status
+**Что:** Красивый full-screen TUI для текущего pressure: RAM/swap/compressor/wired, active agent slots, tmux sessions, test/oracle panes и top offenders. Показывает `OK/WARN/CRITICAL` относительно локального лимита активных агентов.
+**Запуск:**
+- `status` — открыть live dashboard, auto-refresh каждые 5 сек.
+- `status --once` — напечатать snapshot без TUI.
+**Настройки:** `STATUS_LOCAL_AGENT_LIMIT=2` — локальный лимит Claude+Codex процессов для alerting.
+**Выход:** `q`, `Esc` или `Ctrl+C`. Refresh вручную — `r`.
+
+---
+
 ### Main flow
 
 ## setup-context

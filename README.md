@@ -72,6 +72,7 @@ Open the WikiPedik vault in Obsidian:
 ? <cmd>              # command details
 launch               # interactive safe worktree launcher
 wiki                 # open WikiPedik product repo
+status               # live system/agent pressure dashboard
 agent status         # current Codex/Claude profile env
 ```
 
