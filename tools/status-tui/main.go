@@ -452,21 +452,6 @@ func percentFromMetric(m metric) float64 {
 	}
 }
 
-func renderOverview(s snapshot, width int) string {
-	col := (width - 6) / 3
-	if col < 22 {
-		col = 22
-	}
-	return lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		renderMetricCard("Memory pressure", s.Memory, col),
-		"  ",
-		renderMetricCard("Agent slots", s.Agents, col),
-		"  ",
-		renderSummaryCard(s, width-6-col*2-4),
-	)
-}
-
 func renderMiddle(s snapshot, width int) string {
 	leftW := (width - 6) / 2
 	rightW := width - 6 - leftW - 2
@@ -476,49 +461,6 @@ func renderMiddle(s snapshot, width int) string {
 		"  ",
 		renderProcesses(s, rightW),
 	)
-}
-
-func renderTables(s snapshot, width int) string {
-	return cardStyle.Width(width - 4).Render(renderLegend(width - 8))
-}
-
-func renderMetricCard(title string, metrics []metric, width int) string {
-	var lines []string
-	lines = append(lines, titleStyle.Render(title))
-	for _, m := range metrics {
-		name := lipgloss.NewStyle().Foreground(muted).Width(13).Render(m.Name)
-		value := styleSeverity(m.Severity).Bold(true).Width(11).Render(m.Value)
-		detail := dimStyle.Render(truncate(m.Detail, max(1, width-31)))
-		lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top, name, value, detail))
-	}
-	style := cardStyle
-	if hasHot(metrics) {
-		style = cardHotStyle.BorderForeground(severityColor(maxMetricSeverity(metrics)))
-	}
-	return style.Width(width).Height(8).Render(strings.Join(lines, "\n"))
-}
-
-func renderSummaryCard(s snapshot, width int) string {
-	if width < 24 {
-		width = 24
-	}
-	lines := []string{titleStyle.Render("Limits")}
-	lines = append(lines, row("local active", fmt.Sprintf("%d / %d", s.ActiveAgentCount, s.LocalAgentLimit), limitSeverity(s.ActiveAgentCount, s.LocalAgentLimit), width))
-	lines = append(lines, row("claude", strconv.Itoa(s.ClaudeCount), sevForCount(s.ClaudeCount, 2, 5), width))
-	lines = append(lines, row("codex", strconv.Itoa(s.CodexCount), sevForCount(s.CodexCount, 2, 5), width))
-	lines = append(lines, row("tmux", strconv.Itoa(s.TmuxSessionCount), sevForCount(s.TmuxSessionCount, 3, 7), width))
-	lines = append(lines, row("test/oracle", strconv.Itoa(s.TestOracleCount), sevForCount(s.TestOracleCount, 2, 6), width))
-	if s.CollectionWarning != "" {
-		lines = append(lines, "")
-		lines = append(lines, styleSeverity(sevWarn).Render(truncate(s.CollectionWarning, width-4)))
-	}
-	return cardStyle.Width(width).Height(8).Render(strings.Join(lines, "\n"))
-}
-
-func row(name, value string, sev severity, width int) string {
-	left := mutedStyle.Width(14).Render(name)
-	right := styleSeverity(sev).Bold(true).Render(value)
-	return lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 }
 
 func renderSessions(s snapshot, width int) string {
@@ -565,18 +507,6 @@ func renderNotes(s snapshot, width int) string {
 		lines = append(lines, "  "+translateNote(n))
 	}
 	return cardStyle.Width(width - 4).Render(strings.Join(lines, "\n"))
-}
-
-func renderLegend(width int) string {
-	parts := []string{
-		styleSeverity(sevOK).Render("OK"),
-		dimStyle.Render("within limit"),
-		styleSeverity(sevWarn).Render("WARN"),
-		dimStyle.Render("watch it"),
-		styleSeverity(sevCritical).Render("CRITICAL"),
-		dimStyle.Render("act now"),
-	}
-	return lipgloss.JoinHorizontal(lipgloss.Center, parts...)
 }
 
 func renderHelp(width int) string {
