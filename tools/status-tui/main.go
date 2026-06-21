@@ -13,8 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type severity int
@@ -81,6 +84,8 @@ type model struct {
 	loading   bool
 	err       string
 	refreshes int
+	ramHist   []float64
+	swapHist  []float64
 }
 
 type snapshotMsg struct {
@@ -91,6 +96,10 @@ type snapshotMsg struct {
 type tickMsg struct{}
 
 const refreshEvery = 5 * time.Second
+
+// dashWidth keeps the whole panel a fixed, compact block anchored to the
+// top-left, leaving the rest of the terminal free for future board panels.
+const dashWidth = 84
 
 var (
 	bg        = lipgloss.Color("#151821")
@@ -108,7 +117,11 @@ var (
 	okBg      = lipgloss.Color("#1D332F")
 	warnBg    = lipgloss.Color("#3A3320")
 
-	screenStyle = lipgloss.NewStyle().Background(bg).Foreground(text)
+	// No background fills anywhere: Lip Gloss does not fill a parent Background
+	// uniformly behind pre-styled content (bars/chips/clamp insert ANSI resets),
+	// which leaks as uneven rectangles. Cards are defined by coloured borders
+	// only; everything sits flat on the terminal background.
+	screenStyle = lipgloss.NewStyle().Foreground(text)
 	titleStyle  = lipgloss.NewStyle().Foreground(accent).Bold(true)
 	mutedStyle  = lipgloss.NewStyle().Foreground(muted)
 	dimStyle    = lipgloss.NewStyle().Foreground(dim)
@@ -116,13 +129,11 @@ var (
 	heroStyle   = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(accent).
-			Background(panel2).
-			Padding(1, 2)
+			Padding(0, 2)
 
 	cardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(dim).
-			Background(panel).
 			Padding(0, 1)
 	cardHotStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -179,6 +190,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.err = ""
 		m.snap = msg.Snap
+		m.ramHist = pushHistory(m.ramHist, percentFromMetric(metricByName(msg.Snap.Memory, "ram")))
+		m.swapHist = pushHistory(m.swapHist, percentFromMetric(metricByName(msg.Snap.Memory, "swap")))
 		return m, nil
 	}
 	return m, nil
@@ -186,25 +199,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	w := m.width
-	if w <= 0 {
-		w = 100
+	if w <= 0 || w > dashWidth {
+		w = dashWidth
 	}
-	if w < 76 {
-		w = 76
+	if w < 60 {
+		w = 60
 	}
 
 	body := []string{renderHeader(m, w)}
 	if m.err != "" {
-		body = append(body, cardStyle.Width(w-4).Render(styleSeverity(sevCritical).Render("collection error")+"  "+m.err))
+		body = append(body, cardStyle.Width(w-2).Render(clamp(styleSeverity(sevCritical).Render("collection error")+"  "+m.err, w-4)))
 	} else if m.snap.Time.IsZero() {
-		body = append(body, cardStyle.Width(w-4).Render("loading..."))
+		body = append(body, cardStyle.Width(w-2).Render("loading..."))
 	} else {
 		body = append(body, renderVerdict(m.snap, w))
-		body = append(body, renderCommandCenter(m.snap, w))
+		body = append(body, renderCommandCenter(m, w))
 		body = append(body, renderMiddle(m.snap, w))
-		if len(m.snap.Notes) > 0 {
-			body = append(body, renderNotes(m.snap, w))
-		}
 	}
 
 	body = append(body, renderHelp(w))
@@ -228,10 +238,10 @@ func renderHeader(m model, width int) string {
 	}
 	left := titleStyle.Render("Состояние агентов")
 	right := styleSeverity(sev).Render(status)
-	meta := mutedStyle.Render(fmt.Sprintf("%s  ·  %s  ·  %s", emptyDash(s.Host), emptyDash(s.OS), time.Now().Format("15:04:05")))
+	meta := mutedStyle.Render(time.Now().Format("15:04:05"))
 	lineWidth := max(1, width-lipgloss.Width(left)-lipgloss.Width(right)-lipgloss.Width(meta)-8)
 	line := dimStyle.Render(strings.Repeat("─", lineWidth))
-	return lipgloss.JoinHorizontal(lipgloss.Center, "  ", left, " ", line, " ", meta, " ", right)
+	return clamp(lipgloss.JoinHorizontal(lipgloss.Center, "  ", left, " ", line, " ", meta, " ", right), width)
 }
 
 func renderVerdict(s snapshot, width int) string {
@@ -245,58 +255,59 @@ func renderVerdict(s snapshot, width int) string {
 	}
 
 	over := s.ActiveAgentCount - s.LocalAgentLimit
-	agentLine := fmt.Sprintf("живых агентов: %d / %d", s.ActiveAgentCount, s.LocalAgentLimit)
+	agentLine := fmt.Sprintf("агентов %d/%d", s.ActiveAgentCount, s.LocalAgentLimit)
 	if over > 0 {
-		agentLine += fmt.Sprintf("  ·  лишних: %d", over)
+		agentLine += fmt.Sprintf(" (+%d)", over)
 	}
-	swap := metricValue(s.Memory, "swap")
-	compressor := metricValue(s.Memory, "compressor")
-	wired := metricValue(s.Memory, "wired")
-	details := fmt.Sprintf("%s  ·  swap %s  ·  compressor %s  ·  wired %s", agentLine, emptyDash(swap), emptyDash(compressor), emptyDash(wired))
+	details := fmt.Sprintf("%s · swap %s · comp %s · wired %s",
+		agentLine,
+		emptyDash(metricValue(s.Memory, "swap")),
+		emptyDash(metricValue(s.Memory, "compressor")),
+		emptyDash(metricValue(s.Memory, "wired")))
 
 	status := pill(strings.ToUpper(severityLabel(sev)), sev)
 	title := lipgloss.NewStyle().Bold(true).Foreground(severityColor(sev)).Render(headline)
-	line := mutedStyle.Render("Решение: оставь 1-2 активных агента, остальное усыпляй или закрывай.")
+	inner := width - 6
 	content := lipgloss.JoinVertical(lipgloss.Left,
-		lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", status),
-		mutedStyle.Render(details),
-		line,
+		clamp(lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", status), inner),
+		clamp(mutedStyle.Render(details), inner),
+		clamp(mutedStyle.Render("решение: держи 1-2 активных, остальное усыпляй/закрывай"), inner),
 	)
-	return heroStyle.BorderForeground(severityColor(sev)).Width(width - 4).Render(content)
+	return heroStyle.BorderForeground(severityColor(sev)).Width(width - 2).Render(content)
 }
 
-func renderCommandCenter(s snapshot, width int) string {
-	gap := 2
-	left := (width - 4 - gap*2) / 3
-	mid := left
-	right := width - 4 - gap*2 - left - mid
-	if right < 28 {
-		right = 28
-	}
+func renderCommandCenter(m model, width int) string {
+	s := m.snap
+	gap := 1
+	avail := width - gap
+	left := avail / 2
+	right := avail - left
 	return lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		renderMemoryCard(s, left),
+		renderMemoryCard(s, m.ramHist, m.swapHist, left),
 		strings.Repeat(" ", gap),
-		renderAgentCard(s, mid),
-		strings.Repeat(" ", gap),
-		renderActionCard(s, right),
+		renderAgentCard(s, right),
 	)
 }
 
-func renderMemoryCard(s snapshot, width int) string {
+func renderMemoryCard(s snapshot, ramHist, swapHist []float64, outer int) string {
+	inner := outer - 4
 	ram := metricByName(s.Memory, "ram")
 	swap := metricByName(s.Memory, "swap")
 	comp := metricByName(s.Memory, "compressor")
 	wired := metricByName(s.Memory, "wired")
 	lines := []string{sectionTitle("Память", maxMetricSeverity(s.Memory))}
-	lines = append(lines, metricBarLine("RAM", ram, width))
-	lines = append(lines, metricBarLine("Swap", swap, width))
-	lines = append(lines, compactMetric("Compressor", comp, width))
-	lines = append(lines, compactMetric("Wired", wired, width))
-	return hotCard(maxMetricSeverity(s.Memory)).Width(width).Height(10).Render(strings.Join(lines, "\n"))
+	lines = append(lines, metricBarLine("RAM", ram, inner))
+	lines = append(lines, sparkRow(ramHist, ram.Severity, inner))
+	lines = append(lines, metricBarLine("Swap", swap, inner))
+	lines = append(lines, sparkRow(swapHist, swap.Severity, inner))
+	lines = append(lines, compactMetric("Comp", comp, inner))
+	lines = append(lines, compactMetric("Wired", wired, inner))
+	return hotCard(maxMetricSeverity(s.Memory)).Width(outer - 2).Height(7).Render(strings.Join(clampAll(lines, inner), "\n"))
 }
 
-func renderAgentCard(s snapshot, width int) string {
+func renderAgentCard(s snapshot, outer int) string {
+	inner := outer - 4
 	sev := limitSeverity(s.ActiveAgentCount, s.LocalAgentLimit)
 	over := max(0, s.ActiveAgentCount-s.LocalAgentLimit)
 	lines := []string{sectionTitle("Агенты", sev)}
@@ -307,26 +318,9 @@ func renderAgentCard(s snapshot, width int) string {
 		lines = append(lines, styleSeverity(sevOK).Render("в пределах лимита"))
 	}
 	lines = append(lines, "")
-	lines = append(lines, chip("Claude", strconv.Itoa(s.ClaudeCount), sevForCount(s.ClaudeCount, 2, 5))+"  "+chip("Codex", strconv.Itoa(s.CodexCount), sevForCount(s.CodexCount, 2, 5)))
-	lines = append(lines, chip("tmux", strconv.Itoa(s.TmuxSessionCount), sevForCount(s.TmuxSessionCount, 3, 7))+"  "+chip("test/oracle", strconv.Itoa(s.TestOracleCount), sevForCount(s.TestOracleCount, 2, 6)))
-	return hotCard(sev).Width(width).Height(10).Render(strings.Join(lines, "\n"))
-}
-
-func renderActionCard(s snapshot, width int) string {
-	lines := []string{sectionTitle("Что делать", s.PressureSeverity)}
-	over := s.ActiveAgentCount - s.LocalAgentLimit
-	if over > 0 {
-		lines = append(lines, actionLine("1", fmt.Sprintf("усыпить или закрыть %d лишних agent-процессов", over)))
-	} else {
-		lines = append(lines, actionLine("1", "держать текущий лимит активных агентов"))
-	}
-	if metricAtLeast(s.Memory, "swap", sevWarn) {
-		lines = append(lines, actionLine("2", "после чистки перезапустить терминал, чтобы сбросить GUI/scrollback память"))
-	} else {
-		lines = append(lines, actionLine("2", "swap в норме, можно продолжать"))
-	}
-	lines = append(lines, actionLine("3", "новые задачи держать на борде/checkpoint, не живыми процессами"))
-	return hotCard(s.PressureSeverity).Width(width).Height(10).Render(strings.Join(lines, "\n"))
+	lines = append(lines, chip("Claude", strconv.Itoa(s.ClaudeCount), sevForCount(s.ClaudeCount, 2, 5))+" "+chip("Codex", strconv.Itoa(s.CodexCount), sevForCount(s.CodexCount, 2, 5)))
+	lines = append(lines, chip("tmux", strconv.Itoa(s.TmuxSessionCount), sevForCount(s.TmuxSessionCount, 3, 7))+" "+chip("test/oracle", strconv.Itoa(s.TestOracleCount), sevForCount(s.TestOracleCount, 2, 6)))
+	return hotCard(sev).Width(outer - 2).Height(7).Render(strings.Join(clampAll(lines, inner), "\n"))
 }
 
 func sectionTitle(title string, sev severity) string {
@@ -339,32 +333,38 @@ func sectionTitle(title string, sev severity) string {
 
 func metricBarLine(label string, m metric, width int) string {
 	pct := percentFromMetric(m)
-	barWidth := max(8, width-26)
-	left := mutedStyle.Width(6).Render(label)
+	barWidth := max(6, width-17)
+	left := mutedStyle.Width(5).Render(label)
 	value := styleSeverity(m.Severity).Bold(true).Width(11).Render(m.Value)
-	return lipgloss.JoinHorizontal(lipgloss.Center, left, value, bar(pct, barWidth, m.Severity))
+	return clamp(lipgloss.JoinHorizontal(lipgloss.Center, left, value, " ", gradientBar(pct, barWidth)), width)
+}
+
+// gradientBar renders a smooth green→red progress bar via bubbles/progress.
+// The scaled gradient maps fill level to colour, so a near-full bar reads red.
+func gradientBar(pct float64, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	p := progress.New(
+		progress.WithScaledGradient("#9ADBC5", "#FF8FA3"),
+		progress.WithoutPercentage(),
+		progress.WithWidth(width),
+	)
+	return p.ViewAs(math.Max(0, math.Min(1, pct/100)))
 }
 
 func compactMetric(label string, m metric, width int) string {
-	left := mutedStyle.Width(11).Render(label)
+	left := mutedStyle.Width(6).Render(label)
 	value := styleSeverity(m.Severity).Bold(true).Width(9).Render(emptyDash(m.Value))
-	detail := dimStyle.Render(truncate(m.Detail, max(1, width-25)))
-	return lipgloss.JoinHorizontal(lipgloss.Top, left, value, detail)
+	detail := dimStyle.Render(truncate(m.Detail, max(0, width-15)))
+	return clamp(lipgloss.JoinHorizontal(lipgloss.Top, left, value, detail), width)
 }
 
 func hotCard(sev severity) lipgloss.Style {
-	bgColor := panel
-	if sev == sevCritical {
-		bgColor = hotBg
-	} else if sev == sevWarn {
-		bgColor = warnBg
-	} else if sev == sevOK {
-		bgColor = okBg
-	}
+	// Severity is carried by the border colour; no background fill (see styles).
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(severityColor(sev)).
-		Background(bgColor).
 		Padding(0, 1)
 }
 
@@ -403,18 +403,68 @@ func pill(label string, sev severity) string {
 		Render(label)
 }
 
-func bar(pct float64, width int, sev severity) string {
-	if width <= 0 {
+const maxHistory = 120
+
+var sparkRunes = []rune("▁▂▃▄▅▆▇█")
+
+func pushHistory(h []float64, v float64) []float64 {
+	h = append(h, v)
+	if len(h) > maxHistory {
+		h = h[len(h)-maxHistory:]
+	}
+	return h
+}
+
+// sparkline renders the trailing values as a single row of block glyphs,
+// padding the left with dots until enough history has accumulated.
+func sparkline(values []float64, width int, sev severity) string {
+	if width <= 0 || len(values) == 0 {
 		return ""
 	}
-	pct = math.Max(0, math.Min(100, pct))
-	fill := int(math.Round(float64(width) * pct / 100))
-	if fill > width {
-		fill = width
+	vals := values
+	if len(vals) > width {
+		vals = vals[len(vals)-width:]
 	}
-	full := strings.Repeat("█", fill)
-	empty := strings.Repeat("░", width-fill)
-	return styleSeverity(sev).Render(full) + dimStyle.Render(empty)
+	var b strings.Builder
+	for _, v := range vals {
+		v = math.Max(0, math.Min(100, v))
+		idx := int(math.Round(v / 100 * float64(len(sparkRunes)-1)))
+		if idx < 0 {
+			idx = 0
+		}
+		if idx >= len(sparkRunes) {
+			idx = len(sparkRunes) - 1
+		}
+		b.WriteRune(sparkRunes[idx])
+	}
+	out := ""
+	if pad := width - len(vals); pad > 0 {
+		out += dimStyle.Render(strings.Repeat("·", pad))
+	}
+	return out + styleSeverity(sev).Render(b.String())
+}
+
+// sparkRow draws the history sparkline starting at the exact column where the
+// metric bar starts (label 5 + value 11 + 1 space = 17) and at the bar's width,
+// so the bar and its history line up in one column.
+func sparkRow(values []float64, sev severity, width int) string {
+	return clamp(lipgloss.JoinHorizontal(lipgloss.Top, strings.Repeat(" ", 17), sparkline(values, max(6, width-17), sev)), width)
+}
+
+// clamp truncates a (possibly styled) string to w visible cells, ANSI-safe.
+func clamp(s string, w int) string {
+	if w <= 0 {
+		return ""
+	}
+	return ansi.Truncate(s, w, "")
+}
+
+func clampAll(lines []string, w int) []string {
+	out := make([]string, len(lines))
+	for i, l := range lines {
+		out[i] = clamp(l, w)
+	}
+	return out
 }
 
 func metricByName(metrics []metric, name string) metric {
@@ -453,51 +503,102 @@ func percentFromMetric(m metric) float64 {
 }
 
 func renderMiddle(s snapshot, width int) string {
-	leftW := (width - 6) / 2
-	rightW := width - 6 - leftW - 2
+	gap := 1
+	avail := width - gap
+	leftW := avail / 2
+	rightW := avail - leftW
 	return lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		renderSessions(s, leftW),
-		"  ",
+		strings.Repeat(" ", gap),
 		renderProcesses(s, rightW),
 	)
 }
 
-func renderSessions(s snapshot, width int) string {
-	lines := []string{sectionTitle("Сессии tmux", sevForCount(s.TmuxSessionCount, 3, 7))}
-	if len(s.Sessions) == 0 {
-		lines = append(lines, dimStyle.Render("tmux-сессий нет"))
-	} else {
-		for _, sess := range firstSessions(s.Sessions, max(4, min(10, 100))) {
-			name := truncate(sess.Name, max(10, width-31))
-			state := sess.State
-			sev := sevOK
-			if strings.Contains(state, "active") || strings.Contains(state, "attached") {
-				sev = sevWarn
-			}
-			lines = append(lines, fmt.Sprintf("%s  %s  %s",
-				styleSeverity(sev).Render(symbol(sev)),
-				lipgloss.NewStyle().Foreground(text).Width(max(10, width-31)).Render(name),
-				mutedStyle.Render(truncate(sess.Agents, 22)),
-			))
-		}
+// listTable builds a borderless lipgloss/table sized by the per-column widths
+// returned from styleFn. The card supplies the surrounding border.
+//
+// Quirk: in lipgloss v1.1.0 disabling all borders drops the last row
+// (off-by-one). Instead we use an empty Border{} — which renders correctly but
+// emits a blank top and bottom line — and trim those two lines ourselves.
+func listTable(rows [][]string, styleFn table.StyleFunc) string {
+	out := table.New().
+		Border(lipgloss.Border{}).
+		BorderColumn(false).BorderRow(false).
+		Wrap(false).
+		StyleFunc(styleFn).
+		Rows(rows...).
+		Render()
+	lines := strings.Split(out, "\n")
+	if len(lines) >= 2 {
+		lines = lines[1 : len(lines)-1]
 	}
-	return cardStyle.Width(width).Height(14).Render(strings.Join(lines, "\n"))
+	return strings.Join(lines, "\n")
 }
 
-func renderProcesses(s snapshot, width int) string {
-	lines := []string{sectionTitle("Главные потребители", sevWarn)}
-	if len(s.Processes) == 0 {
-		lines = append(lines, dimStyle.Render("нет данных по процессам"))
-	} else {
-		for _, p := range firstProcesses(s.Processes, 10) {
-			kind := dimStyle.Width(10).Render(processKindRu(p.Kind))
-			mem := lipgloss.NewStyle().Foreground(accent2).Width(8).Render(p.Memory)
-			name := truncate(p.Name, max(8, width-31))
-			lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top, kind, mem, name))
-		}
+func sessionSev(s sessionInfo) severity {
+	if strings.Contains(s.State, "attached") {
+		return sevWarn
 	}
-	return cardStyle.Width(width).Height(14).Render(strings.Join(lines, "\n"))
+	return sevOK
+}
+
+func renderSessions(s snapshot, outer int) string {
+	inner := outer - 4
+	title := sectionTitle("Сессии tmux", sevForCount(s.TmuxSessionCount, 3, 7))
+	body := dimStyle.Render("tmux-сессий нет")
+	if len(s.Sessions) > 0 {
+		sess := firstSessions(s.Sessions, 8)
+		agW := 12
+		nameW := max(8, inner-agW-3)
+		rows := make([][]string, len(sess))
+		for i, se := range sess {
+			rows[i] = []string{symbol(sessionSev(se)), truncate(se.Name, nameW), truncate(se.Agents, agW)}
+		}
+		body = listTable(rows, func(r, c int) lipgloss.Style {
+			switch c {
+			case 0:
+				sev := sevOK
+				if r >= 0 && r < len(sess) {
+					sev = sessionSev(sess[r])
+				}
+				return lipgloss.NewStyle().Foreground(severityColor(sev)).PaddingRight(1)
+			case 1:
+				return lipgloss.NewStyle().Foreground(text).Width(nameW).PaddingRight(1)
+			default:
+				return mutedStyle.Width(agW)
+			}
+		})
+	}
+	content := lipgloss.JoinVertical(lipgloss.Left, title, body)
+	return cardStyle.Width(outer-2).Height(9).Render(strings.Join(clampAll(strings.Split(content, "\n"), inner), "\n"))
+}
+
+func renderProcesses(s snapshot, outer int) string {
+	inner := outer - 4
+	title := sectionTitle("Топ памяти", sevWarn)
+	body := dimStyle.Render("нет данных по процессам")
+	if len(s.Processes) > 0 {
+		procs := firstProcesses(s.Processes, 8)
+		kindW, memW := 9, 7
+		nameW := max(6, inner-kindW-memW-2)
+		rows := make([][]string, len(procs))
+		for i, p := range procs {
+			rows[i] = []string{processKindRu(p.Kind), p.Memory, truncate(p.Name, nameW)}
+		}
+		body = listTable(rows, func(r, c int) lipgloss.Style {
+			switch c {
+			case 0:
+				return dimStyle.Width(kindW).PaddingRight(1)
+			case 1:
+				return lipgloss.NewStyle().Foreground(accent2).Width(memW).PaddingRight(1)
+			default:
+				return lipgloss.NewStyle().Foreground(text).Width(nameW)
+			}
+		})
+	}
+	content := lipgloss.JoinVertical(lipgloss.Left, title, body)
+	return cardStyle.Width(outer-2).Height(9).Render(strings.Join(clampAll(strings.Split(content, "\n"), inner), "\n"))
 }
 
 func renderNotes(s snapshot, width int) string {
@@ -510,8 +611,8 @@ func renderNotes(s snapshot, width int) string {
 }
 
 func renderHelp(width int) string {
-	help := "q/esc выход · r обновить · автообновление 5с · лимит: STATUS_LOCAL_AGENT_LIMIT"
-	return helpStyle.Width(width).Render("  " + help)
+	help := "q выход · r обновить · авто 5с · лимит STATUS_LOCAL_AGENT_LIMIT"
+	return clamp(helpStyle.Render("  "+help), width)
 }
 
 func renderPlain(s snapshot) string {
