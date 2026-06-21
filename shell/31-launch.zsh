@@ -305,8 +305,11 @@ _launch_session_path() {
   if [ -f "$repo_dir/.agent-workspace" ]; then
     export AGENT_WORKSPACE_MODE="agent"
   fi
+  # Shared dev infra host, so agents/apps in panes resolve dev-stack endpoints
+  # (the project .envrc reads ${DEV_STACK_HOST}; without this it falls to localhost).
+  export DEV_STACK_HOST="${DEV_STACK_HOST:-gerc0g}"
 
-  local fresh_env='export CODEX_HOME="$HOME/.codex-new"; export CLAUDE_CONFIG_DIR="$HOME/.claude-new"; export AGENT_GIT_MODE="commit-local"; export AGENT_GIT_PUSH="task"; export AGENT_WORKSPACE_MODE="'"$AGENT_WORKSPACE_MODE"'";'
+  local fresh_env='export CODEX_HOME="$HOME/.codex-new"; export CLAUDE_CONFIG_DIR="$HOME/.claude-new"; export AGENT_GIT_MODE="commit-local"; export AGENT_GIT_PUSH="task"; export AGENT_WORKSPACE_MODE="'"$AGENT_WORKSPACE_MODE"'"; export DEV_STACK_HOST="'"${DEV_STACK_HOST:-gerc0g}"'";'
 
   local test_cmd
   test_cmd=$(_launch_detect_test "$repo_dir")
@@ -353,6 +356,7 @@ _launch_session_path() {
   tmux set-environment -t "$session" AGENT_GIT_MODE "commit-local"
   tmux set-environment -t "$session" AGENT_GIT_PUSH "task"
   tmux set-environment -t "$session" AGENT_WORKSPACE_MODE "$AGENT_WORKSPACE_MODE"
+  tmux set-environment -t "$session" DEV_STACK_HOST "${DEV_STACK_HOST:-gerc0g}"
   # No session-closed auto-reap hook — closing a window must NEVER delete a
   # worktree (it twice removed live work). Worktrees go only via explicit
   # `agent-workspace remove`. The status-bar indicator stays as an info hint.

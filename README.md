@@ -417,19 +417,19 @@ dev-stack down
 dev-stack status
 ```
 
-Default stack:
+Host is `$DEV_STACK_HOST` (default `gerc0g`, the home Ubuntu box on tailnet, 24/7).
+Stack (18 services): Postgres, Redis, MinIO, Qdrant, ClickHouse, Prometheus,
+Grafana, Loki, Tempo, OTel Collector, Langfuse, Ollama, Open-WebUI, Metabase,
+CloudBeaver, Redis-Commander, Traefik, Homepage. Live list: `dev-stack urls`.
+(No MLflow — only a MinIO `mlflow` bucket; use Langfuse for LLM tracing.)
 
-- Postgres
-- Redis
-- Prometheus
-- Grafana
-- MinIO
-- MLflow
+Connect a repo (self-onboard): `cd <repo> && dev-stack connect` → `.envrc` endpoints
++ DB `<product>__<repo>`; check with `dev-stack doctor`.
 
 Use it only when a repo needs shared local services. Repos should still expose
 their own `Makefile` targets.
 
-See `docs/platform/local-infra.md`.
+Canonical: `services/dev-stack/README.md`.
 
 ## Claude LSP Baseline
 

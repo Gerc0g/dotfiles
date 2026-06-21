@@ -2,6 +2,7 @@
 
 - Conversation: Russian. Code, identifiers, comments: English.
 - Start with repo context: nearest `AGENTS.md`/`CLAUDE.md`, `README`, `Makefile`, manifests.
+- Dev infra: есть общий слой **dev-stack** (Postgres/Redis/Qdrant/ClickHouse/MinIO/OTel/Langfuse/Ollama на `$DEV_STACK_HOST`, по умолчанию `gerc0g`). Нужна инфра для локальной разработки — подключи репо командой `dev-stack connect` (проверка `dev-stack doctor`), НЕ поднимай своё (`brew install`, отдельный docker-compose). Не каждому репо это нужно — решай по задаче. Канон: `services/dev-stack/README.md`, live-список `dev-stack urls`.
 - Non-trivial change (>1 file, abstraction, refactor): give 2-3 options before editing.
 - Trivial obvious fix: patch it and show the diff.
 - Do not push, force-push, rebase pushed commits, edit `.env*`/`.envrc`, run migrations, or install globals without explicit ask. Exception: if `AGENT_GIT_MODE=commit-local`, commit each completed logical change with `agent-commit.sh` and explicit paths; finish completed tasks with `agent-finish.sh`.
@@ -13,7 +14,7 @@ References:
 - Platform: `~/dotfiles/agent-profiles/PLATFORM.md`
 - Git: `~/dotfiles/docs/platform/git-workflow.md`
 - Secrets/env: `~/dotfiles/docs/platform/secrets-env.md`
-- Local infra/dev-stack: `~/dotfiles/docs/platform/local-infra.md`
+- Local infra/dev-stack: `~/dotfiles/services/dev-stack/README.md` (canonical; live: `dev-stack urls`; connect a repo: `dev-stack connect`)
 - ML/quant: `~/dotfiles/docs/platform/ml-quant-workflow.md`
 - Commands: `launch`, `agent-workspace`, `agent-commit.sh`, `agent-finish.sh`, `agent-task-push.sh`, `oracle-tui`, `test-tui`, `dev-stack`, `agent-skill`
 - Logs: Axiom CLI. DB: `psql`. Secrets: 1Password via `secret`.

@@ -6,9 +6,15 @@ Company- or repo-level files may add more or override.
 
 ## Local infrastructure
 
-dev-stack (Docker Compose via OrbStack). Host is `${DEV_STACK_HOST}` (default
-`localhost`; switches to the home Ubuntu box later without other changes).
+dev-stack (Docker Compose). Host is `${DEV_STACK_HOST}` (default **`gerc0g`** — the
+home Ubuntu box on tailnet, running 24/7; set `localhost` for a Mac-local stack).
+Addresses below show `localhost` for illustration — the real host is `${DEV_STACK_HOST}`.
 Canonical list: `dev-stack urls`. Source of truth: `services/dev-stack/`.
+Connect a repo (self-onboard): `cd <repo> && dev-stack connect` writes the `.envrc`
+endpoints + creates the DB `<product>__<repo>`; `dev-stack doctor` checks reachability
+and wiring. Telemetry is PUSHED via OTLP — Prometheus does not scrape your app.
+Manage the stack on its host: `ssh ${DEV_STACK_SSH:-ubuntu-server}` (or remote-aware
+`dev-stack up/down/...`).
 
 - Postgres `localhost:5432` (user `dev`, pass `dev`, default db `postgres`)
 - Redis `localhost:6379` (no auth)

@@ -53,7 +53,7 @@ Keep this section in sync with `Makefile`; do not invent separate commands here.
 
 - Git workflow: `~/dotfiles/docs/platform/git-workflow.md`
 - Secrets/env: `~/dotfiles/docs/platform/secrets-env.md`
-- Local infra: `~/dotfiles/docs/platform/local-infra.md`
+- Local infra (dev-stack): `~/dotfiles/services/dev-stack/README.md` (canonical; live list: `dev-stack urls`)
 - ML/quant: `~/dotfiles/docs/platform/ml-quant-workflow.md`
 
 ## WikiPedik memory
@@ -78,8 +78,9 @@ TODO: 5-10 files.
 
 TODO: env vars from `.env.example`, port, dev-stack usage.
 
-- Required env: `<VAR_1>`, `<VAR_2>`
-- Uses dev-stack: Postgres `<db-name>` | Redis | none
+- Shared dev infra: this repo runs against **dev-stack** (`$DEV_STACK_HOST`, default `gerc0g`). Self-onboard once: `cd ${REPO} && dev-stack connect` — appends endpoints to `.envrc` (DB `<product>__${REPO}`, Redis, Qdrant, …) and creates the DB. Check with `dev-stack doctor`.
+- Required env: `<VAR_1>`, `<VAR_2>`  (dev-stack endpoints come from `.envrc` via `dev-stack connect`)
+- Uses dev-stack: Postgres `<product>__${REPO}` | Redis | Qdrant | none
 - Port: `<port>`
 - Run: `cd ${REPO} && direnv allow && <install> && <dev cmd>`
 - Health: `curl http://localhost:<port>/health`

@@ -11,7 +11,10 @@ research tasks.
   metric.
 - Pin versions in project files (`pyproject.toml`, lock files).
 - Seed randomness and hash or record data inputs for runs worth keeping.
-- Log meaningful runs to MLflow or W&B when the repo has that convention.
+- Log meaningful runs to the repo's experiment tracker (MLflow/W&B) when it has
+  that convention. Note: dev-stack does NOT run a managed MLflow — it provides
+  Langfuse (`$DEV_STACK_HOST:3001`) for LLM tracing and a MinIO `mlflow` bucket
+  for artifacts; run MLflow yourself if a project needs the tracking server.
 
 ## Leakage Checks
 

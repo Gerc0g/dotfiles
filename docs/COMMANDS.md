@@ -301,12 +301,14 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ### Local infrastructure
 
 ## dev-stack
-**Что:** Единый локальный Docker-стек инфры для всех проектов. Сервисы: Postgres :5432, Redis :6379, MinIO :9000/9001, Qdrant :6333, ClickHouse :8123, Prometheus :9090, Grafana :3030, Loki :3100, Tempo :3200, OTel Collector :4317/4318, Langfuse :3001, Ollama :11434, Metabase :3002, CloudBeaver :8978. Host = `$DEV_STACK_HOST` (default localhost; под будущий домашний Ubuntu-ноут через Tailscale). Источник правды: `services/dev-stack/`.
+**Что:** Единый локальный Docker-стек инфры для всех проектов. Сервисы: Postgres :5432, Redis :6379, MinIO :9000/9001, Qdrant :6333, ClickHouse :8123, Prometheus :9090, Grafana :3030, Loki :3100, Tempo :3200, OTel Collector :4317/4318, Langfuse :3001, Ollama :11434, Metabase :3002, CloudBeaver :8978 (+ Traefik/Homepage). Host = `$DEV_STACK_HOST` (default **gerc0g** — домашний Ubuntu по Tailscale, 24/7; `localhost` для Mac-local). Remote-aware: управление идёт на хост через `ssh $DEV_STACK_SSH` (default ubuntu-server). Телеметрия PUSH через OTLP (Prometheus сам не скрейпит). Источник правды: `services/dev-stack/`.
 **Запуск:**
+- `dev-stack connect [prod repo]` — самоонбординг проекта: блок в ./.envrc + БД `<product>__<repo>` + direnv allow
+- `dev-stack doctor` — достижимость стека + подключён ли текущий проект
 - `dev-stack up [svc...]` (всё или точечно) / `dev-stack down` / `dev-stack status` / `dev-stack pull`
 - `dev-stack urls` — все адреса (учитывает DEV_STACK_HOST)
 - `dev-stack psql [db]` / `dev-stack redis-cli` / `dev-stack clickhouse`
-- `dev-stack db-create <name>` / `dev-stack db-drop <name>` / `dev-stack logs [svc]` / `dev-stack nuke`
+- `dev-stack envrc [prod repo]` (печать блока) / `dev-stack db-ensure <name>` / `dev-stack db-create <name>` / `dev-stack db-drop <name>` / `dev-stack logs [svc]` / `dev-stack nuke`
 **Файлы:** `services/dev-stack/docker-compose.yml`, `services/dev-stack/config/`, `shell/60-devstack.zsh`.
 
 ---

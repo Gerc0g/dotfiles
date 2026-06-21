@@ -92,6 +92,8 @@ source_up
 
 # Repo-scoped secrets are loaded here by:
 #   secret add --repo <VAR> <VALUE>
+# Shared dev infra (Postgres/Redis/Qdrant/…): wire endpoints + create the DB with
+#   dev-stack connect
 EOF
     echo "✓ $PDIR/$repo/.envrc (run 'direnv allow' in repo dir if needed)"
   fi
@@ -169,5 +171,6 @@ echo "  1. source ~/.zshrc                          (подхватить ${PROD
 echo "  2. onboard ${CO} ${PROD}                       (заполнить TODO в product AGENTS.md)"
 echo "  3. analyze-product ${CO} ${PROD}               (опц: deep dive → docs/ARCHITECTURE.md)"
 echo "  4. cd <repo> && onboard                     (для каждого репа)"
-echo "  5. cd <repo> && analyze-repo                (опц: deep dive → docs/design.md)"
-echo "  6. ${PROD}                                   (открыть tmux session)"
+echo "  5. cd <repo> && dev-stack connect           (подключить к dev-stack: .envrc + БД)"
+echo "  6. cd <repo> && analyze-repo                (опц: deep dive → docs/design.md)"
+echo "  7. ${PROD}                                   (открыть tmux session)"
