@@ -27,6 +27,7 @@ have(){ command -v "$1" >/dev/null 2>&1; }
 log "§0 environment"
 [ "$(uname -s)" = "Linux" ] || { warn "not Linux — this is the SERVER bootstrap"; exit 1; }
 export DEBIAN_FRONTEND=noninteractive
+SUDO=$([ "$(id -u)" -eq 0 ] && echo "" || echo sudo)   # server runs as root → sudo is a no-op
 : "${PROKECTFILES_ROOT:=$HOME/Desktop/Prokectfiles}"   # keep same layout as Mac
 ENVFILE="$HOME/dotfiles/shell/00-server-env.local.zsh"   # gitignored, server-only
 ok "HOME=$HOME  PROKECTFILES_ROOT=$PROKECTFILES_ROOT"
@@ -34,20 +35,20 @@ ok "HOME=$HOME  PROKECTFILES_ROOT=$PROKECTFILES_ROOT"
 # ─── §1 apt toolchain ───
 log "§1 apt toolchain"
 APT_PKGS="zsh direnv ripgrep fd-find bat fzf build-essential unzip jq"
-sudo apt-get update -qq && sudo apt-get install -y -qq $APT_PKGS && ok "apt: $APT_PKGS" || warn "apt install partial"
+$SUDO apt-get update -qq && $SUDO apt-get install -y -qq $APT_PKGS && ok "apt: $APT_PKGS" || warn "apt install partial"
 have fd || { [ -e /usr/bin/fdfind ] && ln -sf /usr/bin/fdfind "$HOME/bin/fd" 2>/dev/null; }
 have bat || { [ -e /usr/bin/batcat ] && ln -sf /usr/bin/batcat "$HOME/bin/bat" 2>/dev/null; }
 
 # ─── §2 non-apt installs (each guarded) ───
 log "§2 toolchain (go / uv / node / op / gh / claude / codex)"
-have go    || { curl -fsSL https://go.dev/dl/go1.24.2.linux-amd64.tar.gz | sudo tar -C /usr/local -xz && ok "go"; }
+have go    || { curl -fsSL https://go.dev/dl/go1.24.2.linux-amd64.tar.gz | $SUDO tar -C /usr/local -xz && ok "go"; }
 have uv    || { curl -fsSL https://astral.sh/uv/install.sh | sh && ok "uv"; }
-have node  || { curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - && sudo apt-get install -y -qq nodejs && ok "node"; }
+have node  || { curl -fsSL https://deb.nodesource.com/setup_lts.x | $SUDO bash - && $SUDO apt-get install -y -qq nodejs && ok "node"; }
 have corepack && corepack enable 2>/dev/null
 have op    || warn "1Password CLI (op) missing — install from https://1password.com/downloads/command-line/ (needed for secrets)"
-have gh    || { (type apt-get >/dev/null && sudo apt-get install -y -qq gh) || warn "gh: add cli.github.com apt repo"; }
+have gh    || { (type apt-get >/dev/null && $SUDO apt-get install -y -qq gh) || warn "gh: add cli.github.com apt repo"; }
 have glab  || warn "glab missing — install .deb from gitlab-org/cli if you use GitLab MRs"
-have claude || { curl -fsSL https://claude.ai/install.sh | bash && ok "claude"; }
+have claude || { ct=$(mktemp); if curl -fsSL https://claude.ai/install.sh -o "$ct" 2>/dev/null && head -1 "$ct" | grep -q '^#!'; then bash "$ct" && ok "claude"; else warn "claude install blocked (region/geo — got non-script HTML). Server egress must go via an allowed region (VPN). Deferred."; fi; rm -f "$ct"; }
 have codex || { npm i -g @openai/codex 2>/dev/null && ok "codex"; }
 have oracle || { npm i -g @steipete/oracle 2>/dev/null && ok "oracle"; }
 
