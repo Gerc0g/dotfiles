@@ -174,3 +174,51 @@ Acceptance criteria:
 - Bootstrap prints manual steps only for things that cannot be automated safely, such as browser login or 1Password approval.
 - Re-running bootstrap is idempotent and does not overwrite user-local secrets.
 
+
+## Aider-style: коммит на каждую правку (для dotfiles/агентов)
+
+Status: backlog (идея, 2026-06-22)
+
+Idea: перенять у Aider подход «каждое логическое изменение = отдельный git-коммит»
+— строго, автоматически, с осмысленным сообщением по диффу. Полезно: прозрачная
+история, лёгкий откат, аудит «что агент реально сделал». Сейчас у нас есть
+`AGENT_GIT_MODE=commit-local` + `scripts/agent-commit.sh`, но без авто-коммита на
+каждое изменение и без авто-генерации сообщения.
+
+Что изучить у Aider (прочитать код, заимствовать подход — НЕ зависимость):
+- как генерит commit-message из диффа;
+- когда именно коммитит (после каждой правки/файла), гранулярность;
+- `/undo` (откат последнего AI-коммита) и `--no-auto-commits` как опция;
+- работа прямо на git-дереве без песочницы.
+Repo: https://github.com/Aider-AI/aider · https://aider.chat/docs/git.html
+
+Goal: усилить `agent-commit.sh` / `commit-local` режим авто-коммитом-на-изменение
+с авто-сообщением, опциональным (флаг), с лёгким откатом. Сначала прочитать код
+Aider, затем интегрировать в наш флоу.
+
+## Гибрид Mac+сервер: агенты, инфра, синк (модель закреплена; детали — позже)
+
+Status: decided (модель) + research/todo (детали), 2026-06-23
+
+ЗАКРЕПЛЕНО (решение):
+- Гибрид: часть агентских сессий на Mac, часть на сервере gerc0g. Сервер слабый —
+  всю обвязку вынесем на мощный сервак позже; это промежуточный этап.
+- Worktree: на каждой машине свои (своя копия репо, своя ветка, уникальный id);
+  встречаются только в облаке (git remote). Flow дотфайлов НЕ ломается (git-native).
+- Инфра: ОДНА dev-stack, строго на сервере. Правило по контексту:
+  - агенты НА сервере → DEV_STACK_HOST=localhost
+  - агенты на Mac / др. устройствах → DEV_STACK_HOST=gerc0g (по tailnet)
+  Уже поддержано переменной `${DEV_STACK_HOST}`; нужно лишь `export DEV_STACK_HOST=localhost`
+  на сервере. `.envrc` проектов одинаков на обеих машинах — резолвится по-разному.
+- WikiPedik синкается через GIT push/pull, НЕ Mutagen/Syncthing. Mutagen — только для
+  «правлю код локально, исполняю на сервере», у нас не используется.
+
+НА ПОТОМ (разобрать/заресёрчить + внедрить):
+- Полный git-sync флоу: правила синхронизации по репозиториям и внутри проектов.
+- WikiPedik: автокоммит + PUSH (сейчас never-push, scripts/wikipedik-autocommit.sh) +
+  PULL на старте (cron / launch-hook). Политика конфликтов (append в _inbox.md обычно тривиален).
+- Опц.: имя БД с id worktree (`<product>__<repo>__<id>`), чтобы параллельные фичи на
+  Mac и сервере не делили данные общей dev-stack.
+- Кроны на pull (вольт/доки): частота, где вешать (launchd на Mac / systemd на сервере).
+Файлы-якоря: scripts/wikipedik-autocommit.sh, shell/60-devstack.zsh,
+docs/platform/local-infra.md, agent-profiles/BASELINE.md.
