@@ -177,7 +177,7 @@ URLS
     doctor)
       echo "dev-stack doctor @ $h   (manage: ssh ${DEV_STACK_SSH})"
       local target="$h"
-      if ! _devstack_is_local && ! nc -z -G2 "$h" 5432 >/dev/null 2>&1; then
+      if ! _devstack_is_local && ! nc -z -w2 "$h" 5432 >/dev/null 2>&1; then
         local ip; ip=$(_devstack_tailscale ip -4 "$h" 2>/dev/null | head -1)
         if [ -n "$ip" ]; then
           echo "  ⚠ '$h' не резолвится напрямую (DNS, вероятно, перехвачен Happ);"
@@ -192,7 +192,7 @@ URLS
       for probe in "postgres 5432" "redis 6379" "qdrant 6333" "clickhouse 8123" \
                    "minio 9000" "otel 4317" "grafana 3030" "langfuse 3001" "ollama 11434"; do
         name="${probe%% *}"; port="${probe##* }"
-        if nc -z -G2 "$target" "$port" >/dev/null 2>&1; then
+        if nc -z -w2 "$target" "$port" >/dev/null 2>&1; then
           echo "  ✓ $name ($port)"
         else
           echo "  ✗ $name ($port) UNREACHABLE"
