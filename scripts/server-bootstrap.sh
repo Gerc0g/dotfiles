@@ -29,6 +29,7 @@ log "§0 environment"
 export DEBIAN_FRONTEND=noninteractive
 SUDO=$([ "$(id -u)" -eq 0 ] && echo "" || echo sudo)   # server runs as root → sudo is a no-op
 : "${PROKECTFILES_ROOT:=$HOME/Desktop/Prokectfiles}"   # keep same layout as Mac
+export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/go/bin:$PATH"   # so have() finds installed tools on re-run
 ENVFILE="$HOME/dotfiles/shell/00-server-env.local.zsh"   # gitignored, server-only
 ok "HOME=$HOME  PROKECTFILES_ROOT=$PROKECTFILES_ROOT"
 
@@ -73,9 +74,28 @@ export DEV_STACK_HOST=localhost          # dev-stack runs HERE
 export PROKECTFILES_ROOT="$PROKECTFILES_ROOT"
 export CODEX_HOME="\$HOME/.codex-new"
 export CLAUDE_CONFIG_DIR="\$HOME/.claude-new"
+export PATH="\$HOME/.local/bin:\$HOME/bin:/usr/local/go/bin:\$PATH"
 [ -f "\$HOME/.config/op/service-account-token" ] && export OP_SERVICE_ACCOUNT_TOKEN="\$(cat \$HOME/.config/op/service-account-token)"
 EOF
-ok "wrote $ENVFILE"
+# Route ONLY the agents through the local VPN proxy (sing-box :1080) so geo-blocked
+# Anthropic/OpenAI become reachable; everything else (git/gh/apt/tailnet/dev-stack)
+# stays direct. Falls back to direct (with a warning) if the proxy is down.
+cat >> "$ENVFILE" <<'WRAP'
+
+export AGENT_PROXY="http://127.0.0.1:1080"
+export AGENT_NO_PROXY="localhost,127.0.0.1,::1,gerc0g,100.73.117.50,.local"
+_agent_via_proxy() {
+  if nc -z -w1 127.0.0.1 1080 2>/dev/null; then
+    HTTPS_PROXY="$AGENT_PROXY" HTTP_PROXY="$AGENT_PROXY" NO_PROXY="$AGENT_NO_PROXY" "$@"
+  else
+    echo "⚠ VPN-прокси (sing-box :1080) недоступен — '$2' идёт напрямую (geo-блок?). Проверь: systemctl status sing-box" >&2
+    "$@"
+  fi
+}
+claude() { _agent_via_proxy command claude "$@"; }
+codex()  { _agent_via_proxy command codex  "$@"; }
+WRAP
+ok "wrote $ENVFILE (incl. agent VPN-proxy wrappers)"
 grep -q 'dotfiles/shell/_loader.zsh' "$HOME/.zshrc" 2>/dev/null || { printf '\n[ -f ~/dotfiles/shell/_loader.zsh ] && source ~/dotfiles/shell/_loader.zsh\n' >> "$HOME/.zshrc"; ok "hooked loader into ~/.zshrc"; }
 [ "$(basename "${SHELL:-}")" = zsh ] || { chsh -s "$(command -v zsh)" 2>/dev/null && ok "default shell → zsh"; }
 
