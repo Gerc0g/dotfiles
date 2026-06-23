@@ -62,7 +62,7 @@ case "$repo_root" in
   "$HOME"/Desktop/Prokectfiles/*/*)
     company=${repo_root#"$HOME"/Desktop/Prokectfiles/}
     company=${company%%/*}
-    cfg="$HOME/Desktop/Prokectfiles/$company/.company-config"
+    cfg="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$company/.company-config"
     if [ -f "$cfg" ]; then
       expected_email=$(awk '/^git_email:/ {print $2; exit}' "$cfg")
     fi

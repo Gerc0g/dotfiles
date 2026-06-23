@@ -25,7 +25,7 @@ fi
 
 REPOS=("$@")
 
-WORK_ROOT="$HOME/Desktop/Prokectfiles"
+WORK_ROOT="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}"
 DIR="$WORK_ROOT/$CO"
 PDIR="$DIR/$PROD"
 TPL=~/dotfiles/templates

@@ -162,8 +162,18 @@ _company_launch() {
 }
 
 # Register a command per company found on disk (neurodesk, chimera, ...).
-for _co_dir in "$HOME/Desktop/Prokectfiles"/*/.company-config(N); do
+for _co_dir in "${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}"/*/.company-config(N); do
   _co_name=${_co_dir:h:t}
   functions[$_co_name]="_company_launch ${(q)_co_name} \"\$@\""
 done
 unset _co_dir _co_name
+
+# Platform repo: open ~/dotfiles itself in the standard 4-pane layout
+# (plan / code / test / oracle), like any product — but on the LIVE checkout,
+# not a managed worktree. dotfiles must stay live (shell + configs load from
+# ~/dotfiles), so an isolated worktree elsewhere would not take effect.
+# commit-local still applies: agents commit each logical change locally.
+dotfiles() {
+  _launch_session_path "dotfiles" "$HOME/dotfiles" "🛠 dotfiles"
+}
+alias dots='dotfiles'

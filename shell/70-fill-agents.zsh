@@ -27,8 +27,8 @@ fill-agents-md() {
   local target
   case $# in
     0) target="$PWD" ;;
-    2) target="$HOME/Desktop/Prokectfiles/$1/$2" ;;
-    3) target="$HOME/Desktop/Prokectfiles/$1/$2/$3" ;;
+    2) target="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$1/$2" ;;
+    3) target="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$1/$2/$3" ;;
     *) echo "Usage: fill-agents-md [<co> <prod>] | [<co> <prod> <repo>]"; return 1 ;;
   esac
 
@@ -83,7 +83,7 @@ batch-fill-agents() {
     esac
   done
 
-  local base=$HOME/Desktop/Prokectfiles
+  local base=${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}
   case ${#args[@]} in
     0)
       # current dir = product

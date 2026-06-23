@@ -42,7 +42,7 @@ _wiki_scope_company() {
 _wiki_company_config_value() {
   local co=$1
   local key=$2
-  local cfg="$HOME/Desktop/Prokectfiles/$co/.company-config"
+  local cfg="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$co/.company-config"
 
   [ -f "$cfg" ] || return 0
   awk -F':[[:space:]]*' -v key="$key" '$1 == key { print $2; exit }' "$cfg"

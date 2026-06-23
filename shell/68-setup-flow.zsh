@@ -31,7 +31,7 @@
 
 _setup_load_company_vars() {
   local co=$1
-  local cfg="$HOME/Desktop/Prokectfiles/$co/.company-config"
+  local cfg="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$co/.company-config"
   [ -f "$cfg" ] || { echo "⚠ Missing $cfg"; return 1; }
 
   export CO="$co"
@@ -50,7 +50,7 @@ _setup_regen_company() {
   _setup_load_company_vars "$co" || return 1
   envsubst '$CO $CO_TITLE $VCS $HOST $NS $SSH_HOST $VAULT $EMAIL' \
     < ~/dotfiles/templates/AGENTS.md.company.tmpl \
-    > "$HOME/Desktop/Prokectfiles/$co/AGENTS.md"
+    > "${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$co/AGENTS.md"
   echo "  ✓ $co/AGENTS.md"
 }
 
@@ -58,7 +58,7 @@ _setup_regen_product() {
   local co=$1 prod=$2
   CO="$co" PROD="$prod" envsubst '$CO $PROD' \
     < ~/dotfiles/templates/AGENTS.md.product.tmpl \
-    > "$HOME/Desktop/Prokectfiles/$co/$prod/AGENTS.md"
+    > "${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$co/$prod/AGENTS.md"
   echo "  ✓ $co/$prod/AGENTS.md"
 }
 
@@ -66,14 +66,14 @@ _setup_regen_repo() {
   local co=$1 prod=$2 repo=$3
   CO="$co" PROD="$prod" REPO="$repo" envsubst '$CO $PROD $REPO' \
     < ~/dotfiles/templates/AGENTS.md.repo.tmpl \
-    > "$HOME/Desktop/Prokectfiles/$co/$prod/$repo/AGENTS.md"
+    > "${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$co/$prod/$repo/AGENTS.md"
   echo "  ✓ $co/$prod/$repo/AGENTS.md"
 }
 
 _setup_iter_products() {
   # echo all products (subdirs with .product-config) for given company
   local co=$1
-  for d in "$HOME/Desktop/Prokectfiles/$co"/*/; do
+  for d in "${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$co"/*/; do
     [ -f "$d/.product-config" ] && basename "$d"
   done
 }
@@ -81,7 +81,7 @@ _setup_iter_products() {
 _setup_iter_repos() {
   # echo all repos (subdirs with .git) for given company/product
   local co=$1 prod=$2
-  for d in "$HOME/Desktop/Prokectfiles/$co/$prod"/*/; do
+  for d in "${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$co/$prod"/*/; do
     [ -d "$d/.git" ] && basename "$d"
   done
 }
@@ -92,7 +92,7 @@ _setup_iter_repos() {
 
 refresh-templates() {
   local co=$1 prod=$2 repo=$3
-  local base=$HOME/Desktop/Prokectfiles
+  local base=${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}
 
   if [ -z "$co" ]; then
     echo "Usage: refresh-templates <co> [<prod>] [<repo>]"
@@ -156,7 +156,7 @@ refresh-templates() {
 
 setup-context() {
   local co=$1 prod=$2 repo=$3
-  local base=$HOME/Desktop/Prokectfiles
+  local base=${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}
 
   if [ -z "$co" ]; then
     echo "Usage: setup-context <co> [<prod>] [<repo>]"
@@ -295,7 +295,7 @@ setup-context() {
 
 complete-onboard() {
   local co=$1 prod=$2 repo=$3
-  local base=$HOME/Desktop/Prokectfiles
+  local base=${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}
 
   if [ -z "$co" ]; then
     echo "Usage: complete-onboard <co> [<prod>] [<repo>]"

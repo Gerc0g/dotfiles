@@ -51,7 +51,7 @@ _launch_pick() {
 }
 
 _launch_list_companies() {
-  local base=$HOME/Desktop/Prokectfiles
+  local base=${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}
   for d in "$base"/*/; do
     [ -f "$d/.company-config" ] && basename "$d"
   done
@@ -59,7 +59,7 @@ _launch_list_companies() {
 
 _launch_list_products() {
   local co=$1
-  local base=$HOME/Desktop/Prokectfiles
+  local base=${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}
   for d in "$base/$co"/*/; do
     [ -f "$d/.product-config" ] && basename "$d"
   done
@@ -67,7 +67,7 @@ _launch_list_products() {
 
 _launch_list_repos() {
   local co=$1 prod=$2
-  local base=$HOME/Desktop/Prokectfiles
+  local base=${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}
   for d in "$base/$co/$prod"/*/; do
     [ -d "$d/.git" ] && basename "$d"
   done
@@ -209,7 +209,7 @@ launch() {
 
 _launch_session() {
   local co=$1 prod=$2 repo=$3
-  local repo_dir="$HOME/Desktop/Prokectfiles/$co/$prod/$repo"
+  local repo_dir="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$co/$prod/$repo"
 
   [ -d "$repo_dir" ] || { echo "⚠ Not found: $repo_dir"; return 1; }
   [ -d "$repo_dir/.git" ] || { echo "⚠ Not a git repo: $repo_dir"; return 1; }
@@ -243,7 +243,7 @@ _launch_memory_status() {
     age_note="hot.md ещё не собирался"
   else
     local then_s now_s days
-    then_s=$(date -j -f '%Y-%m-%d' "$stamp" +%s 2>/dev/null || echo 0)
+    then_s=$(date -j -f '%Y-%m-%d' "$stamp" +%s 2>/dev/null || date -d "$stamp" +%s 2>/dev/null || echo 0)
     now_s=$(date +%s)
     if [ "$then_s" -gt 0 ]; then
       days=$(( (now_s - then_s) / 86400 ))
@@ -269,7 +269,7 @@ _launch_memory_status() {
         local lint_date lint_s lint_now
         lint_date=$(print -r -- "$lint_line" | grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' | head -1)
         if [ -n "$lint_date" ]; then
-          lint_s=$(date -j -f '%Y-%m-%d' "$lint_date" +%s 2>/dev/null || echo 0)
+          lint_s=$(date -j -f '%Y-%m-%d' "$lint_date" +%s 2>/dev/null || date -d "$lint_date" +%s 2>/dev/null || echo 0)
           lint_now=$(date +%s)
           [ "$lint_s" -gt 0 ] && [ $(( (lint_now - lint_s) / 86400 )) -gt 30 ] && \
             echo "ℹ wiki lint: последний $lint_date (>30 дн.) — пора wiki lint"
@@ -280,7 +280,7 @@ _launch_memory_status() {
 
   local manifest="$HOME/Desktop/WikiPedik/dev/10-wiki/sources/sessions/.ingest-manifest.json" ingest_s ingest_days
   if [ -f "$manifest" ]; then
-    ingest_s=$(stat -f %m "$manifest" 2>/dev/null || echo 0)
+    ingest_s=$(stat -f %m "$manifest" 2>/dev/null || stat -c %Y "$manifest" 2>/dev/null || echo 0)
     if [ "$ingest_s" -gt 0 ]; then
       ingest_days=$(( ($(date +%s) - ingest_s) / 86400 ))
       [ "$ingest_days" -ge 14 ] && \

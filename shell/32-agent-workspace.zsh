@@ -24,7 +24,7 @@ agent-workspace() {
       if [ $# -eq 1 ]; then
         wt=$1
       else
-        wt="$HOME/Desktop/Prokectfiles/.worktrees/$1/$2/$3/$4"
+        wt="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/.worktrees/$1/$2/$3/$4"
       fi
       [ -f "$wt/.agent-workspace" ] || { echo "⚠ not a managed worktree: $wt"; return 1; }
       local co prod repo id session label
@@ -44,7 +44,7 @@ agent-workspace() {
       # products and repos without any per-project config.
       shift
       local only_co=${1:-}
-      local wtroot="$HOME/Desktop/Prokectfiles/.worktrees"
+      local wtroot="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/.worktrees"
       local gitf wt rel co prod repo id session opened=0 skipped=0
       # (N.) = nullglob + regular files only: a git worktree has .git as a FILE
       # ("gitdir: …"); a nested clone/submodule has .git as a directory — skip it.

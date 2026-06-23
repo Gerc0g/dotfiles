@@ -25,7 +25,7 @@
 
 agents-status() {
   local co_filter="$1"
-  local base=$HOME/Desktop/Prokectfiles
+  local base=${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}
 
   echo "═══════════════════════════════════════════════════"
   echo " Agent Analysis Status  ($(date '+%H:%M:%S'))"
@@ -67,8 +67,8 @@ agents-status() {
     latest=$(ls -t ~/dotfiles/logs/batch-setup-*.log 2>/dev/null | head -1)
   fi
   if [ -n "$latest" ]; then
-    local log_size=$(stat -f '%z' "$latest" 2>/dev/null | awk '{printf "%.1fk", $1/1024}')
-    local log_age=$(stat -f '%Sm' -t '%H:%M:%S' "$latest" 2>/dev/null)
+    local log_size=$({ stat -f '%z' "$latest" 2>/dev/null || stat -c %s "$latest" 2>/dev/null; } | awk '{printf "%.1fk", $1/1024}')
+    local log_age=$(stat -f '%Sm' -t '%H:%M:%S' "$latest" 2>/dev/null || date -d "@$(stat -c %Y "$latest" 2>/dev/null)" +%H:%M:%S 2>/dev/null)
     echo "  $(basename $latest)  [$log_size, modified $log_age]"
     echo ""
     echo "  Last 8 lines:"
@@ -208,7 +208,7 @@ agents-sessions() {
 
           [ -n "$co_filter" ] && [[ "$cwd" != *"/$co_filter"* ]] && continue
 
-          rel="${cwd#$HOME/Desktop/Prokectfiles/}"
+          rel="${cwd#${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/}"
           prod="${rel%/*}"   # everything except last component
           repo="${rel##*/}"  # last component
 

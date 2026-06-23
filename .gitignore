@@ -21,3 +21,6 @@ tools/oracle-tui/oracle-tui
 tools/wiki-tui/wiki-tui
 tools/test-tui/test-tui
 tools/status-tui/status-tui
+
+# server-only shell env (not synced to Mac)
+shell/*.local.zsh

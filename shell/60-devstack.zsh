@@ -70,7 +70,7 @@ _devstack_ctx() {
   if [ -n "$1" ] && [ -n "$2" ]; then
     prod="$1"; repo="$2"
   else
-    local base="$HOME/Desktop/Prokectfiles" rel
+    local base="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}" rel
     case "$PWD" in
       "$base"/*) rel="${PWD#$base/}" ;;
       *) echo "⚠ not under $base — pass <product> <repo>" >&2; return 1 ;;

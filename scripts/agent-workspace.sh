@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-BASE="$HOME/Desktop/Prokectfiles"
+BASE="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}"
 WORKTREES="$BASE/.worktrees"
 VAULT_PROJECTS="$HOME/Desktop/WikiPedik/dev/20-projects"
 
@@ -461,7 +461,7 @@ stale_workspaces() {
     tmux has-session -t "$session" 2>/dev/null && continue
 
     last_ts=$(git -C "$wt" log -1 --format=%ct 2>/dev/null || echo 0)
-    [ "$last_ts" -gt 0 ] || last_ts=$(stat -f %m "$meta" 2>/dev/null || echo "$now")
+    [ "$last_ts" -gt 0 ] || last_ts=$(stat -f %m "$meta" 2>/dev/null || stat -c %Y "$meta" 2>/dev/null || echo "$now")
     idle=$(( (now - last_ts) / 86400 ))
     [ "$idle" -ge "$days" ] || continue
 

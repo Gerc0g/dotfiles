@@ -32,7 +32,7 @@ batch-setup() {
   local target
   case ${#args[@]} in
     0) target="$PWD" ;;
-    2) target="$HOME/Desktop/Prokectfiles/${args[1]}/${args[2]}" ;;
+    2) target="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/${args[1]}/${args[2]}" ;;
     *) echo "Usage: batch-setup [--auto] [--model M] [--reasoning R] [<company> <product>]"; return 1 ;;
   esac
 

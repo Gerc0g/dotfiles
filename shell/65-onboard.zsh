@@ -20,9 +20,9 @@ onboard() {
 
   case $# in
     0) target="$PWD" ;;
-    1) target="$HOME/Desktop/Prokectfiles/$1" ;;
-    2) target="$HOME/Desktop/Prokectfiles/$1/$2" ;;
-    3) target="$HOME/Desktop/Prokectfiles/$1/$2/$3" ;;
+    1) target="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$1" ;;
+    2) target="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$1/$2" ;;
+    3) target="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$1/$2/$3" ;;
     *) echo "Usage: onboard [company] [product] [repo]"; return 1 ;;
   esac
 

@@ -15,7 +15,7 @@ USAGE
 fi
 
 CO="$1"; VCS_FULL="$2"; NS="$3"; EMAIL="${4:-}"
-WORK_ROOT="$HOME/Desktop/Prokectfiles"
+WORK_ROOT="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}"
 DIR="$WORK_ROOT/$CO"
 TPL=~/dotfiles/templates
 

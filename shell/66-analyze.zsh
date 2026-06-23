@@ -24,7 +24,7 @@ analyze-product() {
   local target
   case $# in
     0) target="$PWD" ;;
-    2) target="$HOME/Desktop/Prokectfiles/$1/$2" ;;
+    2) target="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$1/$2" ;;
     *) echo "Usage: analyze-product [<company> <product>]"; return 1 ;;
   esac
 
@@ -57,7 +57,7 @@ analyze-repo() {
   local target
   case $# in
     0) target="$PWD" ;;
-    3) target="$HOME/Desktop/Prokectfiles/$1/$2/$3" ;;
+    3) target="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/$1/$2/$3" ;;
     *) echo "Usage: analyze-repo [<company> <product> <repo>]"; return 1 ;;
   esac
 

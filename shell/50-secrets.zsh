@@ -99,7 +99,7 @@ _secret_var_name() {
 
 _secret_find_company_dir() {
   local explicit_company="${1:-}"
-  local base="$HOME/Desktop/Prokectfiles"
+  local base="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}"
   local dir="$PWD"
 
   if [ -n "$explicit_company" ]; then
@@ -118,7 +118,7 @@ _secret_find_company_dir() {
 
 _secret_load_context() {
   local explicit_company="${1:-}"
-  local base="$HOME/Desktop/Prokectfiles"
+  local base="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}"
   local git_root meta dir
 
   SECRET_COMPANY=""
