@@ -40,9 +40,9 @@ EOF
 }
 
 # Build (idempotently) a detached 4-pane AGENT panel on the server — like `launch`:
-#   🧠 plan·codex   💻 code·claude   🧪 test   🔮 oracle  (tiled 2x2, orange SERVER marker)
-# Agents run via the server shell wrappers (claude/codex functions) so they go
-# through the VPN proxy. Workspace: ~/agents/<name> (git-init'd scratch repo).
+#   🧠 plan·codex   💻 code·claude   🧪 test   🔮 oracle  (2x2, orange SERVER marker)
+# codex/claude go through the VPN proxy via shell wrappers; oracle inherits the
+# proxy from the session env. Workspace: ~/agents/<name> (git-init'd scratch repo).
 _srv_panel() {
   local name="$1" dir="${2:-}"
   ssh "${_SRV_SSH_OPTS[@]}" "$SERVER_SSH" 'bash -s' "$name" "$dir" <<'REMOTE'
@@ -50,10 +50,15 @@ set -e
 S="$1"; D="${2:-$HOME/agents/$1}"
 tmux has-session -t "$S" 2>/dev/null && exit 0
 mkdir -p "$D"; [ -d "$D/.git" ] || ( cd "$D" && git init -q )
-# Proxy for ALL agents in the panes (codex/claude/oracle are node → NODE_USE_ENV_PROXY);
-# git/tailnet/dev-stack bypass via NO_PROXY so only agent traffic uses the VPN.
-PX='export HTTPS_PROXY=http://127.0.0.1:1080 HTTP_PROXY=http://127.0.0.1:1080 ALL_PROXY=http://127.0.0.1:1080 NODE_USE_ENV_PROXY=1 NO_PROXY=localhost,127.0.0.1,::1,gerc0g,100.73.117.50,github.com,nrdsk.gitlab.yandexcloud.net,.local'
 P=$(tmux new-session -d -s "$S" -c "$D" -n work -P -F '#{pane_id}')
+# Proxy via SESSION env → inherited by panes (NO visible export lines). Only agent
+# traffic uses the VPN; git/tailnet/dev-stack bypass via NO_PROXY. Node CLIs need
+# NODE_USE_ENV_PROXY=1. (Pane P starts before this and relies on its codex wrapper.)
+tmux set-environment -t "$S" HTTPS_PROXY http://127.0.0.1:1080
+tmux set-environment -t "$S" HTTP_PROXY http://127.0.0.1:1080
+tmux set-environment -t "$S" ALL_PROXY http://127.0.0.1:1080
+tmux set-environment -t "$S" NODE_USE_ENV_PROXY 1
+tmux set-environment -t "$S" NO_PROXY localhost,127.0.0.1,::1,gerc0g,100.73.117.50,github.com,nrdsk.gitlab.yandexcloud.net,.local
 tmux set-option -t "$S" status-style 'bg=colour166,fg=colour231,bold'
 tmux set-option -t "$S" status-left " 🖧 SERVER · $S "
 tmux set-option -t "$S" status-left-length 44
@@ -68,10 +73,10 @@ tmux set-option -p -t "$P" @role '🧠 plan · codex'
 tmux set-option -p -t "$C" @role '💻 code · claude'
 tmux set-option -p -t "$T" @role '🧪 test'
 tmux set-option -p -t "$O" @role '🔮 oracle'
-tmux send-keys -t "$P" "$PX; codex" Enter
-tmux send-keys -t "$C" "$PX; claude" Enter
-tmux send-keys -t "$O" "$PX; bash \"\$HOME/dotfiles/scripts/oracle-loop.sh\" \"$D\"" Enter
-tmux send-keys -t "$T" "$PX; echo 'test: авто test-watcher появится при launch на репе с тестами'" Enter
+tmux send-keys -t "$P" 'codex' Enter
+tmux send-keys -t "$C" 'claude' Enter
+tmux send-keys -t "$O" "bash \"\$HOME/dotfiles/scripts/oracle-loop.sh\" \"$D\"" Enter
+tmux send-keys -t "$T" "clear; echo 'test · авто test-watcher появится при launch на репе с тестами'" Enter
 tmux select-pane -t "$P"
 REMOTE
 }
