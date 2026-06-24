@@ -86,7 +86,9 @@ export AGENT_PROXY="http://127.0.0.1:1080"
 export AGENT_NO_PROXY="localhost,127.0.0.1,::1,gerc0g,100.73.117.50,.local"
 _agent_via_proxy() {
   if nc -z -w1 127.0.0.1 1080 2>/dev/null; then
-    HTTPS_PROXY="$AGENT_PROXY" HTTP_PROXY="$AGENT_PROXY" NO_PROXY="$AGENT_NO_PROXY" "$@"
+    # NODE_USE_ENV_PROXY=1: Node 24 honors HTTPS_PROXY for fetch/undici only with this
+    # (codex/claude are node CLIs and otherwise bypass the proxy → geo-block).
+    HTTPS_PROXY="$AGENT_PROXY" HTTP_PROXY="$AGENT_PROXY" ALL_PROXY="$AGENT_PROXY" NO_PROXY="$AGENT_NO_PROXY" NODE_USE_ENV_PROXY=1 "$@"
   else
     echo "⚠ VPN-прокси (sing-box :1080) недоступен — '$2' идёт напрямую (geo-блок?). Проверь: systemctl status sing-box" >&2
     "$@"
