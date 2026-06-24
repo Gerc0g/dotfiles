@@ -39,18 +39,44 @@ EOF
   return 1
 }
 
-# Idempotently create a detached server tmux session with the SERVER marker.
-_srv_create() {
-  local name="$1" dir="${2:-\$HOME}"
-  ssh "${_SRV_SSH_OPTS[@]}" "$SERVER_SSH" "tmux has-session -t '$name' 2>/dev/null || tmux new-session -d -s '$name' -c \"$dir\"; tmux set-option -t '$name' status-style 'bg=colour166,fg=colour231,bold'; tmux set-option -t '$name' status-left ' 🖧 SERVER · $name '; tmux set-option -t '$name' status-left-length 40"
+# Build (idempotently) a detached 4-pane AGENT panel on the server — like `launch`:
+#   🧠 plan·codex   💻 code·claude   🧪 test   🔮 oracle  (tiled 2x2, orange SERVER marker)
+# Agents run via the server shell wrappers (claude/codex functions) so they go
+# through the VPN proxy. Workspace: ~/agents/<name> (git-init'd scratch repo).
+_srv_panel() {
+  local name="$1" dir="${2:-}"
+  ssh "${_SRV_SSH_OPTS[@]}" "$SERVER_SSH" 'bash -s' "$name" "$dir" <<'REMOTE'
+set -e
+S="$1"; D="${2:-$HOME/agents/$1}"
+tmux has-session -t "$S" 2>/dev/null && exit 0
+mkdir -p "$D"; [ -d "$D/.git" ] || ( cd "$D" && git init -q )
+P=$(tmux new-session -d -s "$S" -c "$D" -n work -P -F '#{pane_id}')
+tmux set-option -t "$S" status-style 'bg=colour166,fg=colour231,bold'
+tmux set-option -t "$S" status-left " 🖧 SERVER · $S "
+tmux set-option -t "$S" status-left-length 44
+tmux set-window-option -t "$S:work" pane-border-status top
+tmux set-window-option -t "$S:work" pane-border-format ' #{pane_title} '
+C=$(tmux split-window -h -t "$P" -c "$D" -P -F '#{pane_id}')
+T=$(tmux split-window -v -t "$P" -c "$D" -P -F '#{pane_id}')
+O=$(tmux split-window -v -t "$C" -c "$D" -P -F '#{pane_id}')
+tmux select-layout -t "$S:work" tiled
+tmux select-pane -t "$P" -T '🧠 plan · codex'
+tmux select-pane -t "$C" -T '💻 code · claude'
+tmux select-pane -t "$T" -T '🧪 test'
+tmux select-pane -t "$O" -T '🔮 oracle'
+# agents via shell wrappers (→ VPN proxy). test/oracle = ready shells.
+tmux send-keys -t "$P" 'codex' Enter
+tmux send-keys -t "$C" 'claude' Enter
+tmux select-pane -t "$P"
+REMOTE
 }
 
 # Server session + mirror it here (attach). Survives disconnect.
 slaunch() {
   [ -z "$1" ] && { echo 'Usage: slaunch <name> [dir]'; return 1; }
   _srv_preflight || return 1
-  _srv_create "$1" "${2:-}" || { echo "⚠ не удалось создать серверную сессию"; return 1; }
-  echo "🖧 server session '$1' @ $SERVER_SSH — подключаюсь (Ctrl-b d = detach, сессия продолжит жить)"
+  _srv_panel "$1" "${2:-}" || { echo "⚠ не удалось создать серверную панель"; return 1; }
+  echo "🖧 server agent panel '$1' @ $SERVER_SSH — подключаюсь (Ctrl-b d = detach, панель живёт на сервере)"
   ssh "${_SRV_SSH_OPTS[@]}" -t "$SERVER_SSH" "TERM=xterm-256color tmux attach -t '$1'"
 }
 
@@ -58,9 +84,9 @@ slaunch() {
 mlaunch() {
   [ -z "$1" ] && { echo 'Usage: mlaunch <name> [dir]'; return 1; }
   _srv_preflight || return 1
-  _srv_create "$1" "${2:-}" || { echo "⚠ не удалось создать серверную сессию"; return 1; }
+  _srv_panel "$1" "${2:-}" || { echo "⚠ не удалось создать серверную панель"; return 1; }
   cat <<EOF
-🖧 Серверная сессия '$1' поднята на $SERVER_SSH (detached; на экран Mac НЕ зеркалится).
+🖧 Серверная агентская панель '$1' поднята на $SERVER_SSH (detached; на экран Mac НЕ зеркалится).
 Зайти с телефона:
   1) Blink Shell (или любой ssh-клиент) + включённый Tailscale
   2) ssh $SERVER_SSH
