@@ -113,13 +113,17 @@ mlaunch() {
   [ -z "$1" ] && { echo 'Usage: mlaunch <name> [dir]'; return 1; }
   _srv_preflight || return 1
   _srv_panel "$1" "${2:-}" || { echo "⚠ не удалось создать серверную панель"; return 1; }
+  local ip; ip=$(ssh "${_SRV_SSH_OPTS[@]}" "$SERVER_SSH" 'tailscale ip -4 2>/dev/null | head -1' 2>/dev/null)
+  [ -z "$ip" ] && ip=100.73.117.50
   cat <<EOF
-🖧 Серверная агентская панель '$1' поднята на $SERVER_SSH (detached; на экран Mac НЕ зеркалится).
-Зайти с телефона:
-  1) Blink Shell (или любой ssh-клиент) + включённый Tailscale
-  2) ssh $SERVER_SSH
-  3) tmux attach -t $1
-С этого Mac позже:  srv-attach $1
+🖧 Серверная панель '$1' поднята на $SERVER_SSH (detached; на Mac НЕ зеркалится).
+
+С ТЕЛЕФОНА (Tailscale включён на телефоне):
+  ssh-клиент:   iOS → Blink Shell · Android → Termux
+  подключиться: mosh root@$ip       (или ssh root@$ip — если без mosh)
+  открыть панель: tmux attach -t $1
+  на телефоне:  Ctrl-b z = развернуть одну панель на весь экран · тап = переключить
+С этого Mac:    srv-attach $1
 EOF
 }
 

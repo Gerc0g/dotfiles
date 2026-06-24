@@ -35,7 +35,7 @@ ok "HOME=$HOME  PROKECTFILES_ROOT=$PROKECTFILES_ROOT"
 
 # ─── §1 apt toolchain ───
 log "§1 apt toolchain"
-APT_PKGS="zsh direnv ripgrep fd-find bat fzf build-essential unzip jq"
+APT_PKGS="zsh direnv ripgrep fd-find bat fzf build-essential unzip jq mosh"
 $SUDO apt-get update -qq && $SUDO apt-get install -y -qq $APT_PKGS && ok "apt: $APT_PKGS" || warn "apt install partial"
 have fd || { [ -e /usr/bin/fdfind ] && ln -sf /usr/bin/fdfind "$HOME/bin/fd" 2>/dev/null; }
 have bat || { [ -e /usr/bin/batcat ] && ln -sf /usr/bin/batcat "$HOME/bin/bat" 2>/dev/null; }
