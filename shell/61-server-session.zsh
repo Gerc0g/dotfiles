@@ -76,7 +76,25 @@ tmux set-option -p -t "$O" @role '🔮 oracle'
 tmux send-keys -t "$P" 'codex' Enter
 tmux send-keys -t "$C" 'claude' Enter
 tmux send-keys -t "$O" "bash \"\$HOME/dotfiles/scripts/oracle-loop.sh\" \"$D\"" Enter
-tmux send-keys -t "$T" "clear; echo 'test · авто test-watcher появится при launch на репе с тестами'" Enter
+# test pane: auto-detect the test command from the repo, like real `launch`.
+set +e
+TCMD=""
+if [ -f "$D/Makefile" ]; then
+  grep -qE '^test-watch:' "$D/Makefile" && TCMD="make test-watch"
+  [ -z "$TCMD" ] && grep -qE '^test:' "$D/Makefile" && TCMD="make test"
+fi
+if [ -z "$TCMD" ] && [ -f "$D/package.json" ]; then
+  grep -q '"test:watch"' "$D/package.json" && TCMD="npm run test:watch"
+  [ -z "$TCMD" ] && grep -q '"test"' "$D/package.json" && TCMD="npm test"
+fi
+[ -z "$TCMD" ] && [ -f "$D/go.mod" ] && TCMD="go test ./..."
+[ -z "$TCMD" ] && { [ -f "$D/pyproject.toml" ] || [ -f "$D/setup.py" ]; } && TCMD="uv run pytest -v --tb=short"
+set -e
+if [ -n "$TCMD" ]; then
+  tmux send-keys -t "$T" "$TCMD" Enter
+else
+  tmux send-keys -t "$T" "clear; echo 'test · нет Makefile/tests в этом demo-каталоге — на реальной репе тут запустится make/npm/go/pytest'" Enter
+fi
 tmux select-pane -t "$P"
 REMOTE
 }

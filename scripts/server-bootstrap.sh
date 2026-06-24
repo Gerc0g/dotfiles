@@ -65,6 +65,7 @@ link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.codex-new/AGENT
 link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.codex-setup/AGENTS.md"
 link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.claude-new/CLAUDE.md"
 link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.claude-setup/CLAUDE.md"
+ln -sf "$HOME/dotfiles/tmux/tmux.conf" "$HOME/.tmux.conf" && ok "link ~/.tmux.conf (mouse on, pane switching)"
 
 # ─── §5 server env file + zshrc loader + default shell ───
 log "§5 shell env"
