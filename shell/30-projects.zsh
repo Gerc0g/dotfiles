@@ -177,3 +177,11 @@ dotfiles() {
   _launch_session_path "dotfiles" "$HOME/dotfiles" "🛠 dotfiles"
 }
 alias dots='dotfiles'
+
+bastion() {
+  case $# in
+    0) launch "chimera" "bastion" "Bastion" ;;
+    1) launch "chimera" "bastion" "$1" ;;
+    *) echo "Usage: bastion [<repo>]"; return 1 ;;
+  esac
+}
