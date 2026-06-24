@@ -50,23 +50,28 @@ set -e
 S="$1"; D="${2:-$HOME/agents/$1}"
 tmux has-session -t "$S" 2>/dev/null && exit 0
 mkdir -p "$D"; [ -d "$D/.git" ] || ( cd "$D" && git init -q )
+# Proxy for ALL agents in the panes (codex/claude/oracle are node → NODE_USE_ENV_PROXY);
+# git/tailnet/dev-stack bypass via NO_PROXY so only agent traffic uses the VPN.
+PX='export HTTPS_PROXY=http://127.0.0.1:1080 HTTP_PROXY=http://127.0.0.1:1080 ALL_PROXY=http://127.0.0.1:1080 NODE_USE_ENV_PROXY=1 NO_PROXY=localhost,127.0.0.1,::1,gerc0g,100.73.117.50,github.com,nrdsk.gitlab.yandexcloud.net,.local'
 P=$(tmux new-session -d -s "$S" -c "$D" -n work -P -F '#{pane_id}')
 tmux set-option -t "$S" status-style 'bg=colour166,fg=colour231,bold'
 tmux set-option -t "$S" status-left " 🖧 SERVER · $S "
 tmux set-option -t "$S" status-left-length 44
 tmux set-window-option -t "$S:work" pane-border-status top
-tmux set-window-option -t "$S:work" pane-border-format ' #{pane_title} '
+tmux set-window-option -t "$S:work" pane-border-format ' #{@role} '
 C=$(tmux split-window -h -t "$P" -c "$D" -P -F '#{pane_id}')
 T=$(tmux split-window -v -t "$P" -c "$D" -P -F '#{pane_id}')
 O=$(tmux split-window -v -t "$C" -c "$D" -P -F '#{pane_id}')
-tmux select-layout -t "$S:work" tiled
-tmux select-pane -t "$P" -T '🧠 plan · codex'
-tmux select-pane -t "$C" -T '💻 code · claude'
-tmux select-pane -t "$T" -T '🧪 test'
-tmux select-pane -t "$O" -T '🔮 oracle'
-# agents via shell wrappers (→ VPN proxy). test/oracle = ready shells.
-tmux send-keys -t "$P" 'codex' Enter
-tmux send-keys -t "$C" 'claude' Enter
+# layout = codex TL, claude TR, test BL, oracle BR (same as real `launch`; NO tiled,
+# which would re-sort panes by index and flip claude to the bottom).
+tmux set-option -p -t "$P" @role '🧠 plan · codex'
+tmux set-option -p -t "$C" @role '💻 code · claude'
+tmux set-option -p -t "$T" @role '🧪 test'
+tmux set-option -p -t "$O" @role '🔮 oracle'
+tmux send-keys -t "$P" "$PX; codex" Enter
+tmux send-keys -t "$C" "$PX; claude" Enter
+tmux send-keys -t "$O" "$PX; bash \"\$HOME/dotfiles/scripts/oracle-loop.sh\" \"$D\"" Enter
+tmux send-keys -t "$T" "$PX; echo 'test: авто test-watcher появится при launch на репе с тестами'" Enter
 tmux select-pane -t "$P"
 REMOTE
 }
