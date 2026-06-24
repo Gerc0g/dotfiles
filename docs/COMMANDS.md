@@ -210,11 +210,6 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Запуск:** `neurodesk` (выбор продукта, затем репо) · `neurodesk agents` (выбор репо) · `neurodesk agents synapse` (сразу launch)
 **Иерархия:** компания (`neurodesk`) → продукт (`agents`) → продукт-шорткат сразу (`agents`).
 
-## bastion
-**Что:** Open tmux session for chimera/bastion
-**Запуск:** `bastion`
-**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/bastion/`
-**Repos:** Bastion
 ---
 
 ### Bootstrap

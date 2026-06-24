@@ -178,10 +178,3 @@ dotfiles() {
 }
 alias dots='dotfiles'
 
-bastion() {
-  case $# in
-    0) launch "chimera" "bastion" "Bastion" ;;
-    1) launch "chimera" "bastion" "$1" ;;
-    *) echo "Usage: bastion [<repo>]"; return 1 ;;
-  esac
-}
