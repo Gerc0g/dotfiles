@@ -210,6 +210,12 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Запуск:** `neurodesk` (выбор продукта, затем репо) · `neurodesk agents` (выбор репо) · `neurodesk agents synapse` (сразу launch)
 **Иерархия:** компания (`neurodesk`) → продукт (`agents`) → продукт-шорткат сразу (`agents`).
 
+
+## pizduk
+**Что:** Open tmux session for chimera/pizduk
+**Запуск:** `pizduk`
+**Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/pizduk/`
+**Repos:** Pizduk
 ---
 
 ### Bootstrap

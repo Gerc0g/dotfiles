@@ -178,3 +178,11 @@ dotfiles() {
 }
 alias dots='dotfiles'
 
+
+pizduk() {
+  case $# in
+    0) launch "chimera" "pizduk" "Pizduk" ;;
+    1) launch "chimera" "pizduk" "$1" ;;
+    *) echo "Usage: pizduk [<repo>]"; return 1 ;;
+  esac
+}
