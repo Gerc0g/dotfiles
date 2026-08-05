@@ -70,10 +70,11 @@ Open the WikiPedik vault in Obsidian:
 ```bash
 ?                    # command index
 ? <cmd>              # command details
-launch               # interactive safe worktree launcher
-wiki                 # open WikiPedik product repo
+hq ls                # companies / products / repos
+hq doctor            # machine state
+agent-workspace start <co> <prod> <repo> <task>
+wikipedik [zone]     # enter a WikiPedik vault zone
 status               # live system/agent pressure dashboard
-agent status         # current Codex/Claude profile env
 ```
 
 Common flows:
@@ -81,9 +82,9 @@ Common flows:
 ```bash
 new-company <company> <vcs[:host]> <namespace> [email]
 new-project <company> <product> [--ns=<namespace>] [repo...]
-setup-context <company> [product] [repo]
-complete-onboard <company> [product] [repo]
-launch <company> <product> <repo>
+agent-workspace start <company> <product> <repo> <task-slug>
+hq ls
+hq doctor
 wiki bootstrap <company> [product] [repo]
 wiki sync --commit <company/product/repo>
 agent-skill list
@@ -130,14 +131,16 @@ Generated/onboarded project context:
 
 ## Agent Profiles
 
-The platform keeps profiles separate to avoid prompt bloat.
+There is one profile per agent, and it lives at the tool's own default path.
 
-| Profile | Env | Purpose | Skills |
-|---|---|---|---|
-| `fresh` | `~/.codex`, `~/.claude` | daily repo work through `launch` | WikiPedik worker skills, `oracle`, universal `skill-maintainer` |
-| `setup` | `~/.codex`, `~/.claude` | onboarding, analysis, AGENTS generation | `analyze-*`, `fill-agents-md`, `onboard-agents-md`, `skill-maintainer` |
-| `wiki` | `~/.codex`, Claude fresh | curator work in WikiPedik | curator skills, `skill-maintainer` |
-| `legacy` | `~/.codex`, `~/.claude` | old profiles only when explicitly needed | unmanaged |
+| Profile | Path | Read by |
+|---|---|---|
+| Claude | `~/.claude` | `claude` CLI, the VS Code extension, any scheduled job |
+| Codex | `~/.codex` | `codex` CLI, the VS Code extension, any scheduled job |
+
+Both link `agent-profiles/BASELINE.md` — as `CLAUDE.md` and `AGENTS.md`
+respectively — so an instruction written once reaches both agents. Every
+repo-owned skill is installed into both.
 
 Switch manually:
 
@@ -149,11 +152,9 @@ agent legacy
 agent status
 ```
 
-Routing is automatic for main flows:
-
-- `launch` uses `fresh`;
-- `setup-context`, `analyze-*`, `fill-agents-md`, `onboard` use `setup`;
-- `wiki sync/status/synthesize` use `wiki`.
+There is one profile per agent and it lives at the tool's own default path, so
+nothing routes and no environment variable has to be set: the CLI, the VS Code
+extension and any scheduled job all read the same managed profile.
 
 ## Skills Architecture
 
@@ -264,17 +265,10 @@ Create a product and repos:
 new-project <company> <product> [--ns=<namespace>] [repo...]
 ```
 
-Generate context:
-
-```bash
-setup-context <company> [product] [repo]
-```
-
-Complete human-only TODOs:
-
-```bash
-complete-onboard <company> [product] [repo]
-```
+Fill in the generated `AGENTS.md` placeholders by asking an agent — the
+`onboard-agents-md` skill is installed in both profiles and drives the
+questions. Deeper architecture notes come from `analyze-repo` and
+`analyze-product`, also skills.
 
 Bootstrap WikiPedik links:
 
@@ -282,10 +276,10 @@ Bootstrap WikiPedik links:
 wiki bootstrap <company> [product] [repo]
 ```
 
-Open the repo:
+Start work in an isolated worktree:
 
 ```bash
-launch <company> <product> <repo>
+agent-workspace start <company> <product> <repo> <task-slug>
 ```
 
 ## Secrets

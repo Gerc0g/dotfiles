@@ -33,35 +33,6 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 
 ### Main flow
 
-## setup-context
-**Что:** End-to-end pipeline: refresh-templates → batch-setup (codex анализ кода → docs/design.md + docs/ARCHITECTURE.md + ADRs) → batch-fill-agents (codex сжимает доки в AGENTS.md). ETA для компании из 5 продуктов: ~25-50 мин в параллели.
-**Запуск:**
-- `setup-context <co>` — вся компания, все продукты параллельно
-- `setup-context <co> <prod>` — один продукт
-- `setup-context <co> <prod> <repo>` — один репо
-**Зависит от:** codex CLI, skills/{analyze-product, analyze-repo, fill-agents-md}
-
-## complete-onboard
-**Что:** Interactive Q&A wizard для TODO которые setup-context не может вывести из кода — Stance, PII, Network policy, Docs URL (company-level). Запускать ПОСЛЕ setup-context. ETA ~15-30 мин.
-**Запуск:**
-- `complete-onboard <co>` — все уровни (но фактически работы только на company после setup-context)
-- `complete-onboard <co> <prod>` — продукт-уровень
-- `complete-onboard <co> <prod> <repo>` — репо-уровень
-**Зависит от:** codex CLI, skills/onboard-agents-md
-
-## batch-fill-agents
-**Что:** Перегенерить AGENTS.md из готовых `docs/design.md` / `docs/ARCHITECTURE.md` без повторного анализа кода. Параллельно для всех product/repo. ETA ~5-15 мин.
-**Запуск:**
-- `batch-fill-agents <co>` — вся компания
-- `batch-fill-agents <co> <prod>` — один продукт
-**Используй:** когда руками поправил design.md/ARCHITECTURE.md и хочешь обновить AGENTS.md, без перезапуска setup-context.
-**Логи:** `~/dotfiles/logs/fill-agents-<co>-<ts>.log`
-**См. также:** `fill-agents-md`, `setup-context`
-
----
-
-### Workspaces
-
 ## agent-workspace
 **Что:** управление изолированными git worktree под задачи агента. Ярлыки продуктов (`agents synapse ticket-quality`, `healler epic-04`) вызывают это автоматически.
 **Запуск:**
@@ -129,7 +100,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `wiki synthesize <company/product>` — найти повторяющиеся lessons/gotchas и предложить product shared patterns.
 - `wiki bootstrap <company> [product] [repo]` — создать WikiPedik skeleton + repo symlinks.
 - `wiki-commit <scope>` — вручную закоммитить только changes внутри WikiPedik scope.
-- `wiki autocommit` / `wiki-autocommit` — catch-all commit всего dirty вольта (без push, с secret-scan); `launch` вызывает его раз в сутки через `--if-due`.
+- `wiki autocommit` / `wiki-autocommit` — catch-all commit всего dirty вольта (без push, с secret-scan). Автоматического вызывающего сейчас НЕТ — раньше его дёргал `launch` раз в сутки.
 - `wiki-hot-refresh <co>[/<prod>[/<repo>]]` — детерминированно пересобрать `hot.md` из curated-страниц + дайджест «Binding rules» (fallback, если куратор пропустил свою фазу).
 - `wiki rules-sync [<co>[/<prod>[/<repo>]]]` — материализовать правила вольта (`repos/<repo>/rules/`, `shared/rules/`) в path-scoped `.claude/rules/wiki-*` симлинки (основные чекауты + активные worktrees); правила без `paths:` отклоняются; удалённые из вольта — prune.
 - `agent-session-digest.py --source claude|codex|all [--since D] [--until D] [--project substr]` — сжать JSONL-сессии в markdown-дайджесты для майнинга куратором (`10-wiki/sources/sessions/_digests/`); secrets редактируются, объём падает с MB до десятков KB.
@@ -208,7 +179,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ## new-project
 **Что:** Создать продукт в компании: клонит репы + AGENTS.md заготовки + ярлык продукта + sync VS Code Project Manager.
 **Запуск:** `new-project <company> <product> [--ns=<override>] [repo1 repo2 ...]`
-**См. также:** `new-company`, `setup-context`
+**См. также:** `new-company`
 
 ---
 
@@ -222,70 +193,6 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `agent-skill install` — поставить symlinks: setup skills в setup profiles, universal skills во все профили
 - `agent-skill doctor` — проверить YAML frontmatter, symlinks и отсутствие setup-only skills в daily/wiki profiles
 **Используй:** когда добавляешь/меняешь reusable skill. Для agent-led изменений сначала используй `skill-maintainer`.
-
-## refresh-templates
-**Что:** Перегенерить AGENTS.md из шаблонов (~5 сек, envsubst подставляет имена, без codex).
-**Запуск:** `refresh-templates <co> [<prod>] [<repo>]`
-**Используй:** когда изменил templates в `~/dotfiles/templates/`.
-
-## analyze-repo
-**Что:** Codex анализирует код одного репа → пишет `docs/design.md` + ADRs. ~5-15 мин.
-**Запуск:** `analyze-repo [<co> <prod> <repo>]` или из cwd репа.
-
-## analyze-product
-**Что:** Codex анализирует все репы продукта → пишет `docs/ARCHITECTURE.md` + ADRs. ~10-20 мин. Запускать ПОСЛЕ analyze-repo на всех репах.
-**Запуск:** `analyze-product [<co> <prod>]` или из cwd продукта.
-
-## fill-agents-md
-**Что:** Codex читает `docs/design.md` (репо) или `docs/ARCHITECTURE.md` (продукт) и сжимает в `AGENTS.md`. AUTO-SAVE. ~30-60 сек на файл.
-**Запуск:** `fill-agents-md` (cwd) | `fill-agents-md <co> <prod>` | `fill-agents-md <co> <prod> <repo>`
-**Зависит от:** существующий `docs/design.md` или `docs/ARCHITECTURE.md`.
-**См. также:** `batch-fill-agents`, `analyze-repo`
-
-## onboard
-**Что:** Q&A wizard для одного уровня — заполняет TODO которые код не покажет (Stance, PII, Network, Docs URL).
-**Запуск:**
-- `onboard <co>` — company
-- `onboard <co> <prod>` — product
-- `onboard <co> <prod> <repo>` — repo
-**См. также:** `complete-onboard`, `fill-agents-md`
-
-## batch-setup
-**Что:** Параллельно: analyze-repo × N репов + analyze-product. Per-product batch. ~30-60 мин.
-**Запуск:** `batch-setup [<co> <prod>]` или из cwd продукта.
-**См. также:** `setup-context`
-
-## agents-status
-**Что:** Snapshot состояния анализа: активные codex, последний лог, прогресс по docs/.
-**Запуск:** `agents-status` или `agents-status <co>`
-**См. также:** `agents-watch`, `agents-sessions`
-
-## agents-watch
-**Что:** Live мониторинг status — refresh каждые 10 сек.
-**Запуск:** `agents-watch` или `agents-watch <co>`. Выход — Ctrl+C.
-**См. также:** `agents-status`
-
-## agents-tail
-**Что:** Stream последнего batch-setup/batch-fill-agents лога (tool calls, reasoning, edits).
-**Запуск:** `agents-tail` или `agents-tail <co>`. Выход — Ctrl+C (batch продолжит работать в фоне).
-**См. также:** `agents-sessions`
-
-## agents-sessions
-**Что:** Live dashboard ВСЕХ codex сессий — PID, skill, репо, elapsed, прогресс. Сессии гаснут по мере завершения.
-**Запуск:** `agents-sessions` или `agents-sessions <co>`. Refresh каждые 3 сек.
-**См. также:** `agents-tail`, `agents-watch`
-
----
-
-### Profiles
-
-## agent
-**Что:** Переключить codex/claude профиль (legacy / fresh / setup / wiki) в текущей shell.
-**Запуск:** `agent <profile>` или `agent status`
-
----
-
-### Local infrastructure
 
 ## dev-stack
 **Что:** Единый локальный Docker-стек инфры для всех проектов. Сервисы: Postgres :5432, Redis :6379, MinIO :9000/9001, Qdrant :6333, ClickHouse :8123, Prometheus :9090, Grafana :3030, Loki :3100, Tempo :3200, OTel Collector :4317/4318, Langfuse :3001, Ollama :11434, Metabase :3002, CloudBeaver :8978 (+ Traefik/Homepage). Host = `$DEV_STACK_HOST` (default **gerc0g** — домашний Ubuntu по Tailscale, 24/7; `localhost` для Mac-local). Remote-aware: управление идёт на хост через `ssh $DEV_STACK_SSH` (default ubuntu-server). Телеметрия PUSH через OTLP (Prometheus сам не скрейпит). Источник правды: `services/dev-stack/`.

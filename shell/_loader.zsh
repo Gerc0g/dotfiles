@@ -12,16 +12,9 @@ _dotfiles_shell_modules=(
   50-secret-cache.zsh
   50-secrets.zsh
   60-devstack.zsh
-  65-onboard.zsh
-  66-analyze.zsh
-  67-batch.zsh
-  68-setup-flow.zsh
-  69-monitor.zsh
   69-status.zsh
-  70-fill-agents.zsh
   71-wiki.zsh
   72-agent-skill.zsh
-  72-research.zsh
   99-help.zsh
 )
 

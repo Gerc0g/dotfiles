@@ -48,8 +48,7 @@ For parallel or multi-repo agent work, avoid writing in the shared checkout. Use
 managed worktrees:
 
 ```bash
-launch <company> <product> <repo> <task-slug>
-# or: agent-workspace launch <company> <product> <repo> <task-slug>
+agent-workspace start <company> <product> <repo> <task-slug>
 ```
 
 Rules:

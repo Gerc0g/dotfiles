@@ -27,7 +27,7 @@ Condenses existing `docs/design.md` / `docs/ARCHITECTURE.md` into the short
 - If cwd has `.product-config` (or matches `<co>/<prod>/`) → **product level** — read `docs/ARCHITECTURE.md`
 - If cwd has `.company-config` → company level **— DO NOT touch.** Company AGENTS.md
   has human-only decisions (Stance, PII, Network, Docs URL). Tell user to use
-  `complete-onboard <co>` instead.
+  the `onboard-agents-md` skill instead.
 
 ## Workflow — REPO level
 
