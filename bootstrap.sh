@@ -1,6 +1,14 @@
 #!/bin/bash
-# Bootstrap dotfiles on a fresh Mac
+# Bootstrap dotfiles on a fresh Mac.
 # Usage: ~/dotfiles/bootstrap.sh
+#
+# This script only does what needs the network, a package manager or a GUI:
+# install toolchains and agent CLIs, then hand over to `hq setup`.
+#
+# Everything that is *machine state* — directories, symlinks, the loader line in
+# ~/.zshrc, the scheduled scrubber — is declared in core/setup and applied by
+# `hq setup`. That declaration is also what `hq doctor` checks, so the installer
+# and the checker cannot drift apart. Add new state there, not here.
 
 set -e
 
@@ -18,86 +26,45 @@ else
   echo "✓ Homebrew installed"
 fi
 
-# === 2. brew bundle (ставит всё из Brewfile) ===
+# === 2. Packages (Brewfile pins the toolchains: go, node, tmux, ghostty, ...) ===
 echo ""
 echo "→ Installing packages from Brewfile..."
 brew bundle --file=Brewfile
 
-# === 3. Codex CLI (fallback на npm) ===
+# === 3. Codex CLI (npm fallback) ===
 if ! command -v codex >/dev/null 2>&1; then
   echo ""
   echo "→ Installing Codex CLI via npm..."
   npm install -g @openai/codex 2>/dev/null || echo "⚠ Codex install failed — install manually"
 fi
 
-# === 4. Claude Code CLI (fallback на curl) ===
+# === 4. Claude Code CLI (curl fallback) ===
 if ! command -v claude >/dev/null 2>&1; then
   echo ""
   echo "→ Installing Claude Code CLI..."
   curl -fsSL https://claude.ai/install.sh | bash 2>/dev/null || echo "⚠ Claude install failed — install manually"
 fi
 
-# === 5. Symlink configs ===
+# === 5. Core binary ===
+# Built before `hq setup`, because that is the thing which runs it.
 echo ""
-echo "→ Linking config files..."
-mkdir -p ~/.config/ghostty
-ln -sfn ~/dotfiles/ghostty/config ~/.config/ghostty/config
-ln -sfn ~/dotfiles/tmux/tmux.conf ~/.tmux.conf
-echo "✓ ghostty + tmux configs symlinked"
+echo "→ Building core binary (bin/hq)..."
+make build
 
-# === 6. Create agent profile directories ===
+# === 6. Machine state ===
+# Directories, symlinks, ~/.zshrc loader, launchd scrubber — all declared in Go.
 echo ""
-echo "→ Creating agent profile dirs..."
-mkdir -p ~/.codex-new ~/.codex-setup ~/.codex-wiki ~/.claude-new ~/.claude-setup
-echo "✓ ~/.codex-new, ~/.codex-setup, ~/.codex-wiki, ~/.claude-new, ~/.claude-setup"
+echo "→ Applying machine state (hq setup)..."
+./bin/hq setup
 
-# === 7. Agent baseline profiles ===
-echo ""
-echo "→ Linking agent baseline profiles..."
-link_profile() {
-  local src=$1
-  local dst=$2
-
-  if [ -e "$dst" ] && [ ! -L "$dst" ] && ! cmp -s "$src" "$dst"; then
-    local backup="${dst}.bak.$(date +%Y%m%d%H%M%S)"
-    cp "$dst" "$backup"
-    echo "  backed up $dst -> $backup"
-  fi
-
-  ln -sfn "$src" "$dst"
-}
-
-link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.codex-new/AGENTS.md"
-link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.codex-setup/AGENTS.md"
-link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.claude-new/CLAUDE.md"
-link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.claude-setup/CLAUDE.md"
-echo "✓ Codex/Claude baseline profiles linked"
-
-# === 8. WikiPedik runtime ===
-echo ""
-echo "→ Installing WikiPedik runtime..."
-bash ~/dotfiles/skills-stash/wiki/scripts/install-wiki-runtime.sh || {
-  echo "⚠ WikiPedik runtime install failed — run manually:"
-  echo "  bash ~/dotfiles/skills-stash/wiki/scripts/install-wiki-runtime.sh"
-}
-
-# === 9. Agent monitoring ===
-echo ""
-echo "→ Installing agent monitoring integrations..."
-bash ~/dotfiles/scripts/install-agent-monitoring.sh || {
-  echo "⚠ Agent monitoring install failed — run manually:"
-  echo "  bash ~/dotfiles/scripts/install-agent-monitoring.sh"
-}
-
-# === 10. Agent skills ===
+# === 7. Agent skills ===
 echo ""
 echo "→ Installing agent skills..."
 bash ~/dotfiles/scripts/agent-skill.sh install
-bash ~/dotfiles/scripts/agent-skill.sh doctor
 
-# === 11. Claude LSP plugins ===
+# === 8. Claude plugins and profile settings ===
 echo ""
-echo "→ Configuring Claude LSP plugins..."
+echo "→ Configuring Claude profiles..."
 configure_claude_profile() {
   local profile_dir=$1
   local hook_path="$profile_dir/hooks/SessionStart.sh"
@@ -166,47 +133,14 @@ install_claude_lsp_plugins() {
   CLAUDE_CONFIG_DIR="$profile_dir" claude plugin install yaml-language-server@claude-code-lsps >/dev/null 2>&1 || true
 }
 
-configure_claude_profile "$HOME/.claude-new"
-configure_claude_profile "$HOME/.claude-setup"
-install_claude_lsp_plugins "$HOME/.claude-new"
-install_claude_lsp_plugins "$HOME/.claude-setup"
-echo "✓ Claude LSP plugins configured (pyright, vtsls, yaml-language-server)"
+configure_claude_profile "$HOME/.claude"
+install_claude_lsp_plugins "$HOME/.claude"
+echo "✓ Claude profile configured (pyright, vtsls, yaml-language-server)"
 
-# === 12. ~/work directory ===
-mkdir -p ~/Desktop/Prokectfiles
-echo "✓ ~/Desktop/Prokectfiles/ ready"
-
-# === 12b. Daily transcript secret-scrubber (launchd) ===
+# === 9. Final check ===
 echo ""
-echo "→ Installing transcript-scrub launchd job..."
-mkdir -p ~/Library/LaunchAgents ~/Library/Logs
-cp ~/dotfiles/scripts/launchd/com.gerc0g.transcript-scrub.plist ~/Library/LaunchAgents/
-launchctl bootout "gui/$(id -u)/com.gerc0g.transcript-scrub" 2>/dev/null || true
-if launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.gerc0g.transcript-scrub.plist 2>/dev/null; then
-  echo "✓ transcript-scrub scheduled daily 03:30"
-else
-  echo "⚠ transcript-scrub job not loaded — run manually:"
-  echo "  launchctl bootstrap gui/\$(id -u) ~/Library/LaunchAgents/com.gerc0g.transcript-scrub.plist"
-fi
-
-# === 13. Подключить loader в .zshrc ===
-if ! grep -q "dotfiles/shell/_loader.zsh" ~/.zshrc 2>/dev/null; then
-  echo "" >> ~/.zshrc
-  echo "# === Personal Platform ===" >> ~/.zshrc
-  echo "[ -f ~/dotfiles/shell/_loader.zsh ] && source ~/dotfiles/shell/_loader.zsh" >> ~/.zshrc
-  echo "✓ Loader added to ~/.zshrc"
-else
-  echo "✓ Loader already in ~/.zshrc"
-fi
-
-# === 14. Проверка OrbStack ===
-if command -v docker >/dev/null 2>&1; then
-  if docker ps >/dev/null 2>&1; then
-    echo "✓ Docker runtime (OrbStack) работает"
-  else
-    echo "⚠ Docker установлен но не запущен — открой OrbStack через Spotlight"
-  fi
-fi
+echo "→ Verifying machine state..."
+./bin/hq doctor || echo "⚠ Some checks failed — see above"
 
 # === Manual steps ===
 cat <<'MANUAL'
@@ -223,11 +157,8 @@ Manual steps (cannot be automated):
      Первый запуск даст permissions. После — Docker работает прозрачно.
 
   3. Login to agents:
-     CODEX_HOME=~/.codex-new codex login
-     CODEX_HOME=~/.codex-setup codex login
-     CODEX_HOME=~/.codex-wiki codex login
-     CLAUDE_CONFIG_DIR=~/.claude-new claude login
-     CLAUDE_CONFIG_DIR=~/.claude-setup claude login
+     codex login
+     claude login
 
   4. 1Password CLI:
      • Открой 1Password app → Settings → Developer → Integrate with CLI ON
@@ -238,17 +169,16 @@ Manual steps (cannot be automated):
      (один ключ на компанию, не один глобальный)
 
   6. Тест platform:
-     ?                  # список всех команд
-     wikipedik          # должен открыть tmux с двумя codex
+     hq ls              # компании / продукты / репозитории
+     hq doctor          # состояние машины
+     ?                  # список shell-команд
 
   7. Запустить shared dev stack (опционально):
-     dev-stack up       # Postgres, Redis, Grafana, Prometheus
-     # ~500 MB RAM. dev-stack down когда не нужен.
+     dev-stack up
 
   8. Открыть Obsidian:
      open -a Obsidian
      File → Open Vault → ~/Desktop/WikiPedik/dev
-     (потом research vault через Cmd+,)
 
 ==============================================
 MANUAL
