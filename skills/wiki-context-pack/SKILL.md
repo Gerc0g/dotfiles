@@ -1,6 +1,6 @@
 ---
 name: wiki-context-pack
-description: Build a compact WikiPedik memory context pack for the current repo/product before planning. Use for nontrivial debug, design, migration, or cross-repo work.
+description: "Build a compact WikiPedik memory context pack for the current repo/product before planning. Use for nontrivial debug, design, migration, or cross-repo work."
 ---
 
 # wiki-context-pack

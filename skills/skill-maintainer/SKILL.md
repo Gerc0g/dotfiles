@@ -14,10 +14,10 @@ symlink.
 
 ## Source Of Truth
 
-- Do not create reusable skills directly in `~/.codex-new/skills` or
-  `~/.claude-new/skills`.
-- Do not create reusable skills directly in `~/.codex-setup/skills`,
-  `~/.claude-setup/skills`, or `~/.codex-wiki/skills`.
+- Do not create reusable skills directly in `~/.codex/skills` or
+  `~/.claude/skills`.
+- Do not create reusable skills directly in `~/.codex/skills`,
+  `~/.claude/skills`, or `~/.codex/skills`.
 - Create or edit source skills in `~/dotfiles/skills/<skill-name>/SKILL.md`.
 - Runtime profile directories should contain symlinks to dotfiles skills.
 - Install and validate with `agent-skill install` and `agent-skill doctor`.
@@ -149,24 +149,24 @@ Prefer the lowest complexity that keeps the workflow reliable.
 6. Verify the runtime prompt if the profile matters:
 
    ```bash
-   CODEX_HOME=~/.codex-new codex debug prompt-input smoke | rg '<skill-name>'
-   CODEX_HOME=~/.codex-setup codex debug prompt-input smoke | rg '<skill-name>'
-   CODEX_HOME=~/.codex-wiki codex debug prompt-input smoke | rg '<skill-name>'
+   CODEX_HOME=~/.codex codex debug prompt-input smoke | rg '<skill-name>'
+   CODEX_HOME=~/.codex codex debug prompt-input smoke | rg '<skill-name>'
+   CODEX_HOME=~/.codex codex debug prompt-input smoke | rg '<skill-name>'
    ```
 
 ## Local Profile Rules
 
 This platform intentionally separates runtime profiles:
 
-- Daily: `~/.codex-new`, `~/.claude-new`
+- Daily: `~/.codex`, `~/.claude`
   - normal development;
   - worker memory skills;
   - no setup-only analysis skills.
-- Setup: `~/.codex-setup`, `~/.claude-setup`
+- Setup: `~/.codex`, `~/.claude`
   - onboarding and context generation;
   - product/repo analysis;
   - AGENTS.md generation.
-- Wiki curator: `~/.codex-wiki`
+- Wiki curator: `~/.codex`
   - WikiPedik curation and synthesis.
 
 `skill-maintainer` is universal and should be installed everywhere. Most

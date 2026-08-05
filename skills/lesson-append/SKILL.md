@@ -1,6 +1,6 @@
 ---
 name: lesson-append
-description: Appends a single durable lesson as a YAML block to docs/knowledge/_inbox.md in the current repo. Use when the project agent learns a root cause, failed approach, gotcha, cross-repo invariant, or any durable signal worth keeping. Does not write to curated files; does not read other repos. Append-only.
+description: "Appends a single durable lesson as a YAML block to docs/knowledge/_inbox.md in the current repo. Use when the project agent learns a root cause, failed approach, gotcha, cross-repo invariant, or any durable signal worth keeping. Does not write to curated files; does not read other repos. Append-only."
 ---
 
 # lesson-append

@@ -1,27 +1,32 @@
 #!/usr/bin/env bash
 # Manage repo-owned Codex/Claude skills.
+#
+# There are two runtime profiles and they are the tools' own defaults, so every
+# repo-owned skill goes into both. The earlier split — setup / daily / wiki
+# profiles, with a "universal" subset allowed to cross over — existed to keep
+# five profiles apart. With two, it was only a way to forget a skill somewhere.
 
 set -euo pipefail
 
 DOTFILES="${DOTFILES:-$HOME/dotfiles}"
 SKILLS_SRC="$DOTFILES/skills"
-CODEX_SETUP_SKILLS="${CODEX_SETUP_SKILLS:-$HOME/.codex-setup/skills}"
-CLAUDE_SETUP_SKILLS="${CLAUDE_SETUP_SKILLS:-$HOME/.claude-setup/skills}"
-CODEX_DAILY_SKILLS="${CODEX_DAILY_SKILLS:-$HOME/.codex-new/skills}"
-CLAUDE_DAILY_SKILLS="${CLAUDE_DAILY_SKILLS:-$HOME/.claude-new/skills}"
-CODEX_WIKI_SKILLS="${CODEX_WIKI_SKILLS:-$HOME/.codex-wiki/skills}"
-UNIVERSAL_SKILLS="${UNIVERSAL_SKILLS:-skill-maintainer}"
+CLAUDE_SKILLS="${CLAUDE_SKILLS:-$HOME/.claude/skills}"
+CODEX_SKILLS="${CODEX_SKILLS:-$HOME/.codex/skills}"
 
 usage() {
   cat <<'EOF'
 Usage: agent-skill <command> [args]
 
 Commands:
-  list              List repo-owned skills and runtime install status
+  list              List repo-owned skills and their install status
   new <name>        Create ~/dotfiles/skills/<name>/SKILL.md template
-  install           Symlink repo-owned skills into intended runtime profiles
-  doctor            Validate SKILL.md frontmatter, runtime links, and isolation
+  install           Symlink every repo-owned skill into both agent profiles
+  doctor            Validate SKILL.md frontmatter, links, and orphans
 EOF
+}
+
+targets() {
+  printf "%s\n%s\n" "$CLAUDE_SKILLS" "$CODEX_SKILLS"
 }
 
 skill_dirs() {
@@ -39,14 +44,6 @@ valid_name() {
 
 skill_name_from_dir() {
   basename "$1"
-}
-
-is_universal_skill() {
-  local name=$1 item
-  for item in $UNIVERSAL_SKILLS; do
-    [ "$name" = "$item" ] && return 0
-  done
-  return 1
 }
 
 status_for() {
@@ -71,16 +68,10 @@ cmd_list() {
   local dir name
   for dir in $(skill_dirs); do
     name="$(skill_name_from_dir "$dir")"
-    local scope="setup"
-    is_universal_skill "$name" && scope="universal"
-    printf "%-22s scope=%-9s setup-codex=%s setup-claude=%s daily-codex=%s daily-claude=%s wiki-codex=%s\n" \
+    printf "%-22s claude=%s codex=%s\n" \
       "$name" \
-      "$scope" \
-      "$(status_for "$CODEX_SETUP_SKILLS/$name" "$dir")" \
-      "$(status_for "$CLAUDE_SETUP_SKILLS/$name" "$dir")" \
-      "$(status_for "$CODEX_DAILY_SKILLS/$name" "$dir")" \
-      "$(status_for "$CLAUDE_DAILY_SKILLS/$name" "$dir")" \
-      "$(status_for "$CODEX_WIKI_SKILLS/$name" "$dir")"
+      "$(status_for "$CLAUDE_SKILLS/$name" "$dir")" \
+      "$(status_for "$CODEX_SKILLS/$name" "$dir")"
   done
 }
 
@@ -114,62 +105,28 @@ Use this skill when <when to use>.
 1. <step>
 2. <step>
 3. <step>
-
-## Rules
-
-- <rule>
 EOF
   echo "created $file"
 }
 
 cmd_install() {
-  mkdir -p "$CODEX_SETUP_SKILLS" "$CLAUDE_SETUP_SKILLS"
-  mkdir -p "$CODEX_DAILY_SKILLS" "$CLAUDE_DAILY_SKILLS"
-  mkdir -p "$CODEX_WIKI_SKILLS"
+  local target dir name
+  while IFS= read -r target; do
+    mkdir -p "$target"
+  done < <(targets)
 
-  local dir name
   for dir in $(skill_dirs); do
     name="$(skill_name_from_dir "$dir")"
-    ln -sfn "$dir" "$CODEX_SETUP_SKILLS/$name"
-    ln -sfn "$dir" "$CLAUDE_SETUP_SKILLS/$name"
-
-    if is_universal_skill "$name"; then
-      ln -sfn "$dir" "$CODEX_DAILY_SKILLS/$name"
-      ln -sfn "$dir" "$CLAUDE_DAILY_SKILLS/$name"
-      ln -sfn "$dir" "$CODEX_WIKI_SKILLS/$name"
-      echo "linked universal $name"
-    else
-      if [ -L "$CODEX_DAILY_SKILLS/$name" ] && [ "$(readlink "$CODEX_DAILY_SKILLS/$name")" = "$dir" ]; then
-        rm -f "$CODEX_DAILY_SKILLS/$name"
-      fi
-
-      if [ -L "$CLAUDE_DAILY_SKILLS/$name" ] && [ "$(readlink "$CLAUDE_DAILY_SKILLS/$name")" = "$dir" ]; then
-        rm -f "$CLAUDE_DAILY_SKILLS/$name"
-      fi
-
-      if [ -L "$CODEX_WIKI_SKILLS/$name" ] && [ "$(readlink "$CODEX_WIKI_SKILLS/$name")" = "$dir" ]; then
-        rm -f "$CODEX_WIKI_SKILLS/$name"
-      fi
-
-      echo "linked setup $name"
-    fi
+    while IFS= read -r target; do
+      ln -sfn "$dir" "$target/$name"
+    done < <(targets)
+    echo "linked $name"
   done
-}
-
-daily_isolated() {
-  local target=$1
-  local src=$2
-
-  if [ -L "$target" ] && [ "$(readlink "$target")" = "$src" ]; then
-    return 1
-  fi
-
-  return 0
 }
 
 validate_skill() {
   local file=$1
-  local dir name frontmatter line2
+  local dir name frontmatter
   dir="$(dirname "$file")"
   name="$(basename "$dir")"
 
@@ -196,8 +153,27 @@ validate_skill() {
   fi
 }
 
+# report_orphans catches what the previous doctor could not see: a link left in
+# a profile after its source was deleted from the repo. Iterating over the repo
+# alone can never find those, which is how a dangling skill link survived for
+# weeks while doctor reported ok.
+report_orphans() {
+  local target entry failed=0
+  while IFS= read -r target; do
+    [ -d "$target" ] || continue
+    for entry in "$target"/*; do
+      [ -L "$entry" ] || continue
+      if [ ! -e "$entry" ]; then
+        echo "error: dangling skill link: $entry -> $(readlink "$entry")" >&2
+        failed=1
+      fi
+    done
+  done < <(targets)
+  return "$failed"
+}
+
 cmd_doctor() {
-  local failed=0 dir name file
+  local failed=0 dir name file target
 
   for dir in $(skill_dirs); do
     name="$(skill_name_from_dir "$dir")"
@@ -205,48 +181,15 @@ cmd_doctor() {
 
     validate_skill "$file" || failed=1
 
-    if [ "$(status_for "$CODEX_SETUP_SKILLS/$name" "$dir")" != "linked" ]; then
-      echo "error: setup codex skill not linked: $name" >&2
-      failed=1
-    fi
-
-    if [ "$(status_for "$CLAUDE_SETUP_SKILLS/$name" "$dir")" != "linked" ]; then
-      echo "error: setup claude skill not linked: $name" >&2
-      failed=1
-    fi
-
-    if is_universal_skill "$name"; then
-      if [ "$(status_for "$CODEX_DAILY_SKILLS/$name" "$dir")" != "linked" ]; then
-        echo "error: universal codex daily skill not linked: $name" >&2
+    while IFS= read -r target; do
+      if [ "$(status_for "$target/$name" "$dir")" != "linked" ]; then
+        echo "error: not linked into $target: $name" >&2
         failed=1
       fi
-
-      if [ "$(status_for "$CLAUDE_DAILY_SKILLS/$name" "$dir")" != "linked" ]; then
-        echo "error: universal claude daily skill not linked: $name" >&2
-        failed=1
-      fi
-
-      if [ "$(status_for "$CODEX_WIKI_SKILLS/$name" "$dir")" != "linked" ]; then
-        echo "error: universal codex wiki skill not linked: $name" >&2
-        failed=1
-      fi
-    else
-      if ! daily_isolated "$CODEX_DAILY_SKILLS/$name" "$dir"; then
-        echo "error: repo-owned setup skill leaked into daily codex profile: $name" >&2
-        failed=1
-      fi
-
-      if ! daily_isolated "$CLAUDE_DAILY_SKILLS/$name" "$dir"; then
-        echo "error: repo-owned setup skill leaked into daily claude profile: $name" >&2
-        failed=1
-      fi
-
-      if ! daily_isolated "$CODEX_WIKI_SKILLS/$name" "$dir"; then
-        echo "error: repo-owned setup skill leaked into codex wiki profile: $name" >&2
-        failed=1
-      fi
-    fi
+    done < <(targets)
   done
+
+  report_orphans || failed=1
 
   if [ "$failed" -eq 0 ]; then
     echo "agent-skill doctor: ok"
