@@ -58,9 +58,11 @@ EOF
   esac
 }
 
-# _workspace_enter moves the shell into a worktree and reports where it is, so
-# the next command — opening the editor, running an agent — starts in the right
-# place.
+# _workspace_enter moves the shell into a worktree and opens it in the editor.
+#
+# Both halves matter: the editor is where the work happens, and the shell has
+# to follow so the next command — an agent, a test run, a git call — starts in
+# the same place.
 _workspace_enter() {
   local wt=$1
   [ -d "$wt" ] || { echo "⚠ нет каталога: $wt" >&2; return 1; }
@@ -71,4 +73,23 @@ _workspace_enter() {
   local branch
   branch=$(git -C "$wt" rev-parse --abbrev-ref HEAD 2>/dev/null)
   [ -n "$branch" ] && print -P "%F{244}ветка $branch%f"
+
+  _workspace_open_editor "$wt"
+}
+
+# _workspace_open_editor opens a directory in the configured editor.
+#
+# HQ_EDITOR picks the binary (default: VS Code), HQ_OPEN_EDITOR=0 turns the
+# whole thing off — useful over SSH and on the server, where launching a GUI
+# is either impossible or wrong. A missing editor is not an error: the shell
+# already moved into the directory, which is the part that must not fail.
+_workspace_open_editor() {
+  local dir=$1
+  local editor=${HQ_EDITOR:-code}
+
+  [ "${HQ_OPEN_EDITOR:-1}" = "0" ] && return 0
+  command -v "$editor" >/dev/null 2>&1 || return 0
+
+  "$editor" "$dir" >/dev/null 2>&1
+  print -P "%F{244}открыто в $editor%f"
 }

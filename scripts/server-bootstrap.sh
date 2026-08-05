@@ -73,6 +73,7 @@ cat > "$ENVFILE" <<EOF
 # server-only overrides (gitignored). Loaded by the dotfiles loader.
 export DEV_STACK_HOST=localhost          # dev-stack runs HERE
 export PROKECTFILES_ROOT="$PROKECTFILES_ROOT"
+export HQ_OPEN_EDITOR=0                  # headless box: entering a workspace must not try to launch a GUI editor
 export CODEX_HOME="\$HOME/.codex"
 export CLAUDE_CONFIG_DIR="\$HOME/.claude"
 export PATH="\$HOME/.local/bin:\$HOME/bin:/usr/local/go/bin:\$PATH"

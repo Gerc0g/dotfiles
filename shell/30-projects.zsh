@@ -129,5 +129,6 @@ wiki() {
 dotfiles() {
   cd "$HOME/dotfiles" || return 1
   print -P "%F{cyan}$HOME/dotfiles%f"
+  _workspace_open_editor "$HOME/dotfiles"
 }
 alias dots='dotfiles'

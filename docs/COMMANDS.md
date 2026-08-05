@@ -22,7 +22,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ### System status
 
 ## status
-**Что:** Красивый full-screen TUI для текущего pressure: RAM/swap/compressor/wired, active agent slots, tmux sessions, test/oracle panes и top offenders. Показывает `OK/WARN/CRITICAL` относительно локального лимита активных агентов.
+**Что:** Красивый full-screen TUI для текущего pressure: RAM/swap/compressor/wired, active agent slots, tmux-сессии и top offenders. Показывает `OK/WARN/CRITICAL` относительно локального лимита активных агентов.
 **Запуск:**
 - `status` — открыть live dashboard, auto-refresh каждые 5 сек.
 - `status --once` — напечатать snapshot без TUI.
@@ -62,39 +62,22 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 
 ### Workspaces
 
-## launch
-**Что:** Запустить agent workspace для одного репо с 4-pane layout. Daily code work всегда идёт через managed git worktree, не через shared main/dev checkout.
-**Запуск:**
-- `launch` — interactive picker: company → product → repo
-- `launch <co>` — указал компанию, пикер для product + repo, default task `work`
-- `launch <co> <prod>` — пикер для repo, default task `work`
-- `launch <co> <prod> <repo>` — direct repo, default task `work`
-- `launch <co> <prod> <repo> <task>` — fully direct with custom task
-**Panes:**
-- 🧠 **plan** — codex gpt-5.4 high reasoning (architect / planner)
-- 💻 **code** — claude code (implementer)
-**Зависит от:** tmux, codex, claude, oracle (`npm i -g @steipete/oracle`)
-
-
 ## agent-workspace
-**Что:** нижнеуровневое управление managed git worktrees. Обычные project shortcuts (`agents synapse ticket-quality`, `healler epic-04`) вызывают это автоматически.
+**Что:** управление изолированными git worktree под задачи агента. Ярлыки продуктов (`agents synapse ticket-quality`, `healler epic-04`) вызывают это автоматически.
 **Запуск:**
-- `agent-workspace launch <co> <prod> <repo> <task>` — создать worktree и открыть стандартный 4-pane layout.
-- `agent-workspace list` — список agent worktrees с id/task/branch/state/dirty.
-- `agent-workspace status` — `git status` по всем agent worktrees.
-- `agent-workspace cleanup [--days N] [--dry-run]` — удалить только clean + pushed + ready/merged worktrees.
-- `agent-workspace open <wt-path> | <co> <prod> <repo> <id>` — переоткрыть стандартный 4-pane layout на СУЩЕСТВУЮЩЕМ worktree (без создания нового id). Метаданные берутся из `.agent-workspace`.
-- `agent-workspace reopen-all [company]` — универсально поднять detached-сессию на каждом worktree без живой tmux-сессии (после `tmux kill-server`): и managed (`.agent-workspace`), и ручные `git worktree add` — для всех co/prod/repo. Identity из пути `.worktrees/<co>/<prod>/<repo>/<id>`; вложенные репо/submodule (`.git`-директория) пропускаются. Опциональный фильтр по компании. Дальше `tmux attach -t <name>`.
-- `agent-workspace ready <co> <prod> <repo> <id>` — вручную пометить clean+pushed worktree готовым к cleanup.
+- `agent-workspace start <co> <prod> <repo> <task>` — создать worktree, перейти в него и открыть в редакторе.
+- `agent-workspace open <wt-path> | <co> <prod> <repo> <id>` — вернуться в существующий worktree (нового id не создаётся).
+- `agent-workspace list` — список worktree с id/task/branch/state/dirty.
+- `agent-workspace status` — `git status` по всем worktree.
+- `agent-workspace stale [days]` — worktree без коммитов N+ дней (по умолчанию 3) для ручного разбора; `start` подсказывает их количество.
+- `agent-workspace ready <co> <prod> <repo> <id>` — пометить clean+pushed worktree готовым к уборке.
 - `agent-workspace remove <co> <prod> <repo> <id>` — удалить clean worktree по короткому id.
-- `agent-workspace stale [days]` — active worktrees без tmux-сессии и коммитов N+ дней (default 3) для ручного triage; `start` подсказывает их количество.
-- `agent-workspace prune-branches [--dry-run]` — удалить `agent/*` ветки, не привязанные ни к одному worktree и при этом merged в base или полностью pushed; всё остальное keeping с причиной. `remove`/`cleanup` делают то же для ветки удаляемого worktree автоматически.
-**Git:** base branch = `dev`, иначе `main`; path = короткий id; branch = `agent/<task>-<id>`.
-**Salvage:** перед удалением worktree (`remove`/`cleanup`/`reap`) oracle-ответы (`.agents/oracle/*.md`) и незакоммиченные `docs/epics/*.md` спасаются в WikiPedik `repos/<repo>/_salvage/<id>/`; куратор разбирает их при `wiki sync`. Untracked epic-доки после спасения удаляются (worktree становится removable), изменённые tracked-файлы по-прежнему блокируют remove.
-**Reap при закрытии tmux:** `launch` вешает `session-closed` hook на managed-сессию → при закрытии окна вызывается `agent-workspace reap <wt>`: salvage + удаление worktree ТОЛЬКО если он clean+pushed (или `ready`); dirty/unpushed работа остаётся нетронутой (её подберут `stale`/`cleanup`). Лог: `~/Library/Logs/agent-workspace-reap.log`.
-**Индикатор в статусбаре:** managed-сессия показывает в status-right живой reap-индикатор (обновление 10с): `●synced` (зелёный) — закрытие удалит worktree; `●3✎ 2↑ hold` (жёлтый) — есть незакоммиченное (✎) / незапушенное (↑), закрытие сохранит. Команда: `agent-workspace reap-status <wt>`.
-**VS Code:** start/launch/ready/remove/cleanup автоматически обновляют Project Manager через `vscode-projects-sync`.
-
+- `agent-workspace cleanup [--days N] [--dry-run]` — удалить только clean + pushed + ready/merged worktree.
+- `agent-workspace prune-branches [--dry-run]` — удалить ветки `agent/*`, не привязанные ни к одному worktree и при этом merged в base или полностью pushed.
+**Редактор:** вход в worktree открывает его в VS Code. `HQ_EDITOR` меняет бинарник, `HQ_OPEN_EDITOR=0` отключает открытие целиком — так выставлено на сервере, где GUI нет.
+**Git:** base branch = `dev`, иначе `main`; каталог = короткий id; ветка = `agent/<task>-<id>`; `user.name`/`user.email` берутся из конфига компании.
+**Salvage:** перед удалением worktree незакоммиченные `docs/epics/*.md` спасаются в WikiPedik `repos/<repo>/_salvage/<id>/`. Изменённые tracked-файлы по-прежнему блокируют удаление.
+**Автоудаления нет:** worktree удаляется только явно (`remove`) или через `cleanup` (нужен флаг ready и 7 дней). Автоматическая уборка при старте когда-то дважды снесла живую работу и была убрана.
 ## vscode-projects-sync
 **Что:** Синхронизировать `~/Desktop/Prokectfiles/<company>/<product>/<repo>` и активные `~/Desktop/Prokectfiles/.worktrees/...` с VS Code Project Manager (`alefragnani.project-manager`). По умолчанию Project Manager становится зеркалом платформенных product/repo/worktree entries; старые внешние записи удаляются. Управляемые записи помечаются тегом `dotfiles`, перед ручной записью делает backup `projects.json`.
 **Naming:** repo entries называются коротко (`synapse`), product entries — `Product: company/product`, worktree entries — `repo @ id · task`; company/product/state/branch доступны через tags.
@@ -123,7 +106,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Правила:** push не на каждый commit; merge не выполняется автоматически.
 
 ## wikipedik
-**Что:** tmux с тремя codex-панелями + меню памяти для Obsidian vault: project memory, research и personal brand tracker.
+**Что:** перейти в зону вольта WikiPedik (`dev` по умолчанию, также `research` и `brand`) и показать число незакоммиченных файлов.
 **Запуск:** `wikipedik`
 **Панели:**
 - `~/Desktop/WikiPedik/dev` — project-memory curator (`wiki sync/status/synthesize`).
@@ -167,37 +150,37 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 
 
 ## aetheria
-**Что:** Open tmux session for chimera/aetheria
+**Что:** Открыть воркспейс chimera/aetheria
 **Запуск:** `aetheria`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/aetheria/`
 **Repos:** Aetheria-App aetheria-frontend Aetheria-Manifests Aetheria-AI
 
 ## homeless
-**Что:** Open tmux session for chimera/homeless
+**Что:** Открыть воркспейс chimera/homeless
 **Запуск:** `homeless`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/homeless/`
 **Repos:** Jarvis Homeless Healler Hiring-Radar-Bot
 
 ## neuroslop4ik
-**Что:** Open tmux session for chimera/neuroslop4ik
+**Что:** Открыть воркспейс chimera/neuroslop4ik
 **Запуск:** `neuroslop4ik`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/neuroslop4ik/`
 **Repos:** NeuroSlop4ik
 
 ## comonline
-**Что:** Open tmux session for chimera/comonline
+**Что:** Открыть воркспейс chimera/comonline
 **Запуск:** `comonline`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/comonline/`
 **Repos:** ComaOnline-Sources
 
 ## clients
-**Что:** Open tmux session for SupportOps-Core/clients
+**Что:** Открыть воркспейс SupportOps-Core/clients
 **Запуск:** `clients`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/SupportOps-Core/clients/`
 **Repos:** adminka
 
 ## cerebro
-**Что:** Open tmux session for neurodesk/cerebro
+**Что:** Открыть воркспейс neurodesk/cerebro
 **Запуск:** `cerebro`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/neurodesk/cerebro/`
 **Repos:** cerebro
@@ -209,7 +192,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 
 
 ## pizduk
-**Что:** Open tmux session for chimera/pizduk
+**Что:** Открыть воркспейс chimera/pizduk
 **Запуск:** `pizduk`
 **Файлы:** `/Users/_gerc0g/Desktop/Prokectfiles/chimera/pizduk/`
 **Repos:** Pizduk
@@ -223,7 +206,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **См. также:** `new-project`
 
 ## new-project
-**Что:** Создать продукт в компании: клонит репы + AGENTS.md заготовки + tmux launcher + sync VS Code Project Manager.
+**Что:** Создать продукт в компании: клонит репы + AGENTS.md заготовки + ярлык продукта + sync VS Code Project Manager.
 **Запуск:** `new-project <company> <product> [--ns=<override>] [repo1 repo2 ...]`
 **См. также:** `new-company`, `setup-context`
 
