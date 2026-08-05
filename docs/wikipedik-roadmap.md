@@ -43,8 +43,7 @@ Backfill выполнен: `agent-session-digest.py` сжал 55 сессий м
 ### 3. Уроки умирают вместе с артефактами
 
 Oracle-ответы (second-model review — концентрат инсайтов) живут в
-`.agents/oracle/` внутри worktree и удаляются при cleanup. Логи test-tui — там
-же.
+`.agents/oracle/` внутри worktree и удаляются при cleanup. же.
 
 Идея: перед удалением worktree выжимать из `.agents/oracle/*.md` уроки в
 `_inbox.md` (или хотя бы перемещать ответы в вольт).

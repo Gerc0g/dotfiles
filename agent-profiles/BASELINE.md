@@ -17,6 +17,6 @@ References:
 - Secrets/env: `~/dotfiles/docs/platform/secrets-env.md`
 - Local infra/dev-stack: `~/dotfiles/services/dev-stack/README.md` (canonical; live: `dev-stack urls`; connect a repo: `dev-stack connect`)
 - ML/quant: `~/dotfiles/docs/platform/ml-quant-workflow.md`
-- Commands: `launch`, `agent-workspace`, `agent-commit.sh`, `agent-finish.sh`, `agent-task-push.sh`, `oracle-tui`, `test-tui`, `dev-stack`, `agent-skill`
+- Commands: `hq` (ядро: `hq ls`, `hq doctor`, `hq setup`), `agent-workspace`, `agent-commit.sh`, `agent-finish.sh`, `agent-task-push.sh`, `dev-stack`, `agent-skill`, `secret`
 - Logs: Axiom CLI. DB: `psql`. Secrets: 1Password via `secret`.
 - New skills: use `skill-maintainer`; source lives in `~/dotfiles/skills`, then run `agent-skill install && agent-skill doctor`.

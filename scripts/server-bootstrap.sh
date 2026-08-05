@@ -117,7 +117,7 @@ cat <<'EOF'
      then place the token:  install -m600 /dev/stdin ~/.config/op/service-account-token <<<'ops_...'
      (ensure needed secrets live in Work-<company> vaults, NOT Personal).
   2) claude login:  run `claude` once → OAuth (Keychain creds can't be copied from Mac).
-  3) oracle / ChatGPT Pro session for oracle-loop.sh (one-time).
+  3) oracle / ChatGPT Pro session (one-time).
   4) smoke-test:  exec zsh ; dev-stack doctor ; op vault list ; codex --version ; claude --version
 EOF
 log "done. Re-run safely anytime (idempotent)."

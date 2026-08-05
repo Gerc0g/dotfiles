@@ -72,7 +72,6 @@ type snapshot struct {
 	ClaudeCount       int
 	CodexCount        int
 	TmuxSessionCount  int
-	TestOracleCount   int
 	PressureSeverity  severity
 	CollectionWarning string
 }
@@ -319,7 +318,7 @@ func renderAgentCard(s snapshot, outer int) string {
 	}
 	lines = append(lines, "")
 	lines = append(lines, chip("Claude", strconv.Itoa(s.ClaudeCount), sevForCount(s.ClaudeCount, 2, 5))+" "+chip("Codex", strconv.Itoa(s.CodexCount), sevForCount(s.CodexCount, 2, 5)))
-	lines = append(lines, chip("tmux", strconv.Itoa(s.TmuxSessionCount), sevForCount(s.TmuxSessionCount, 3, 7))+" "+chip("test/oracle", strconv.Itoa(s.TestOracleCount), sevForCount(s.TestOracleCount, 2, 6)))
+	lines = append(lines, chip("tmux", strconv.Itoa(s.TmuxSessionCount), sevForCount(s.TmuxSessionCount, 3, 7)))
 	return hotCard(sev).Width(outer - 2).Height(7).Render(strings.Join(clampAll(lines, inner), "\n"))
 }
 
@@ -571,7 +570,7 @@ func renderSessions(s snapshot, outer int) string {
 		})
 	}
 	content := lipgloss.JoinVertical(lipgloss.Left, title, body)
-	return cardStyle.Width(outer-2).Height(9).Render(strings.Join(clampAll(strings.Split(content, "\n"), inner), "\n"))
+	return cardStyle.Width(outer - 2).Height(9).Render(strings.Join(clampAll(strings.Split(content, "\n"), inner), "\n"))
 }
 
 func renderProcesses(s snapshot, outer int) string {
@@ -598,7 +597,7 @@ func renderProcesses(s snapshot, outer int) string {
 		})
 	}
 	content := lipgloss.JoinVertical(lipgloss.Left, title, body)
-	return cardStyle.Width(outer-2).Height(9).Render(strings.Join(clampAll(strings.Split(content, "\n"), inner), "\n"))
+	return cardStyle.Width(outer - 2).Height(9).Render(strings.Join(clampAll(strings.Split(content, "\n"), inner), "\n"))
 }
 
 func renderNotes(s snapshot, width int) string {
@@ -671,17 +670,12 @@ func collectSnapshot() (snapshot, error) {
 
 	s.ClaudeCount = countMatchingArgs(fullProcs, isClaudeProcess)
 	s.CodexCount = countMatchingArgs(fullProcs, isCodexProcess)
-	s.TestOracleCount = countMatchingArgs(fullProcs, func(p processArgs) bool {
-		comm := baseName(p.Comm)
-		return comm == "test-tui" || comm == "oracle-tui" || strings.Contains(p.Args, "/tools/test-tui/test-tui") || strings.Contains(p.Args, "/tools/oracle-tui/oracle-tui")
-	})
 	s.ActiveAgentCount = s.ClaudeCount + s.CodexCount
 	s.Agents = []metric{
 		{Name: "active", Value: fmt.Sprintf("%d/%d", s.ActiveAgentCount, s.LocalAgentLimit), Detail: "claude + codex", Severity: limitSeverity(s.ActiveAgentCount, s.LocalAgentLimit)},
 		{Name: "claude", Value: strconv.Itoa(s.ClaudeCount), Detail: "live processes", Severity: sevForCount(s.ClaudeCount, 2, 5)},
 		{Name: "codex", Value: strconv.Itoa(s.CodexCount), Detail: "live processes", Severity: sevForCount(s.CodexCount, 2, 5)},
 		{Name: "tmux", Value: strconv.Itoa(s.TmuxSessionCount), Detail: "sessions", Severity: sevForCount(s.TmuxSessionCount, 3, 7)},
-		{Name: "test/oracle", Value: strconv.Itoa(s.TestOracleCount), Detail: "panes", Severity: sevForCount(s.TestOracleCount, 2, 6)},
 	}
 
 	s.PressureSeverity = maxMetricSeverity(append(s.Memory, s.Agents...))
@@ -834,18 +828,10 @@ func sessionAgents(name string, procs []processArgs) string {
 		l := strings.ToLower(p.Args)
 		if strings.Contains(l, strings.ToLower(name)) {
 			switch {
-			case strings.Contains(l, "masko-agent-wrap.sh codex"):
-				counts["codex"]++
-			case strings.Contains(l, "masko-agent-wrap.sh claudecode") || strings.Contains(l, "masko-agent-wrap.sh claude"):
-				counts["claude"]++
 			case isClaudeProcess(p):
 				counts["claude"]++
 			case isCodexProcess(p):
 				counts["codex"]++
-			case strings.Contains(l, "test-tui"):
-				counts["test"]++
-			case strings.Contains(l, "oracle-tui"):
-				counts["oracle"]++
 			}
 		}
 	}
@@ -967,8 +953,6 @@ func processKind(name string) string {
 		return "ide"
 	case strings.Contains(l, "node") || strings.Contains(l, "tsserver") || strings.Contains(l, "pyright"):
 		return "dev"
-	case strings.Contains(l, "test-tui") || strings.Contains(l, "oracle-tui"):
-		return "agent-ui"
 	default:
 		return "app"
 	}

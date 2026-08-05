@@ -1,22 +1,27 @@
+# WikiPedik vault entry point.
+#
+# This used to open a tmux session with a codex pane per vault zone. The panes
+# are gone with the rest of the tmux layer: three agents waiting in three
+# directories is not a workflow, it is three agents waiting.
+
 wikipedik() {
-  tmux kill-session -t wikipedik 2>/dev/null
+  local root="${WIKIPEDIK_ROOT:-$HOME/Desktop/WikiPedik}"
+  local zone=${1:-dev}
 
-  mkdir -p ~/Desktop/WikiPedik/Personal\ Brand
+  case "$zone" in
+    dev|research|brand) ;;
+    *) echo "Usage: wikipedik [dev|research|brand]" >&2; return 1 ;;
+  esac
 
-  tmux new -d -s wikipedik -c ~/Desktop/WikiPedik/dev
-  tmux send-keys -t wikipedik:0 'export CODEX_HOME=$HOME/.codex; clear; codex' Enter
+  [ "$zone" = "brand" ] && zone="Personal Brand"
 
-  tmux split-window -v -t wikipedik:0 -c ~/Desktop/WikiPedik/research
-  tmux send-keys -t wikipedik:0.1 'export CODEX_HOME=$HOME/.codex; clear; codex' Enter
+  local target="$root/$zone"
+  [ -d "$target" ] || { echo "⚠ нет зоны вольта: $target" >&2; return 1; }
 
-  tmux split-window -h -t wikipedik:0.1 -c ~/Desktop/WikiPedik/Personal\ Brand
-  tmux send-keys -t wikipedik:0.2 'export CODEX_HOME=$HOME/.codex; clear; codex' Enter
+  cd "$target" || return 1
+  print -P "%F{cyan}$target%f"
 
-  # Memory ops: prompt composer for the dev chat + quick mechanical actions
-  tmux split-window -h -t wikipedik:0.0 -c ~/Desktop/WikiPedik/dev
-  tmux send-keys -t wikipedik:0.1 'bash ~/dotfiles/scripts/wiki-menu.sh' Enter
-
-  tmux select-layout -t wikipedik:0 tiled
-  tmux select-pane -t wikipedik:0.0
-  tmux attach -t wikipedik
+  local dirty
+  dirty=$(git -C "$root" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+  [ "${dirty:-0}" -gt 0 ] && print -P "%F{244}незакоммиченных файлов: $dirty%f"
 }

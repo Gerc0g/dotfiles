@@ -6,14 +6,12 @@ _dotfiles_shell_modules=(
   20-vaults.zsh
   30-platform.zsh
   30-projects.zsh
-  31-launch.zsh
   32-agent-workspace.zsh
   33-vscode-projects.zsh
   40-direnv.zsh
   50-secret-cache.zsh
   50-secrets.zsh
   60-devstack.zsh
-  61-server-session.zsh
   65-onboard.zsh
   66-analyze.zsh
   67-batch.zsh

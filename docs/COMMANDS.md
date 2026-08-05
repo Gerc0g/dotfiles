@@ -73,8 +73,6 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Panes:**
 - 🧠 **plan** — codex gpt-5.4 high reasoning (architect / planner)
 - 💻 **code** — claude code (implementer)
-- 🧪 **test** — `test-tui`: reads `Makefile`, `.agents/commands.toml`, and package manifests; saves run logs to `.agents/test-runs/`
-- 🔮 **oracle** — `oracle-tui`: prompt + local answer history in `.agents/oracle/`, backed by `@steipete/oracle`
 **Зависит от:** tmux, codex, claude, oracle (`npm i -g @steipete/oracle`)
 
 
@@ -129,7 +127,6 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Запуск:** `wikipedik`
 **Панели:**
 - `~/Desktop/WikiPedik/dev` — project-memory curator (`wiki sync/status/synthesize`).
-- **меню памяти** (`tools/wiki-tui`, bubbletea; launcher `scripts/wiki-menu.sh`) — композер промптов: выбираешь действие (status/sync/synthesize/lint/ingest) и scope (компания→продукт→репо, стрелки/цифры) — готовый промпт ложится в буфер и впечатывается в инпут dev-чата, фокус прыгает туда, ты жмёшь Enter. Механика (rules-sync+hot-refresh, push, git status, bootstrap репо без памяти) выполняется сразу с выводом. Шпаргалка: `docs/wikipedik-cheatsheet.md`.
 - `~/Desktop/WikiPedik/research` — research/study agent для источников, статей, концептов и study notes.
 - `~/Desktop/WikiPedik/Personal Brand` — изолированный brand-agent для идей, черновиков, inbound и weekly metrics.
 **Правила brand-agent:**

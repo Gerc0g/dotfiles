@@ -18,7 +18,6 @@ func sampleSnapshot() snapshot {
 		ClaudeCount:      8,
 		CodexCount:       10,
 		TmuxSessionCount: 8,
-		TestOracleCount:  14,
 		PressureSeverity: sevCritical,
 		Memory: []metric{
 			{Name: "ram", Value: "23.9G/24.0G", Detail: "99% not free", Severity: sevCritical},
