@@ -17,6 +17,12 @@ brew "zoxide"
 brew "direnv"
 brew "ast-grep"
 
+# === Toolchains ===
+# go:   builds bin/hq and the tools/*-tui binaries.
+# node: bootstrap.sh installs the Codex CLI through npm.
+brew "go"
+brew "node"
+
 # === Casks ===
 cask "ghostty"
 cask "obsidian"

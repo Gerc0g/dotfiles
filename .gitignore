@@ -10,13 +10,15 @@ shell/local.zsh
 docs/private/
 
 # Generated local artifacts
+.DS_Store
 logs/
 *.log
 *.bak
 .zshrc-*.txt
 __pycache__/
 
-# Locally built TUI binaries; sources stay tracked
+# Locally built binaries; sources stay tracked
+bin/
 tools/oracle-tui/oracle-tui
 tools/wiki-tui/wiki-tui
 tools/test-tui/test-tui
