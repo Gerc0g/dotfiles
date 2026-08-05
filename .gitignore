@@ -5,6 +5,7 @@
 *secret*
 !shell/50-secrets.zsh
 !shell/50-secret-cache.zsh
+!scripts/secret-cache.sh
 !docs/platform/secrets-env.md
 shell/local.zsh
 docs/private/
