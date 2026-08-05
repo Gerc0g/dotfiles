@@ -11,7 +11,7 @@ Curator-side skill. Reads local agent transcripts and writes distilled source no
 
 Sources — ALWAYS prefer digests over raw transcripts:
 - Digests: `~/Desktop/WikiPedik/dev/10-wiki/sources/sessions/_digests/{codex,claude}/*.md` — compact extracts (user prompts + assistant text + errors, secrets redacted) produced by `python3 ~/dotfiles/scripts/agent-session-digest.py`. Frontmatter `project_dir` and `branch` give the repo scope.
-- Raw fallback only when a digest is missing or clearly lost critical detail: Codex `~/.codex-new/sessions/`, Claude `~/.claude-new/projects/` (files run to many MB — never read whole, sample with grep).
+- Raw fallback only when a digest is missing or clearly lost critical detail: Codex `~/.codex/sessions/`, Claude `~/.claude/projects/` (files run to many MB — never read whole, sample with grep).
 
 If digests are missing for the requested period, run the digester first:
 

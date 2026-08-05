@@ -1,11 +1,10 @@
 # Global agent defaults — loaded first by ~/dotfiles/shell/_loader.zsh
 # Target: ~/dotfiles/shell/05-agent-defaults.zsh
 #
-# Default profile: fresh (`~/.codex-new`, `~/.claude-new`).
-# Override per-session via `agent <profile>` command.
+# The tools own defaults are the managed profiles, so no per-session switching.
 
-export CODEX_HOME="${CODEX_HOME:-$HOME/.codex-new}"
-export CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude-new}"
+export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+export CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 
 # Diagnostic helper — `agent-debug` показывает что подхватилось
 #

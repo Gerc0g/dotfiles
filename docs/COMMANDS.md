@@ -346,7 +346,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ### Setup
 
 ## transcript-scrub
-**Что:** Маскирует секреты в JSONL-транскриптах сессий (`~/.codex-new/sessions`, `~/.claude-new/projects`) и дайджестах вольта. Маскирует, не удаляет: оставляет узнаваемый префикс (`ghp_***MASKED***`), чтобы было видно, какой ключ утёк. Ловит github/gitlab/anthropic/openai/openrouter/grafana-sa/langsmith/aws/slack/npm/hf/stripe/google/sendgrid/telegram/jwt + bearer-токены, пароли в conn-string, `KEY=value`/`"api_key": "..."` присвоения; плейсхолдеры (`${VAR}`, `xxxx`, `REPLACE_ME`) пропускает. Сохраняет mtime (не ломает ingest-манифест), пропускает файлы моложе 24ч (живые сессии), JSON остаётся валидным, идемпотентен.
+**Что:** Маскирует секреты в JSONL-транскриптах сессий (`~/.codex/sessions`, `~/.claude/projects`) и дайджестах вольта. Маскирует, не удаляет: оставляет узнаваемый префикс (`ghp_***MASKED***`), чтобы было видно, какой ключ утёк. Ловит github/gitlab/anthropic/openai/openrouter/grafana-sa/langsmith/aws/slack/npm/hf/stripe/google/sendgrid/telegram/jwt + bearer-токены, пароли в conn-string, `KEY=value`/`"api_key": "..."` присвоения; плейсхолдеры (`${VAR}`, `xxxx`, `REPLACE_ME`) пропускает. Сохраняет mtime (не ломает ingest-манифест), пропускает файлы моложе 24ч (живые сессии), JSON остаётся валидным, идемпотентен.
 **Запуск:**
 - автоматически — launchd-джоба `com.gerc0g.transcript-scrub` ежедневно в 03:30, лог `~/Library/Logs/transcript-scrub.log`.
 - вручную — `python3 ~/dotfiles/scripts/transcript-scrub.py [--dry-run] [--min-age-hours N]`.

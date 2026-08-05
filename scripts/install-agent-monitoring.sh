@@ -78,8 +78,8 @@ print(("✓ updated" if changed else "✓ already configured") + f" Masko hooks:
 PYCODE
 }
 
-configure_claude_masko_hooks "$HOME/.claude-new"
-configure_claude_masko_hooks "$HOME/.claude-setup"
+configure_claude_masko_hooks "$HOME/.claude"
+configure_claude_masko_hooks "$HOME/.claude"
 
 configure_codex_masko_hooks() {
   local profile_dir=$1
@@ -147,16 +147,16 @@ print(("✓ updated" if changed else "✓ already configured") + f" Codex Masko 
 PYCODE
 }
 
-configure_codex_masko_hooks "$HOME/.codex-new"
-configure_codex_masko_hooks "$HOME/.codex-setup"
-configure_codex_masko_hooks "$HOME/.codex-wiki"
+configure_codex_masko_hooks "$HOME/.codex"
+configure_codex_masko_hooks "$HOME/.codex"
+configure_codex_masko_hooks "$HOME/.codex"
 
 cat <<'EOF'
 
 Masko integration installed.
 Notes:
   - Existing running agent sessions must be restarted to emit SessionStart hooks.
-  - Claude profiles use native hooks in ~/.claude-new and ~/.claude-setup.
+  - Claude profiles use native hooks in ~/.claude.
   - Codex profiles use native hooks for prompt/tool/permission events.
   - Codex sessions launched through dotfiles `launch`/product shortcuts are reported by scripts/masko-agent-wrap.sh for lifecycle.
   - If Masko was restarted while agents were already running: bash ~/dotfiles/scripts/masko-resync-active.sh

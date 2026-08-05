@@ -219,7 +219,7 @@ Pilot target: only `neurodesk/agents` first (6 repos, 30 min setup).
 
 ## Final skill list (after community research + user decisions)
 
-### Worker skills (2) — `~/.codex-new/skills/`
+### Worker skills (2) — `~/.codex/skills/`
 
 Worker = project agent in launch tmux (plan/code windows). Reads memory before planning. Writes only to `_inbox.md`.
 
@@ -228,7 +228,7 @@ Worker = project agent in launch tmux (plan/code windows). Reads memory before p
 | 1 | `wiki-context-pack` | [Ar9av/obsidian-wiki](https://github.com/Ar9av/obsidian-wiki/tree/main/.skills/wiki-context-pack) | take-as-is | Token-bounded read of relevant wiki pages before planning |
 | 2 | `lesson-append` | new custom (~60 lines) | write from scratch | Append durable lesson YAML block to `_inbox.md`, nothing else |
 
-### Curator skills (7) — `~/.codex-wiki/skills/`
+### Curator skills (7) — `~/.codex/skills/`
 
 Curator = wiki agent in wikipedik tmux. Reads vault, edits curated pages, synthesizes patterns.
 
@@ -289,9 +289,9 @@ Draft skills are staged in `~/dotfiles/skills-stash/wiki/` (not yet activated):
 ```
 
 Once tested, symlink/copy into:
-- `~/.codex-new/skills/<worker-skills>` and `~/.claude-new/skills/<worker-skills>`
-- `~/.codex-wiki/skills/<curator-skills>`
-- `~/.codex-new/hooks/` and `~/.codex-wiki/hooks/`
+- `~/.codex/skills/<worker-skills>` and `~/.claude/skills/<worker-skills>`
+- `~/.codex/skills/<curator-skills>`
+- `~/.codex/hooks/` and `~/.codex/hooks/`
 - `~/dotfiles/scripts/wiki-bootstrap-product.sh`
 
 ---

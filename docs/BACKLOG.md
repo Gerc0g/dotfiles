@@ -162,7 +162,7 @@ Acceptance criteria:
 
 Status: todo
 
-Problem: skills, agent configs, TUI tools, and local infrastructure are currently a mix of repo files plus manual copies into `~/.codex-new`, `~/.claude-new`, and other home directories.
+Problem: skills, agent configs, TUI tools, and local infrastructure are currently a mix of repo files plus manual copies into `~/.codex`, `~/.claude`, and other home directories.
 
 Goal: `~/dotfiles/bootstrap.sh` should make a fresh Mac or fresh agent profile reproducible from this repo.
 

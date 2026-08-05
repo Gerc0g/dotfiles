@@ -46,22 +46,22 @@ echo "✓ research vault skeleton: $WIKI_RESEARCH"
 mkdir -p "$WIKI_BRAND"
 echo "✓ personal brand vault path: $WIKI_BRAND"
 
-mkdir -p "$HOME/.codex-new/skills" "$HOME/.codex-new/hooks"
-mkdir -p "$HOME/.codex-wiki/skills" "$HOME/.codex-wiki/hooks"
-mkdir -p "$HOME/.claude-new/skills" "$HOME/.claude-new/hooks"
+mkdir -p "$HOME/.codex/skills" "$HOME/.codex/hooks"
+mkdir -p "$HOME/.codex/skills" "$HOME/.codex/hooks"
+mkdir -p "$HOME/.claude/skills" "$HOME/.claude/hooks"
 
-ln -sfn "$DOTFILES/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.codex-new/skills/wiki-context-pack"
-ln -sfn "$DOTFILES/skills-stash/wiki/worker/lesson-append" "$HOME/.codex-new/skills/lesson-append"
-ln -sfn "$DOTFILES/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.claude-new/skills/wiki-context-pack"
-ln -sfn "$DOTFILES/skills-stash/wiki/worker/lesson-append" "$HOME/.claude-new/skills/lesson-append"
+ln -sfn "$DOTFILES/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.codex/skills/wiki-context-pack"
+ln -sfn "$DOTFILES/skills-stash/wiki/worker/lesson-append" "$HOME/.codex/skills/lesson-append"
+ln -sfn "$DOTFILES/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.claude/skills/wiki-context-pack"
+ln -sfn "$DOTFILES/skills-stash/wiki/worker/lesson-append" "$HOME/.claude/skills/lesson-append"
 
 for skill in source-ingest agent-history-ingest inbox-drain wiki-synthesize wiki-lint wiki-status autoresearch; do
-  ln -sfn "$DOTFILES/skills-stash/wiki/curator/$skill" "$HOME/.codex-wiki/skills/$skill"
+  ln -sfn "$DOTFILES/skills-stash/wiki/curator/$skill" "$HOME/.codex/skills/$skill"
 done
 
-ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-codex.sh" "$HOME/.codex-new/hooks/SessionStart.sh"
-ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-codex.sh" "$HOME/.codex-wiki/hooks/SessionStart.sh"
-ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-claude.sh" "$HOME/.claude-new/hooks/SessionStart.sh"
+ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-codex.sh" "$HOME/.codex/hooks/SessionStart.sh"
+ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-codex.sh" "$HOME/.codex/hooks/SessionStart.sh"
+ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-claude.sh" "$HOME/.claude/hooks/SessionStart.sh"
 echo "✓ skills and hooks symlinked"
 
 ensure_codex_hook() {
@@ -120,8 +120,8 @@ EOF
 }
 
 ensure_claude_hook() {
-  local cfg="$HOME/.claude-new/settings.json"
-  local hook="$HOME/.claude-new/hooks/SessionStart.sh"
+  local cfg="$HOME/.claude/settings.json"
+  local hook="$HOME/.claude/hooks/SessionStart.sh"
 
   CFG="$cfg" HOOK="$hook" python3 - <<'PY'
 import json
@@ -160,16 +160,16 @@ print(f"✓ configured claude hook: {cfg}")
 PY
 }
 
-ensure_codex_hook "$HOME/.codex-new/config.toml" "$HOME/.codex-new/hooks/SessionStart.sh"
-ensure_codex_hook "$HOME/.codex-wiki/config.toml" "$HOME/.codex-wiki/hooks/SessionStart.sh"
-ensure_codex_project_trust "$HOME/.codex-wiki/config.toml" "$WIKI_DEV"
-ensure_codex_project_trust "$HOME/.codex-wiki/config.toml" "$WIKI_RESEARCH"
-ensure_codex_project_trust "$HOME/.codex-wiki/config.toml" "$WIKI_BRAND"
-ensure_codex_project_trust "$HOME/.codex-wiki/config.toml" "$WIKI_ROOT"
+ensure_codex_hook "$HOME/.codex/config.toml" "$HOME/.codex/hooks/SessionStart.sh"
+ensure_codex_hook "$HOME/.codex/config.toml" "$HOME/.codex/hooks/SessionStart.sh"
+ensure_codex_project_trust "$HOME/.codex/config.toml" "$WIKI_DEV"
+ensure_codex_project_trust "$HOME/.codex/config.toml" "$WIKI_RESEARCH"
+ensure_codex_project_trust "$HOME/.codex/config.toml" "$WIKI_BRAND"
+ensure_codex_project_trust "$HOME/.codex/config.toml" "$WIKI_ROOT"
 ensure_claude_hook
 
 echo ""
 echo "Verify:"
-echo "  CODEX_HOME=~/.codex-new codex debug prompt-input smoke | rg 'wiki-context-pack|lesson-append'"
-echo "  CODEX_HOME=~/.codex-wiki codex debug prompt-input smoke | rg 'inbox-drain|wiki-status'"
+echo "  CODEX_HOME=~/.codex codex debug prompt-input smoke | rg 'wiki-context-pack|lesson-append'"
+echo "  CODEX_HOME=~/.codex codex debug prompt-input smoke | rg 'inbox-drain|wiki-status'"
 echo "  cd ~/Desktop/WikiPedik && git status --short --branch"

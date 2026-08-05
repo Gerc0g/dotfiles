@@ -2,7 +2,7 @@
 """Scrub high-confidence secrets from agent session transcripts.
 
 Designed to run daily from launchd: session JSONL files live under the home
-directory (~/.codex-new, ~/.claude-new), which background jobs CAN access
+directory (~/.codex, ~/.claude), which background jobs CAN access
 (unlike ~/Desktop, which macOS TCC blocks for daemons).
 
 Safety properties:
@@ -29,8 +29,8 @@ import time
 from pathlib import Path
 
 ROOTS = [
-    Path.home() / ".codex-new" / "sessions",
-    Path.home() / ".claude-new" / "projects",
+    Path.home() / ".codex" / "sessions",
+    Path.home() / ".claude" / "projects",
     # digests are redacted at creation, but older content may predate a
     # pattern — scrub them too when reachable (Desktop needs a terminal run)
     Path.home() / "Desktop" / "WikiPedik" / "dev" / "10-wiki" / "sources" / "sessions" / "_digests",

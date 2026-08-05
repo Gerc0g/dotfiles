@@ -297,8 +297,8 @@ _launch_session_path() {
 
   tmux kill-session -t "$session" 2>/dev/null
 
-  export CODEX_HOME="$HOME/.codex-new"
-  export CLAUDE_CONFIG_DIR="$HOME/.claude-new"
+  export CODEX_HOME="$HOME/.codex"
+  export CLAUDE_CONFIG_DIR="$HOME/.claude"
   export AGENT_GIT_MODE="commit-local"
   export AGENT_GIT_PUSH="task"
   export AGENT_WORKSPACE_MODE="shared"
@@ -309,7 +309,7 @@ _launch_session_path() {
   # (the project .envrc reads ${DEV_STACK_HOST}; without this it falls to localhost).
   export DEV_STACK_HOST="${DEV_STACK_HOST:-gerc0g}"
 
-  local fresh_env='export CODEX_HOME="$HOME/.codex-new"; export CLAUDE_CONFIG_DIR="$HOME/.claude-new"; export AGENT_GIT_MODE="commit-local"; export AGENT_GIT_PUSH="task"; export AGENT_WORKSPACE_MODE="'"$AGENT_WORKSPACE_MODE"'"; export DEV_STACK_HOST="'"${DEV_STACK_HOST:-gerc0g}"'";'
+  local fresh_env='export CODEX_HOME="$HOME/.codex"; export CLAUDE_CONFIG_DIR="$HOME/.claude"; export AGENT_GIT_MODE="commit-local"; export AGENT_GIT_PUSH="task"; export AGENT_WORKSPACE_MODE="'"$AGENT_WORKSPACE_MODE"'"; export DEV_STACK_HOST="'"${DEV_STACK_HOST:-gerc0g}"'";'
 
   local test_cmd
   test_cmd=$(_launch_detect_test "$repo_dir")
@@ -351,8 +351,8 @@ _launch_session_path() {
   # === Build session: one window, four panes ===
   local plan_pane code_pane test_pane oracle_pane
   plan_pane=$(tmux new-session -d -s "$session" -c "$repo_dir" -n "work" -P -F '#{pane_id}')
-  tmux set-environment -t "$session" CODEX_HOME "$HOME/.codex-new"
-  tmux set-environment -t "$session" CLAUDE_CONFIG_DIR "$HOME/.claude-new"
+  tmux set-environment -t "$session" CODEX_HOME "$HOME/.codex"
+  tmux set-environment -t "$session" CLAUDE_CONFIG_DIR "$HOME/.claude"
   tmux set-environment -t "$session" AGENT_GIT_MODE "commit-local"
   tmux set-environment -t "$session" AGENT_GIT_PUSH "task"
   tmux set-environment -t "$session" AGENT_WORKSPACE_MODE "$AGENT_WORKSPACE_MODE"

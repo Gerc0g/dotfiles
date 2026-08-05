@@ -22,11 +22,11 @@ source ~/.zshrc
 Then complete the manual steps printed by `bootstrap.sh`:
 
 ```bash
-CODEX_HOME=~/.codex-new codex login
-CODEX_HOME=~/.codex-setup codex login
-CODEX_HOME=~/.codex-wiki codex login
-CLAUDE_CONFIG_DIR=~/.claude-new claude login
-CLAUDE_CONFIG_DIR=~/.claude-setup claude login
+CODEX_HOME=~/.codex codex login
+CODEX_HOME=~/.codex codex login
+CODEX_HOME=~/.codex codex login
+CLAUDE_CONFIG_DIR=~/.claude claude login
+CLAUDE_CONFIG_DIR=~/.claude claude login
 ```
 
 Enable 1Password CLI integration:
@@ -50,11 +50,11 @@ Open the WikiPedik vault in Obsidian:
 - installs Codex/Claude CLI if missing;
 - symlinks Ghostty and tmux configs;
 - creates agent profile directories:
-  - `~/.codex-new`
-  - `~/.codex-setup`
-  - `~/.codex-wiki`
-  - `~/.claude-new`
-  - `~/.claude-setup`
+  - `~/.codex`
+  - `~/.codex`
+  - `~/.codex`
+  - `~/.claude`
+  - `~/.claude`
 - links the shared baseline profile;
 - installs WikiPedik runtime skills and SessionStart hooks;
 - installs repo-owned skills with `agent-skill`;
@@ -134,9 +134,9 @@ The platform keeps profiles separate to avoid prompt bloat.
 
 | Profile | Env | Purpose | Skills |
 |---|---|---|---|
-| `fresh` | `~/.codex-new`, `~/.claude-new` | daily repo work through `launch` | WikiPedik worker skills, `oracle`, universal `skill-maintainer` |
-| `setup` | `~/.codex-setup`, `~/.claude-setup` | onboarding, analysis, AGENTS generation | `analyze-*`, `fill-agents-md`, `onboard-agents-md`, `skill-maintainer` |
-| `wiki` | `~/.codex-wiki`, Claude fresh | curator work in WikiPedik | curator skills, `skill-maintainer` |
+| `fresh` | `~/.codex`, `~/.claude` | daily repo work through `launch` | WikiPedik worker skills, `oracle`, universal `skill-maintainer` |
+| `setup` | `~/.codex`, `~/.claude` | onboarding, analysis, AGENTS generation | `analyze-*`, `fill-agents-md`, `onboard-agents-md`, `skill-maintainer` |
+| `wiki` | `~/.codex`, Claude fresh | curator work in WikiPedik | curator skills, `skill-maintainer` |
 | `legacy` | `~/.codex`, `~/.claude` | old profiles only when explicitly needed | unmanaged |
 
 Switch manually:
@@ -463,28 +463,27 @@ globally by default.
 
 ## Validation
 
-Useful local checks before committing:
+Run the complete local, non-destructive check before committing:
 
 ```bash
-bash -n bootstrap.sh scripts/agent-skill.sh
-zsh -n shell/*.zsh
-agent-skill doctor
-git diff --check
+make verify
 ```
+
+Focused targets are available through `make lint` and `make test`.
 
 Prompt routing smoke checks:
 
 ```bash
-CODEX_HOME=~/.codex-new codex debug prompt-input smoke
-CODEX_HOME=~/.codex-setup codex debug prompt-input smoke
-CODEX_HOME=~/.codex-wiki codex debug prompt-input smoke
+CODEX_HOME=~/.codex codex debug prompt-input smoke
+CODEX_HOME=~/.codex codex debug prompt-input smoke
+CODEX_HOME=~/.codex codex debug prompt-input smoke
 ```
 
 Claude plugin checks:
 
 ```bash
-CLAUDE_CONFIG_DIR=~/.claude-new claude plugin list
-CLAUDE_CONFIG_DIR=~/.claude-setup claude plugin list
+CLAUDE_CONFIG_DIR=~/.claude claude plugin list
+CLAUDE_CONFIG_DIR=~/.claude claude plugin list
 ```
 
 ## Operating Principles

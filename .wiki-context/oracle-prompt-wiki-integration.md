@@ -20,7 +20,7 @@ My WikiPedik vault is already running the Karpathy LLM Wiki pattern:
 - `~/Desktop/WikiPedik/dev/` — personal projects, business, brand work. Has `00-inbox`, `10-wiki/{index,log}`, `20-projects` (currently empty — this is where I want to integrate project knowledge), plus `AGENTS.md` and `llm-wiki.md` (Karpathy spec copy).
 - `~/Desktop/WikiPedik/research/` — ML / quant / SWE / math / cross-domain research. Has `00-inbox`, `01-raw/{business,cross-domain,math,ml,quant,swe}`, `10-wiki`, `15-study`, `20-outputs`. First ingest already done — vaswani-2017 attention paper + concept pages (attention, multi-head-attention, positional-encoding, transformer-architecture, etc.).
 
-I have `wikipedik` tmux command that opens both vaults in two codex sessions side-by-side (separate `~/.codex-wiki` profile).
+I have `wikipedik` tmux command that opens both vaults in two codex sessions side-by-side (separate `~/.codex` profile).
 
 ## Goal
 
@@ -38,8 +38,8 @@ Specifically:
 - `~/Desktop/WikiPedik/dev/20-projects/` — currently empty, ready for project-memory integration
 - `~/Desktop/WikiPedik/research/` — research knowledge (papers, ML concepts) — different audience, don't merge
 - `~/dotfiles/` — shell tools (`launch`, `setup-context`, `batch-fill-agents`, `agents-sessions`, etc.) + skills (`analyze-repo`, `analyze-product`, `fill-agents-md`, `onboard-agents-md`) + templates (`AGENTS.md.{company,product,repo}.tmpl`)
-- `~/.codex-new/` and `~/.claude-new/` — profile (autoloaded by codex/claude)
-- `~/.codex/AGENTS.md` is a symlink to `~/.codex-new/AGENTS.md` so both default and named profile see the same Profile AGENTS.md
+- `~/.codex/` and `~/.claude/` — profile (autoloaded by codex/claude)
+- `~/.codex/AGENTS.md` is a symlink to `~/.codex/AGENTS.md` so both default and named profile see the same Profile AGENTS.md
 
 ## What I've built so far (decisions already made — DON'T propose alternatives)
 

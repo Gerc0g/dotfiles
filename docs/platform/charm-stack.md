@@ -98,7 +98,7 @@
   hover, автодополнение, go-to-def по любому символу Charm. `gopls` установлен в
   `~/go/bin/gopls`.
 - **В харнесе агента (LSP-инструмент):** нужен включённый плагин
-  `gopls@claude-code-lsps` в `enabledPlugins` (`~/.claude-new/settings.json`) и
+  `gopls@claude-code-lsps` в `enabledPlugins` (`~/.claude/settings.json`) и
   **рестарт** Claude Code. До этого использовать `go doc <pkg> [Symbol]` — даёт
   точные сигнатуры всегда.
 - **Всегда доступно:** `cd tools/charm-stack && go doc github.com/charmbracelet/huh NewForm`.

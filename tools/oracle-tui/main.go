@@ -794,7 +794,7 @@ func codexEnv() []string {
 	env := os.Environ()
 	home, err := os.UserHomeDir()
 	if err == nil {
-		env = append(env, "CODEX_HOME="+filepath.Join(home, ".codex-new"))
+		env = append(env, "CODEX_HOME="+filepath.Join(home, ".codex"))
 	}
 	env = append(env, "TERM=xterm-256color")
 	return env

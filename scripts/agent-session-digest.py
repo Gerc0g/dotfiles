@@ -21,8 +21,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-CLAUDE_ROOT = Path.home() / ".claude-new" / "projects"
-CODEX_ROOT = Path.home() / ".codex-new" / "sessions"
+CLAUDE_ROOT = Path.home() / ".claude" / "projects"
+CODEX_ROOT = Path.home() / ".codex" / "sessions"
 OUT_ROOT = (
     Path.home()
     / "Desktop"

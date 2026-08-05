@@ -53,8 +53,8 @@ onboard() {
   echo "  Launching codex with onboard-agents-md skill..."
   echo ""
 
-  export CODEX_HOME="$HOME/.codex-setup"
-  export CLAUDE_CONFIG_DIR="$HOME/.claude-setup"
+  export CODEX_HOME="$HOME/.codex"
+  export CLAUDE_CONFIG_DIR="$HOME/.claude"
 
   # Initial prompt — skill подхватит автоматически по триггеру "заонбордить"
   codex "Use skill onboard-agents-md. Detect current level ($level), read questions/$level.md, then walk me through filling TODO placeholders in AGENTS.md one question at a time."

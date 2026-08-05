@@ -68,8 +68,8 @@ batch-setup() {
   local logfile="$logdir/batch-setup-${co}-${prod}-${ts}.log"
 
   # Force correct codex/claude home BEFORE anything
-  export CODEX_HOME="$HOME/.codex-setup"
-  export CLAUDE_CONFIG_DIR="$HOME/.claude-setup"
+  export CODEX_HOME="$HOME/.codex"
+  export CLAUDE_CONFIG_DIR="$HOME/.claude"
 
   echo "→ Batch architectural analysis for $(pwd)"
   echo "  Repos found: ${repos[*]}"

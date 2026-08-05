@@ -2,11 +2,11 @@
 # Codex CLI SessionStart hook — auto-loads recent wiki context for current repo.
 #
 # Installation:
-#   1. Copy to ~/.codex-new/hooks/SessionStart.sh
-#   2. Reference in ~/.codex-new/config.toml:
+#   1. Copy to ~/.codex/hooks/SessionStart.sh
+#   2. Reference in ~/.codex/config.toml:
 #        [hooks]
 #        SessionStart = [
-#          { matcher = "startup|resume", hooks = [{ type = "command", command = "/Users/_gerc0g/.codex-new/hooks/SessionStart.sh" }] },
+#          { matcher = "startup|resume", hooks = [{ type = "command", command = "/Users/_gerc0g/.codex/hooks/SessionStart.sh" }] },
 #        ]
 #
 # Behavior:

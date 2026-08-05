@@ -2,14 +2,14 @@
 # Claude Code SessionStart hook — auto-loads recent wiki context for current repo.
 #
 # Installation:
-#   1. Copy to ~/.claude-new/hooks/SessionStart.sh
-#   2. Reference in ~/.claude-new/settings.json hooks section:
+#   1. Copy to ~/.claude/hooks/SessionStart.sh
+#   2. Reference in ~/.claude/settings.json hooks section:
 #        {
 #          "hooks": {
 #            "SessionStart": [
 #              {
 #                "matcher": "*",
-#                "hooks": [{ "type": "command", "command": "~/.claude-new/hooks/SessionStart.sh" }]
+#                "hooks": [{ "type": "command", "command": "~/.claude/hooks/SessionStart.sh" }]
 #              }
 #            ]
 #          }

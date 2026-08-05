@@ -271,9 +271,9 @@ _wiki_curator() {
   (
     cd "$HOME/Desktop/WikiPedik/dev" || return 1
     if [ -t 0 ]; then
-      CODEX_HOME="$HOME/.codex-wiki" codex --no-alt-screen "Use skill $skill. Scope: $scope. $instruction"
+      CODEX_HOME="$HOME/.codex" codex --no-alt-screen "Use skill $skill. Scope: $scope. $instruction"
     elif [ "$mode" = "readonly" ]; then
-      CODEX_HOME="$HOME/.codex-wiki" codex exec "Use skill $skill. Scope: $scope. $instruction"
+      CODEX_HOME="$HOME/.codex" codex exec "Use skill $skill. Scope: $scope. $instruction"
     else
       echo "⚠ wiki $skill needs an interactive terminal for confirmation."
       echo "  Re-run from your shell, not from a non-interactive command."

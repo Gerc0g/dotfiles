@@ -4,11 +4,11 @@ Staging area for Karpathy LLM Wiki skills before activation.
 
 ## Final list (9 skills + 1 hook + 1 script)
 
-### Worker (2) — for project agents in `~/.codex-new/skills/`
+### Worker (2) — for project agents in `~/.codex/skills/`
 - `worker/wiki-context-pack/SKILL.md` — read memory before planning [take-as-is from Ar9av]
 - `worker/lesson-append/SKILL.md` — write durable lesson to _inbox.md [new custom, in repo]
 
-### Curator (7) — for wiki agents in `~/.codex-wiki/skills/`
+### Curator (7) — for wiki agents in `~/.codex/skills/`
 - `curator/source-ingest/SKILL.md` — external raw → wiki/sources/ [take-as-is from kfchou, renamed]
 - `curator/agent-history-ingest/SKILL.md` — JSONL → wiki entries [merged from Ar9av's two]
 - `curator/inbox-drain/SKILL.md` — _inbox.md → curated files [new custom, in repo]
@@ -53,31 +53,31 @@ Manual equivalent:
 
 ```bash
 # Worker skills (codex + claude profile)
-ln -sfn "$HOME/dotfiles/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.codex-new/skills/wiki-context-pack"
-ln -sfn "$HOME/dotfiles/skills-stash/wiki/worker/lesson-append"     "$HOME/.codex-new/skills/lesson-append"
-ln -sfn "$HOME/dotfiles/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.claude-new/skills/wiki-context-pack"
-ln -sfn "$HOME/dotfiles/skills-stash/wiki/worker/lesson-append"     "$HOME/.claude-new/skills/lesson-append"
+ln -sfn "$HOME/dotfiles/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.codex/skills/wiki-context-pack"
+ln -sfn "$HOME/dotfiles/skills-stash/wiki/worker/lesson-append"     "$HOME/.codex/skills/lesson-append"
+ln -sfn "$HOME/dotfiles/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.claude/skills/wiki-context-pack"
+ln -sfn "$HOME/dotfiles/skills-stash/wiki/worker/lesson-append"     "$HOME/.claude/skills/lesson-append"
 
 # Curator skills (wiki profile)
 for skill in source-ingest agent-history-ingest inbox-drain wiki-synthesize wiki-lint wiki-status autoresearch; do
-  ln -sfn "$HOME/dotfiles/skills-stash/wiki/curator/$skill" "$HOME/.codex-wiki/skills/$skill"
+  ln -sfn "$HOME/dotfiles/skills-stash/wiki/curator/$skill" "$HOME/.codex/skills/$skill"
 done
 
 # Hooks
-mkdir -p ~/.codex-new/hooks ~/.claude-new/hooks
-ln -sfn "$HOME/dotfiles/skills-stash/wiki/hooks/auto-load-codex.sh"  "$HOME/.codex-new/hooks/SessionStart.sh"
-ln -sfn "$HOME/dotfiles/skills-stash/wiki/hooks/auto-load-codex.sh"  "$HOME/.codex-wiki/hooks/SessionStart.sh"
-ln -sfn "$HOME/dotfiles/skills-stash/wiki/hooks/auto-load-claude.sh" "$HOME/.claude-new/hooks/SessionStart.sh"
+mkdir -p ~/.codex/hooks ~/.claude/hooks
+ln -sfn "$HOME/dotfiles/skills-stash/wiki/hooks/auto-load-codex.sh"  "$HOME/.codex/hooks/SessionStart.sh"
+ln -sfn "$HOME/dotfiles/skills-stash/wiki/hooks/auto-load-codex.sh"  "$HOME/.codex/hooks/SessionStart.sh"
+ln -sfn "$HOME/dotfiles/skills-stash/wiki/hooks/auto-load-claude.sh" "$HOME/.claude/hooks/SessionStart.sh"
 ```
 
 ### 4. Verify
 ```bash
 # Codex sees worker skills in the model-visible prompt input
-CODEX_HOME=~/.codex-new codex debug prompt-input "smoke" \
+CODEX_HOME=~/.codex codex debug prompt-input "smoke" \
   | grep -E "wiki-context-pack|lesson-append"
 
 # Codex (wiki profile) sees curator skills in the model-visible prompt input
-CODEX_HOME=~/.codex-wiki codex debug prompt-input "smoke" \
+CODEX_HOME=~/.codex codex debug prompt-input "smoke" \
   | grep -E "source-ingest|inbox-drain|wiki-status"
 ```
 

@@ -10,7 +10,7 @@
 # MAC first (rsync), because the server has no git auth yet. From the Mac:
 #   rsync -a ~/dotfiles gerc0g:~/                          # this repo
 #   rsync -a ~/.ssh/{*_id_ed25519,*_id_ed25519.pub,gitlab_nrdsk} gerc0g:~/.ssh/
-#   rsync -a ~/.codex-new/{auth.json,config.toml} gerc0g:~/.codex-new/
+#   rsync -a ~/.codex/{auth.json,config.toml} gerc0g:~/.codex/
 #   infocmp -x xterm-ghostty | ssh gerc0g 'tic -x -'      # terminfo (optional)
 #   # cross-build TUIs on the Mac, then copy:
 #   for t in oracle status test; do (cd ~/dotfiles/tools/$t-tui && GOOS=linux GOARCH=amd64 go build -o /tmp/$t-tui .); rsync /tmp/$t-tui gerc0g:~/bin/; done
@@ -59,12 +59,12 @@ log "§3 dotfiles"
 
 # ─── §4 agent profiles + symlinks (link_profile pattern from bootstrap.sh) ───
 log "§4 agent profiles"
-mkdir -p "$HOME/.codex-new" "$HOME/.codex-setup" "$HOME/.claude-new" "$HOME/.claude-setup" "$HOME/bin"
+mkdir -p "$HOME/.codex" "$HOME/.claude" "$HOME/bin"
 link_profile(){ local src="$1" dst="$2"; [ -e "$src" ] || return 0; [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ] && return 0; [ -e "$dst" ] && mv "$dst" "$dst.bak.$$"; ln -s "$src" "$dst" && ok "link $(basename "$dst")"; }
-link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.codex-new/AGENTS.md"
-link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.codex-setup/AGENTS.md"
-link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.claude-new/CLAUDE.md"
-link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.claude-setup/CLAUDE.md"
+link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.codex/AGENTS.md"
+link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.codex/AGENTS.md"
+link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.claude/CLAUDE.md"
+link_profile "$HOME/dotfiles/agent-profiles/BASELINE.md" "$HOME/.claude/CLAUDE.md"
 ln -sf "$HOME/dotfiles/tmux/tmux.conf" "$HOME/.tmux.conf" && ok "link ~/.tmux.conf (mouse on, pane switching)"
 
 # ─── §5 server env file + zshrc loader + default shell ───
@@ -73,8 +73,8 @@ cat > "$ENVFILE" <<EOF
 # server-only overrides (gitignored). Loaded by the dotfiles loader.
 export DEV_STACK_HOST=localhost          # dev-stack runs HERE
 export PROKECTFILES_ROOT="$PROKECTFILES_ROOT"
-export CODEX_HOME="\$HOME/.codex-new"
-export CLAUDE_CONFIG_DIR="\$HOME/.claude-new"
+export CODEX_HOME="\$HOME/.codex"
+export CLAUDE_CONFIG_DIR="\$HOME/.claude"
 export PATH="\$HOME/.local/bin:\$HOME/bin:/usr/local/go/bin:\$PATH"
 [ -f "\$HOME/.config/op/service-account-token" ] && export OP_SERVICE_ACCOUNT_TOKEN="\$(cat \$HOME/.config/op/service-account-token)"
 EOF
