@@ -195,7 +195,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Используй:** когда добавляешь/меняешь reusable skill. Для agent-led изменений сначала используй `skill-maintainer`.
 
 ## dev-stack
-**Что:** Единый локальный Docker-стек инфры для всех проектов. Сервисы: Postgres :5432, Redis :6379, MinIO :9000/9001, Qdrant :6333, ClickHouse :8123, Prometheus :9090, Grafana :3030, Loki :3100, Tempo :3200, OTel Collector :4317/4318, Langfuse :3001, Ollama :11434, Metabase :3002, CloudBeaver :8978 (+ Traefik/Homepage). Host = `$DEV_STACK_HOST` (default **gerc0g** — домашний Ubuntu по Tailscale, 24/7; `localhost` для Mac-local). Remote-aware: управление идёт на хост через `ssh $DEV_STACK_SSH` (default ubuntu-server). Телеметрия PUSH через OTLP (Prometheus сам не скрейпит). Источник правды: `services/dev-stack/`.
+**Что:** Единый локальный Docker-стек инфры для всех проектов. Сервисы: Postgres :5432, Redis :6379, MinIO :9000/9001, Qdrant :6333, ClickHouse :8123, Prometheus :9090, Grafana :3030, Loki :3100, Tempo :3200, OTel Collector :4317/4318, Langfuse :3001, Ollama :11434, Metabase :3002, CloudBeaver :8978 (+ Traefik/Homepage). Стек работает локально на этой машине; удалённые хосты вернутся вместе с серверным слоем (`hq server`). Телеметрия PUSH через OTLP (Prometheus сам не скрейпит). Источник правды: `services/dev-stack/`.
 **Запуск:**
 - `dev-stack connect [prod repo]` — самоонбординг проекта: блок в ./.envrc + БД `<product>__<repo>` + direnv allow
 - `dev-stack doctor` — достижимость стека + подключён ли текущий проект

@@ -1,42 +1,24 @@
 # Shared local dev infrastructure control.
 #
-# DEV_STACK_HOST is where the stack lives. Default `gerc0g` — the home Ubuntu
-# dev-server (MagicDNS name → tailnet 100.73.117.50), which hosts the stack 24/7.
-# Override with DEV_STACK_HOST=localhost to talk to a stack running on this Mac.
-# Connection strings / URLs follow it, no other change needed.
+# The stack runs on this machine. The remote half — talking to a server over ssh
+# — was removed with the rest of the server layer: it assumed exactly one box at
+# a fixed alias, and multi-server support will be designed properly instead of
+# being retrofitted onto that assumption.
 #
-# EXPORTED so child processes (direnv bash subshell, agent panes, apps) see it —
-# project .envrc blocks resolve endpoints from it. Without export, .envrc silently
-# fell back to localhost (where nothing runs).
-export DEV_STACK_HOST="${DEV_STACK_HOST:-gerc0g}"
+# DEV_STACK_HOST stays exported because project .envrc blocks resolve endpoints
+# from it; it is now always local.
+export DEV_STACK_HOST="${DEV_STACK_HOST:-localhost}"
 
-# Where to manage the stack when it lives on a remote host: an ssh target that
-# can run docker (Tailscale SSH alias). Only used when DEV_STACK_HOST != localhost.
-: "${DEV_STACK_SSH:=ubuntu-server}"
-
-# ─── remote-aware docker helpers ───
-# The stack normally runs on the server, so `docker` / `docker compose` must run
-# THERE. When DEV_STACK_HOST is local, run against the local engine.
-
-_devstack_is_local() {
-  local h="${DEV_STACK_HOST:-gerc0g}"
-  [ "$h" = "localhost" ] || [ "$h" = "127.0.0.1" ]
+_devstack_sh() {
+  docker "$@"
 }
 
-_devstack_sh() {   # non-interactive docker subcommand on the stack host
-  if _devstack_is_local; then docker "$@"; else ssh "$DEV_STACK_SSH" docker "$@"; fi
+_devstack_ti() {
+  docker "$@"
 }
 
-_devstack_ti() {   # interactive docker exec on the stack host (-t for ssh)
-  if _devstack_is_local; then docker "$@"; else ssh -t "$DEV_STACK_SSH" docker "$@"; fi
-}
-
-_devstack_compose() {   # docker compose against the right host + compose file
-  if _devstack_is_local; then
-    docker compose -f ~/dotfiles/services/dev-stack/docker-compose.yml "$@"
-  else
-    ssh "$DEV_STACK_SSH" "cd /root/dev-stack && docker compose $*"
-  fi
+_devstack_compose() {
+  docker compose -f ~/dotfiles/services/dev-stack/docker-compose.yml "$@"
 }
 
 # Run SQL from STDIN on dev-postgres. Piping via stdin (docker exec -i) avoids the
@@ -44,16 +26,7 @@ _devstack_compose() {   # docker compose against the right host + compose file
 _devstack_psql_in() {
   # -d postgres: connect to the maintenance DB (psql -U dev alone would target a
   # database literally named "dev", which does not exist).
-  if _devstack_is_local; then docker exec -i dev-postgres psql -U dev -d postgres "$@"
-  else ssh "$DEV_STACK_SSH" docker exec -i dev-postgres psql -U dev -d postgres "$@"; fi
-}
-
-# Resolve the stack host to something probeable. MagicDNS short names can fail to
-# resolve when a full-tunnel VPN (Happ) hijacks DNS, even though the tailnet route
-# is up — fall back to the tailnet IP via the tailscale CLI.
-_devstack_tailscale() {
-  if command -v tailscale >/dev/null 2>&1; then tailscale "$@"
-  else /Applications/Tailscale.app/Contents/MacOS/Tailscale "$@" 2>/dev/null; fi
+  docker exec -i dev-postgres psql -U dev -d postgres "$@"
 }
 
 _devstack_db_exists() {   # 0 if database $1 exists
@@ -92,7 +65,7 @@ _devstack_envrc_block() {
   local db="$1"
   cat <<'HEAD'
 # >>> dev-stack (managed: dev-stack connect) >>>
-H="${DEV_STACK_HOST:-gerc0g}"
+H="${DEV_STACK_HOST:-localhost}"
 HEAD
   printf 'export DATABASE_URL="postgresql://dev:dev@$H:5432/%s"\n' "$db"
   cat <<'TAIL'
@@ -109,12 +82,12 @@ TAIL
 
 dev-stack() {
   local cmd="${1:-status}"
-  local h="${DEV_STACK_HOST:-gerc0g}"
+  local h="${DEV_STACK_HOST:-localhost}"
 
   case "$cmd" in
     urls)
       cat <<URLS
-Dev stack @ ${h}   (manage on host via: ssh ${DEV_STACK_SSH})
+Dev stack @ ${h}
 
   core
     Postgres      ${h}:5432            user=dev pass=dev
@@ -175,18 +148,8 @@ URLS
       ;;
 
     doctor)
-      echo "dev-stack doctor @ $h   (manage: ssh ${DEV_STACK_SSH})"
+      echo "dev-stack doctor @ $h"
       local target="$h"
-      if ! _devstack_is_local && ! nc -z -w2 "$h" 5432 >/dev/null 2>&1; then
-        local ip; ip=$(_devstack_tailscale ip -4 "$h" 2>/dev/null | head -1)
-        if [ -n "$ip" ]; then
-          echo "  ⚠ '$h' не резолвится напрямую (DNS, вероятно, перехвачен Happ);"
-          echo "    проверяю по tailnet IP $ip. ВНИМАНИЕ: приложения тоже не разрезолвят"
-          echo "    имя '$h', пока DNS перехвачен — для dev либо чини MagicDNS/route-pin,"
-          echo "    либо ставь DEV_STACK_HOST=$ip."
-          target="$ip"
-        fi
-      fi
       echo "reachability (@ $target):"
       local probe name port
       for probe in "postgres 5432" "redis 6379" "qdrant 6333" "clickhouse 8123" \
@@ -218,7 +181,7 @@ URLS
   esac
 
   # ─── lifecycle / access (run against the stack host) ───
-  if _devstack_is_local && ! docker ps >/dev/null 2>&1; then
+  if ! docker ps >/dev/null 2>&1; then
     echo "⚠ Docker не запущен (DEV_STACK_HOST=localhost). Запусти OrbStack."
     return 1
   fi
@@ -263,7 +226,7 @@ URLS
       ;;
     *)
       cat <<USAGE
-Usage: dev-stack <command>          (stack @ ${h}; manage via ssh ${DEV_STACK_SSH})
+Usage: dev-stack <command>          (stack @ ${h})
 
 Connect a project (self-onboard):
   connect [prod repo]   Append dev-stack block to ./.envrc, create its DB, direnv allow

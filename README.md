@@ -313,7 +313,7 @@ dev-stack down
 dev-stack status
 ```
 
-Host is `$DEV_STACK_HOST` (default `gerc0g`, the home Ubuntu box on tailnet, 24/7).
+The stack runs locally on this machine. Multi-machine targeting comes back with the server layer (`hq server`).
 Stack (18 services): Postgres, Redis, MinIO, Qdrant, ClickHouse, Prometheus,
 Grafana, Loki, Tempo, OTel Collector, Langfuse, Ollama, Open-WebUI, Metabase,
 CloudBeaver, Redis-Commander, Traefik, Homepage. Live list: `dev-stack urls`.

@@ -6,14 +6,9 @@
 ## Shared dev-stack
 
 One shared infra layer for all projects (`services/dev-stack/docker-compose.yml`),
-running 24/7 on the home Ubuntu box `gerc0g`. There is exactly **one** dev-stack —
-on the server. Host = `$DEV_STACK_HOST`; all addresses below are `$DEV_STACK_HOST:<port>`.
+running locally on this machine. There is exactly **one** dev-stack.
 
 **Per-context rule (hybrid Mac + server):**
-- Agents running **on the server** → `DEV_STACK_HOST=localhost` (infra is local to them).
-  Set `export DEV_STACK_HOST=localhost` in the server's shell profile.
-- Agents on **the Mac / any other device** → `DEV_STACK_HOST=gerc0g` (reach the server
-  over tailnet). This is the default.
 
 A project `.envrc` keys off `${DEV_STACK_HOST}`, so the *same* `.envrc` resolves
 correctly on both machines — no duplication. Note: with one shared stack, a Mac
@@ -48,7 +43,6 @@ prints the block without writing.
 ## Management
 
 The stack lives on the server. `dev-stack` is remote-aware: lifecycle/exec run on
-`$DEV_STACK_HOST` via `ssh $DEV_STACK_SSH` (default `ubuntu-server`) when the host
 is not local. `dev-stack up/down/status/logs`, `psql`, `redis-cli`, `clickhouse`,
 `db-ensure`/`db-create`/`db-drop`, `urls`, `nuke`.
 
