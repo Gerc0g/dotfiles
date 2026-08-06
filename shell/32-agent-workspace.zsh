@@ -1,11 +1,8 @@
-# Managed agent workspaces built on git worktree.
+# Isolated agent workspaces.
 #
-# The tmux layer that used to sit on top of this is gone: work happens in the
-# editor now, so a command that painted four panes was ceremony around the one
-# thing that mattered — an isolated worktree with the right git identity.
-#
-# This wrapper exists because `cd` has to happen in the calling shell; every
-# other subcommand is passed straight through to the script.
+# The logic lives in the core (`hq workspace`); this wrapper exists for the one
+# thing a program cannot do for its caller — change the shell's directory — and
+# for opening the editor afterwards.
 
 agent-workspace() {
   local cmd=${1:-}
@@ -15,7 +12,7 @@ agent-workspace() {
       shift
       [ $# -eq 4 ] || { echo "Usage: agent-workspace start <company> <product> <repo> <task-slug>" >&2; return 1; }
       local wt
-      wt=$(bash "$HOME/dotfiles/scripts/agent-workspace.sh" start "$@") || return $?
+      wt=$(hq workspace start "$@") || return $?
       _workspace_enter "$wt"
       ;;
 
@@ -32,28 +29,8 @@ agent-workspace() {
       _workspace_enter "$wt"
       ;;
 
-    list|status|cleanup|ready|remove|stale|prune-branches)
-      bash "$HOME/dotfiles/scripts/agent-workspace.sh" "$@"
-      ;;
-
     *)
-      cat <<'EOF'
-Usage:
-  agent-workspace start  <company> <product> <repo> <task-slug>
-  agent-workspace open   <worktree-path> | <company> <product> <repo> <id>
-  agent-workspace list
-  agent-workspace status
-  agent-workspace stale [days]
-  agent-workspace ready  <company> <product> <repo> <worktree-id>
-  agent-workspace remove <company> <product> <repo> <worktree-id>
-  agent-workspace cleanup [--days N] [--dry-run]
-  agent-workspace prune-branches [--dry-run]
-
-Ярлыки продуктов делают то же самое короче:
-  agents synapse ticket-quality
-  healler epic-04
-EOF
-      return 1
+      hq workspace "$@"
       ;;
   esac
 }
@@ -80,9 +57,9 @@ _workspace_enter() {
 # _workspace_open_editor opens a directory in the configured editor.
 #
 # HQ_EDITOR picks the binary (default: VS Code), HQ_OPEN_EDITOR=0 turns the
-# whole thing off — useful over SSH and on the server, where launching a GUI
-# is either impossible or wrong. A missing editor is not an error: the shell
-# already moved into the directory, which is the part that must not fail.
+# whole thing off — useful over SSH, where launching a GUI is either impossible
+# or wrong. A missing editor is not an error: the shell already moved into the
+# directory, which is the part that must not fail.
 _workspace_open_editor() {
   local dir=$1
   local editor=${HQ_EDITOR:-code}

@@ -41,6 +41,7 @@ func NewRoot() *cobra.Command {
 		newSetupCmd(),
 		newDoctorCmd(),
 		newServerCmd(),
+		newWorkspaceCmd(),
 	)
 
 	return root

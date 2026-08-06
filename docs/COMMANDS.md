@@ -34,12 +34,11 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ### Main flow
 
 ## agent-workspace
-**Что:** управление изолированными git worktree под задачи агента. Ярлыки продуктов (`agents synapse ticket-quality`, `healler epic-04`) вызывают это автоматически.
+**Что:** управление изолированными git worktree под задачи агента. Логика в ядре (`hq workspace`, алиас `hq ws`); shell-обёртка нужна только чтобы перейти в каталог и открыть редактор. Ярлыки продуктов (`agents synapse ticket-quality`, `healler epic-04`) вызывают это автоматически.
 **Запуск:**
 - `agent-workspace start <co> <prod> <repo> <task>` — создать worktree, перейти в него и открыть в редакторе.
 - `agent-workspace open <wt-path> | <co> <prod> <repo> <id>` — вернуться в существующий worktree (нового id не создаётся).
 - `agent-workspace list` — список worktree с id/task/branch/state/dirty.
-- `agent-workspace status` — `git status` по всем worktree.
 - `agent-workspace stale [days]` — worktree без коммитов N+ дней (по умолчанию 3) для ручного разбора; `start` подсказывает их количество.
 - `agent-workspace ready <co> <prod> <repo> <id>` — пометить clean+pushed worktree готовым к уборке.
 - `agent-workspace remove <co> <prod> <repo> <id>` — удалить clean worktree по короткому id.
