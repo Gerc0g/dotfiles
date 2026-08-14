@@ -154,6 +154,21 @@ func ensureRepoExclude(checkout string) {
 	_, _ = file.WriteString(rulesExcludeLine + "\n")
 }
 
+// RulesSyncRepo materialises vault rules for one repo — the hook workspace
+// creation calls, so a fresh worktree starts with its binding rules in place.
+func RulesSyncRepo(co, prod, repo string, out io.Writer) error {
+	projects, err := ProjectsRoot()
+	if err != nil {
+		return err
+	}
+	workRoot, err := world.Root()
+	if err != nil {
+		return err
+	}
+	syncRepoRules(projects, workRoot, co, prod, repo, false, out)
+	return nil
+}
+
 // RulesSync materialises vault rules for every repo the scope covers. An
 // empty scope covers everything. Repos come from the world scan, so scratch
 // directories never receive links.

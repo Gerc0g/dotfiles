@@ -4,11 +4,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/Gerc0g/dotfiles/core/wiki"
 	"github.com/Gerc0g/dotfiles/core/world"
 )
 
@@ -73,6 +75,9 @@ func (m *Manager) Start(company, product, repo, task string) (Workspace, error) 
 		return Workspace{}, err
 	}
 	linkKnowledge(repoDir, wtDir)
+	// Best effort: a fresh worktree starts with its binding rules in place,
+	// instead of waiting for someone to run rules-sync by hand.
+	_ = wiki.RulesSyncRepo(company, product, repo, io.Discard)
 
 	w := Workspace{
 		Path:      wtDir,
