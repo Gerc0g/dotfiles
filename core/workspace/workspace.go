@@ -100,14 +100,17 @@ func New(root string, opts ...Option) (*Manager, error) {
 	}
 
 	m := &Manager{
-		root:         root,
-		worktrees:    filepath.Join(root, ".worktrees"),
-		vault:        filepath.Join(home, "Desktop", "WikiPedik", "dev", "20-projects"),
-		now:          time.Now,
-		syncProjects: syncEditorProjects,
+		root:      root,
+		worktrees: filepath.Join(root, ".worktrees"),
+		vault:     filepath.Join(home, "Desktop", "WikiPedik", "dev", "20-projects"),
+		now:       time.Now,
 	}
 	for _, opt := range opts {
 		opt(m)
+	}
+	if m.syncProjects == nil {
+		// Best effort: an unavailable editor config must not fail pool changes.
+		m.syncProjects = func() { _ = m.SyncEditorProjects() }
 	}
 	return m, nil
 }

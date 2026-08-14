@@ -105,13 +105,12 @@ done
 DEFAULT_REPO=""
 [ ${#REPOS[@]} -eq 1 ] && DEFAULT_REPO="${REPOS[0]}"
 
-VSCODE_SYNC="$HOME/dotfiles/scripts/vscode-projects-sync.py"
-if [ -x "$VSCODE_SYNC" ]; then
-  if "$VSCODE_SYNC" --no-backup >/tmp/dotfiles-vscode-projects-sync.log 2>&1; then
+if command -v hq >/dev/null 2>&1; then
+  if hq editor sync --no-backup >/tmp/dotfiles-editor-sync.log 2>&1; then
     echo "✓ VS Code Project Manager synced"
   else
     echo "⚠ VS Code Project Manager sync skipped/failed"
-    sed 's/^/  /' /tmp/dotfiles-vscode-projects-sync.log
+    sed 's/^/  /' /tmp/dotfiles-editor-sync.log
   fi
 fi
 

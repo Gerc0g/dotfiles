@@ -262,20 +262,6 @@ func seedOrphan(repoDir, wtDir string) error {
 	return nil
 }
 
-// syncEditorProjects refreshes the VS Code project list. Best effort: a missing
-// or failing sync must not fail workspace creation.
-func syncEditorProjects() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return
-	}
-	script := filepath.Join(home, "dotfiles", "scripts", "vscode-projects-sync.py")
-	if _, err := os.Stat(script); err != nil {
-		return
-	}
-	_ = exec.Command(script, "--no-backup").Run()
-}
-
 // shortID returns 8 hex characters.
 func shortID() (string, error) {
 	buf := make([]byte, 4)
