@@ -3,6 +3,14 @@
 Reference for 1Password, `op` CLI, direnv, `.envrc`, `.env` files, env vars,
 credentials, tokens, API keys, and secret handling.
 
+> **STATUS 2026-08-14:** слой секретов переделывается. `hq secret` — заглушка
+> (работает только `secret signin`), `secret-cache` удалён; активные
+> secret-cache строки в существующих `.envrc` закомментированы с маркером
+> `[secret stub]` и бэкапами `.envrc.bak-secret-purge-*`. Команды `secret add`
+> и схема wiring ниже описывают ПРЕЖНИЙ слой — контракт, который сохранит
+> новая реализация (см. докстринг `core/secret`). Правила из раздела Rules
+> действуют без изменений.
+
 ## Rules
 
 - No plaintext secrets in git.

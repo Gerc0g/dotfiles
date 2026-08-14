@@ -48,21 +48,16 @@ Stack down → suggest `dev-stack up`.
 
 ## Secrets
 
-1Password vaults are company-scoped: `Work-<company-slug>`. Env loading is
-company/product/repo scoped through `.envrc`. NO plaintext secrets in `.env`,
-NO secrets in git.
+The secrets layer is being redesigned; `hq secret` is a stub for now. The
+invariants stay binding: NO plaintext secrets in `.env`, NO secrets in git.
+1Password vaults remain company-scoped (`Work-<company-slug>`) and the future
+layer keeps scoped item names (`_company__<VAR>`, `<product>__<VAR>`,
+`<product>__<repo>__<VAR>`) — the contract lives in the `core/secret`
+package doc.
 
 Commands:
-- `secret signin` — login
-- `secret add --repo <VAR> <value>` — create repo-scoped item
-  `<product>__<repo>__<VAR>` in `Work-<co>` + append repo `.envrc`
-- `secret add --product <VAR> <value>` — create product-scoped item
-  `<product>__<VAR>` + append product `.envrc`
-- `secret add --company <VAR> <value>` — create company-scoped item
-  `_company__<VAR>` + append company `.envrc`
-- `secret name --repo <VAR>` / `secret envline --repo <VAR>` — inspect naming
-  without revealing the value
-- `secret list <vault>`
+- `secret signin` — 1Password login (works as before)
+- everything else answers "not implemented" until the new layer lands
 
 Rule: repo needs new env var → instruct user to run
 `secret add --repo VAR value`.

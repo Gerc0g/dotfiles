@@ -138,13 +138,9 @@ func Company(opts CompanyOptions, out io.Writer) error {
 export GIT_AUTHOR_EMAIL="%s"
 export GIT_COMMITTER_EMAIL="%s"
 
-# Add company-wide secrets via: secret add --company VAR value
-# example after secret add:
-# export EXAMPLE_TOKEN="$(bash "$HOME/dotfiles/scripts/secret-cache.sh" get Work-%s _company__EXAMPLE_TOKEN credential)"
-#
-# Product/repo .envrc files use source_up and repo-scoped item names:
-#   <product>__<repo>__EXAMPLE_TOKEN
-`, co, opts.Email, opts.Email, co)
+# Company-wide secrets will be wired here by the redesigned secrets layer
+# (hq secret is a stub for now). Plaintext secrets never enter git.
+`, co, opts.Email, opts.Email)
 	if err := os.WriteFile(filepath.Join(dir, ".envrc"), []byte(envrc), 0o644); err != nil {
 		return err
 	}

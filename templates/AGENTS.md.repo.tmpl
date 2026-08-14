@@ -88,11 +88,9 @@ TODO: env vars from `.env.example`, port, dev-stack usage.
 ## Env contract
 
 - `env.example` documents required variables without values.
-- Repo `.envrc` may load repo-scoped secrets from 1Password via `secret-cache`.
-- Secret item names are scoped inside the company vault:
-  `Work-${CO}` item `${PROD}__${REPO}__<VARNAME>`.
-- To add a missing repo secret, ask the user to run:
-  `secret add --repo <VARNAME> <VALUE>`
+- The secrets layer is being redesigned (`hq secret` is a stub); repo-scoped
+  1Password loading will return with it. Item names stay scoped inside the
+  company vault: `Work-${CO}` item `${PROD}__${REPO}__<VARNAME>`.
 - Agents may document missing env vars, but must not write secret values to
   `.env*`, `.envrc`, docs, logs, or code.
 

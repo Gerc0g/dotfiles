@@ -9,7 +9,6 @@ _dotfiles_shell_modules=(
   32-agent-workspace.zsh
   33-vscode-projects.zsh
   40-direnv.zsh
-  50-secret-cache.zsh
   50-secrets.zsh
   60-devstack.zsh
   69-status.zsh

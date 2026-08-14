@@ -60,9 +60,9 @@ Document **only differences** from baseline here. Empty if defaults apply.
 
 - All secrets live in `${VAULT}` vault, with scoped item names:
   `_company__<VAR>`, `<product>__<VAR>`, or `<product>__<repo>__<VAR>`.
-- Add secrets through `secret add --company`, `secret add --product`, or
-  `secret add --repo`; this appends a `secret-cache` export to the matching
-  company/product/repo `.envrc`.
+- The secrets layer is being redesigned (`hq secret` is a stub); adding and
+  wiring secrets into `.envrc` will return with it. No plaintext secrets in
+  git meanwhile.
 - Reference for 1Password, direnv, `.envrc`, env vars:
   `~/dotfiles/docs/platform/secrets-env.md`.
 - PII / sensitive data: <!-- TODO --> TODO (none / GDPR / HIPAA / SOC2 / other)

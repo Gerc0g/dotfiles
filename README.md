@@ -266,22 +266,17 @@ agent-workspace start <company> <product> <repo> <task-slug>
 
 ## Secrets
 
-Secrets go through 1Password.
+The secrets layer is being redesigned: `hq secret` is a stub, only
+`secret signin` (1Password login) works today.
 
-```bash
-secret signin
-secret add --repo <VAR> <VALUE>
-secret add --product <VAR> <VALUE>
-secret add --company <VAR> <VALUE>
-```
-
-Rules:
+Rules that stay binding regardless:
 
 - no plaintext secrets in git;
-- `.envrc` references scoped 1Password items through `secret-cache`;
-- company-level vaults are created by `new-company` when possible;
-- repo/product-specific item names are generated as
-  `<product>__<repo>__<VAR>` or `<product>__<VAR>`.
+- company-level vaults (`Work-<co>`) are created by `new-company` when
+  possible;
+- the future layer keeps scoped item names
+  (`<product>__<repo>__<VAR>` / `<product>__<VAR>` / `_company__<VAR>`) —
+  the contract is documented in the `core/secret` package doc.
 
 See `docs/platform/secrets-env.md`.
 

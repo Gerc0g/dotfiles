@@ -104,14 +104,12 @@ func Product(opts ProductOptions, out io.Writer) error {
 
 const productEnvrc = `source_up
 
-# Product-scoped secrets are loaded here by:
-#   secret add --product <VAR> <VALUE>
+# Product-scoped secrets will be wired here by the redesigned secrets layer.
 `
 
 const repoEnvrc = `source_up
 
-# Repo-scoped secrets are loaded here by:
-#   secret add --repo <VAR> <VALUE>
+# Repo-scoped secrets will be wired here by the redesigned secrets layer.
 # Shared dev infra (Postgres/Redis/Qdrant/…): wire endpoints + create the DB with
 #   dev-stack connect
 `

@@ -1,8 +1,8 @@
-# Scoped 1Password secrets. The logic lives in the core (`hq secret`).
+# Secrets layer is a stub while it is being redesigned (`hq secret`).
 #
-# `secret signin` is the one subcommand that must stay in the shell: it
-# mutates the session environment through `eval "$(op signin)"`, which a
-# child process cannot do for its caller.
+# `secret signin` stays functional: `eval "$(op signin)"` mutates the session
+# environment (a child process cannot), and op auth is still needed by
+# onboarding for vault creation.
 secret() {
   case "${1:-}" in
     signin) eval "$(op signin)" ;;

@@ -16,6 +16,6 @@ References:
 - Secrets/env: `~/dotfiles/docs/platform/secrets-env.md`
 - Local infra/dev-stack: `~/dotfiles/services/dev-stack/README.md` (canonical; live: `dev-stack urls`; connect a repo: `dev-stack connect`)
 - ML/quant: `~/dotfiles/docs/platform/ml-quant-workflow.md`
-- Commands: `hq` (ядро: `hq ls`, `hq ctx`, `hq doctor`, `hq setup`, `hq commit`, `hq finish`, `hq skill`), `agent-workspace`, `dev-stack`, `secret`
-- Logs: Axiom CLI. DB: `psql`. Secrets: 1Password via `secret`.
+- Commands: `hq` (ядро: `hq ls`, `hq ctx`, `hq doctor`, `hq setup`, `hq commit`, `hq finish`, `hq skill`), `agent-workspace`, `dev-stack`
+- Logs: Axiom CLI. DB: `psql`. Secrets: слой переделывается (`hq secret` — заглушка, работает только `secret signin`); плейнтекст-секреты в git по-прежнему запрещены.
 - New skills: use `skill-maintainer`; source lives in `~/dotfiles/skills`, then run `agent-skill install && agent-skill doctor`.
