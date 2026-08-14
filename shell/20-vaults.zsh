@@ -1,14 +1,21 @@
-# WikiPedik vault zones. Zone resolution lives in the core (`hq wikipedik`);
-# the wrapper does what a child process cannot — cd. Entering a zone creates
-# its directory lazily, so a freshly wiped zone is enterable right away.
+# WikiPedik. Одна дверь: `wikipedik` переходит в рабочую зону и запускает
+# агента — работа с вольтом идёт разговором, не командами.
+#
+# Зона по умолчанию — research (обучение). Память проектов (dev) курируется
+# отдельным флоу (`wiki sync`), поэтому чатом туда ходить незачем.
 wikipedik() {
+  local zone=${1:-research}
   local dir
-  dir=$(hq wikipedik path "${1:-root}") || return 1
+  dir=$(hq wikipedik path "$zone") || return 1
   mkdir -p "$dir"
   cd "$dir" || return 1
-  print -P "%F{cyan}$dir%f"
 
-  local dirty
-  dirty=$(git -C "${WIKIPEDIK_ROOT:-$HOME/Desktop/WikiPedik}" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-  [ "${dirty:-0}" -gt 0 ] && print -P "%F{244}незакоммиченных файлов: $dirty (hq wikipedik sync)%f"
+  hq research 2>/dev/null
+
+  if [ "${WIKIPEDIK_AUTOSTART:-1}" = "0" ]; then
+    print -P "%F{244}агент не запущен (WIKIPEDIK_AUTOSTART=0): codex%f"
+    return 0
+  fi
+  command -v codex >/dev/null 2>&1 || { echo "⚠ codex не найден" >&2; return 1; }
+  CODEX_HOME="$HOME/.codex" codex --no-alt-screen
 }

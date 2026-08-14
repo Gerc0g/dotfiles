@@ -23,6 +23,11 @@ const memoryCheckpoint = "\n\n# WikiPedik memory checkpoint\n\n" +
 	"2. Verify before apply: when acting on a remembered lesson that cites code locations, check the cited code first — if the code has changed and contradicts the lesson, capture a corrected version via `lesson-append` instead of applying the stale one.\n" +
 	"3. Before the final answer, decide whether this task produced a durable root cause, production gotcha, failed approach, reusable rule, informal decision, or cross-repo invariant. If yes, use the `lesson-append` skill to append one concise candidate (with citations) to `docs/knowledge/_inbox.md`. If not, write nothing."
 
+// ZoneContext is filled by the research package at init time, so the vault
+// hook can carry zone state without wiki importing research (research already
+// imports wiki for the vault root).
+var ZoneContext = map[string]func() string{}
+
 // SessionStartContext builds the hook JSON for an agent starting in cwd.
 // Empty output means "emit nothing" — the silent exit of the hook contract.
 func SessionStartContext(agent, cwd string) string {
@@ -31,10 +36,18 @@ func SessionStartContext(agent, cwd string) string {
 		return ""
 	}
 
-	// Codex sessions inside the vault get the vault-discipline checkpoint
-	// instead of project memory.
-	if agent == "codex" && (cwd == vaultRoot || strings.HasPrefix(cwd, vaultRoot+"/")) {
-		return hookJSON(vaultCheckpoint(vaultRoot, cwd))
+	// Sessions inside the vault get vault discipline plus the state of the
+	// zone they are in.
+	if cwd == vaultRoot || strings.HasPrefix(cwd, vaultRoot+"/") {
+		context := vaultCheckpoint(vaultRoot, cwd)
+		if zone := zoneOf(vaultRoot, cwd); zone != "" {
+			if build, ok := ZoneContext[zone]; ok {
+				if extra := build(); extra != "" {
+					context += "\n\n" + extra
+				}
+			}
+		}
+		return hookJSON(context)
 	}
 
 	workRoot, err := world.Root()
@@ -73,6 +86,21 @@ func SessionStartContext(agent, cwd string) string {
 		context += fmt.Sprintf("\n\nInbox status: %d candidate lessons are pending in docs/knowledge/_inbox.md. Mention to the user that `wiki sync` is overdue.", candidates)
 	}
 	return hookJSON(context)
+}
+
+// zoneOf reports which vault zone a directory belongs to.
+func zoneOf(vaultRoot, cwd string) string {
+	rel := strings.TrimPrefix(strings.TrimPrefix(cwd, vaultRoot), "/")
+	if rel == "" {
+		return ""
+	}
+	head := strings.SplitN(rel, "/", 2)[0]
+	for _, zone := range VaultZones {
+		if zone.Dir == head {
+			return zone.Name
+		}
+	}
+	return ""
 }
 
 func hookJSON(context string) string {
