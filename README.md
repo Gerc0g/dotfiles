@@ -23,9 +23,6 @@ Then complete the manual steps printed by `bootstrap.sh`:
 
 ```bash
 CODEX_HOME=~/.codex codex login
-CODEX_HOME=~/.codex codex login
-CODEX_HOME=~/.codex codex login
-CLAUDE_CONFIG_DIR=~/.claude claude login
 CLAUDE_CONFIG_DIR=~/.claude claude login
 ```
 
@@ -51,9 +48,6 @@ Open the WikiPedik vault in Obsidian:
 - symlinks Ghostty and tmux configs;
 - creates agent profile directories:
   - `~/.codex`
-  - `~/.codex`
-  - `~/.codex`
-  - `~/.claude`
   - `~/.claude`
 - links the shared baseline profile;
 - installs WikiPedik runtime skills and SessionStart hooks;
@@ -140,21 +134,9 @@ There is one profile per agent, and it lives at the tool's own default path.
 
 Both link `agent-profiles/BASELINE.md` — as `CLAUDE.md` and `AGENTS.md`
 respectively — so an instruction written once reaches both agents. Every
-repo-owned skill is installed into both.
-
-Switch manually:
-
-```bash
-agent fresh
-agent setup
-agent wiki
-agent legacy
-agent status
-```
-
-There is one profile per agent and it lives at the tool's own default path, so
-nothing routes and no environment variable has to be set: the CLI, the VS Code
-extension and any scheduled job all read the same managed profile.
+repo-owned skill is installed into both. Nothing routes and no environment
+variable has to be set: the CLI, the VS Code extension and any scheduled job
+all read the same managed profile.
 
 ## Skills Architecture
 
@@ -369,14 +351,11 @@ Prompt routing smoke checks:
 
 ```bash
 CODEX_HOME=~/.codex codex debug prompt-input smoke
-CODEX_HOME=~/.codex codex debug prompt-input smoke
-CODEX_HOME=~/.codex codex debug prompt-input smoke
 ```
 
 Claude plugin checks:
 
 ```bash
-CLAUDE_CONFIG_DIR=~/.claude claude plugin list
 CLAUDE_CONFIG_DIR=~/.claude claude plugin list
 ```
 
