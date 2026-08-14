@@ -73,21 +73,24 @@
       В zsh остался `export DEV_STACK_HOST` + диспетчер. Оба писателя
       `.envrc` (secret, devstack) теперь в ядре.
 
-## Этап 5 — wiki
+## Этап 5 — wiki — DONE
 
-- [ ] `hq wiki {status,sync,synthesize,commit}` — порт `shell/71-wiki.zsh`
-      (375): scope-резолвер, парсер porcelain, preflight/postflight,
-      коммит с per-company автором. Починить хардкод `~/Desktop/WikiPedik`
-      (игнорирует `WIKIPEDIK_ROOT`).
-- [ ] `hq wiki bootstrap` — порт `wiki-bootstrap-product.sh` (712);
-      шаблоны → `embed.FS`; privacy-firewall с тестом.
-- [ ] `hq wiki hot-refresh` + `hq wiki rules-sync` — порт двух py
-      (164+172) с общим парсером правил (`paths:` frontmatter);
-      rules-sync вешается в хук `hq workspace start`.
-- [ ] `hq wiki autocommit` — порт `wikipedik-autocommit.sh` (69);
-      вопрос планировщика (TCC) — отдельно.
-- [ ] `hq wiki digest` — порт `agent-session-digest.py` (262), низкий
-      приоритет; общий список секрет-паттернов с transcript-scrub.
+- [x] `hq wiki {status,sync,synthesize,commit}` — пакет `core/wiki`:
+      scope-резолвер, порcelain-парсер, preflight/postflight, коммит с
+      per-company автором, запуск куратора (codex, TTY-детект). Хардкод
+      `~/Desktop/WikiPedik` заменён на `WIKIPEDIK_ROOT` везде.
+- [x] `hq wiki bootstrap` — шаблоны как константы + render, privacy и
+      идемпотентность под тестами; sed-регистрация индексов → Go.
+- [x] `hq wiki hot-refresh` + `hq wiki rules-sync` — общий парсер правил
+      (`paths:` frontmatter); чекауты из `world.Scan` (мусорные каталоги
+      больше не получают линков). Смоук нашёл 12 недолинкованных правил
+      в worktree. Хук в `workspace start` — на этапе 6.
+- [x] `hq wiki autocommit [--if-due]` — secret-scan + best-effort
+      pull/push; вопрос планировщика (TCC) остаётся открытым (BACKLOG).
+- [x] `agent-session-digest.py` остаётся python осознанно: парсит внешние
+      JSONL-форматы, модель мира не дублирует, вызывается куратором.
+      Объединение секрет-паттернов — вместе с возможным портом
+      transcript-scrub (этап 6+).
 
 ## Этап 6 — полировка поверхности
 
