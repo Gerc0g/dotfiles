@@ -67,18 +67,20 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `hq editor sync --no-prune | --no-backup | --project-file <path>` — тонкая настройка.
 **Файл:** `~/Library/Application Support/Code/User/globalStorage/alefragnani.project-manager/projects.json`
 
-## agent-commit
-**Что:** локальный атомарный commit для agent worktree.
+## hq-commit
+**Что:** локальный атомарный commit одного logical change. Логика в ядре; `agent-commit.sh` остался шимом. Проверяет Conventional Commit префикс, git_email компании (включая worktree), гоняет make verify/test.
 **Запуск:**
-- `agent-commit.sh "feat(scope): русское описание" -- <explicit paths>` — commit после завершённого logical change.
+- `hq commit "feat(scope): русское описание" -- <explicit paths>` — commit после завершённого logical change.
+- `hq commit --no-verify ...` — пропустить make verify/test (аналог `AGENT_GIT_VERIFY=0`).
 **Правила:** explicit paths only; no `git add .`, no force, no rebase, не push.
 
-## agent-finish
-**Что:** финал agent-задачи: verify/test, push branch, открыть draft PR/MR в integration branch, записать review metadata.
+## hq-finish
+**Что:** финал agent-задачи: verify/test, push branch, открыть draft PR/MR в integration branch, записать review metadata в `.agent-workspace`. Логика в ядре; `agent-finish.sh` и `agent-task-push.sh` остались шимами.
 **Запуск:**
-- `agent-finish.sh` — основной финальный flow.
-- `agent-finish.sh --base dev --title "feat(scope): описание"` — override base/title.
-- `agent-task-push.sh` — низкоуровневый fallback push без PR/MR.
+- `hq finish` — основной финальный flow.
+- `hq finish --base dev --title "feat(scope): описание"` — override base/title.
+- `hq finish --no-review [--allow-dirty]` — низкоуровневый fallback push без PR/MR (бывший agent-task-push); интеграционные ветки защищены `AGENT_ALLOW_INTEGRATION_PUSH=1`.
+- `hq finish --ready-without-review` — пометить ready, если ревью не открылось.
 **Правила:** push не на каждый commit; merge не выполняется автоматически.
 
 ## wikipedik
@@ -190,13 +192,13 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 
 ### Agent context setup
 
-## agent-skill
-**Что:** Управление repo-owned skills: создать шаблон, установить symlinks в оба профиля (`~/.claude/skills`, `~/.codex/skills`), проверить frontmatter и links.
+## hq-skill
+**Что:** Управление repo-owned skills: создать шаблон, установить symlinks в оба профиля (`~/.claude/skills`, `~/.codex/skills`), проверить frontmatter и links. Логика в ядре; `agent-skill` остался обёрткой.
 **Запуск:**
-- `agent-skill list` — показать skills из `~/dotfiles/skills` и статус установки в обоих профилях
-- `agent-skill new <name>` — создать `~/dotfiles/skills/<name>/SKILL.md`
-- `agent-skill install` — поставить symlinks каждого skill в оба профиля
-- `agent-skill doctor` — проверить YAML frontmatter, symlinks и dangling-ссылки в профилях
+- `hq skill list` — показать skills из `~/dotfiles/skills` и статус установки в обоих профилях
+- `hq skill new <name>` — создать `~/dotfiles/skills/<name>/SKILL.md`
+- `hq skill install` — поставить symlinks каждого skill в оба профиля
+- `hq skill doctor` — проверить YAML frontmatter, symlinks и dangling-ссылки в профилях
 **Используй:** когда добавляешь/меняешь reusable skill. Для agent-led изменений сначала используй `skill-maintainer`.
 
 ## dev-stack

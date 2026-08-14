@@ -60,7 +60,7 @@ echo "→ Applying machine state (hq setup)..."
 # === 7. Agent skills ===
 echo ""
 echo "→ Installing agent skills..."
-bash ~/dotfiles/scripts/agent-skill.sh install
+./bin/hq skill install
 
 # === 8. Claude plugins and profile settings ===
 echo ""

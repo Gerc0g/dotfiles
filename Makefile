@@ -39,8 +39,8 @@ shell-check:
 python-check:
 	@python3 -c 'import ast, pathlib; files = [*pathlib.Path("scripts").glob("*.py"), *pathlib.Path("skills-stash/wiki/scripts").glob("*.py")]; [ast.parse(path.read_text(), filename=str(path)) for path in files]; print(f"python syntax: ok ({len(files)} files)")'
 
-skill-check:
-	@bash scripts/agent-skill.sh doctor
+skill-check: build
+	@./bin/hq skill doctor
 
 go-check:
 	@set -e; for dir in $(GO_MODULES); do \

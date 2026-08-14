@@ -1,3 +1,4 @@
+# Repo-owned skills. The logic lives in the core (`hq skill`).
 agent-skill() {
-  bash "$HOME/dotfiles/scripts/agent-skill.sh" "$@"
+  hq skill "$@"
 }
