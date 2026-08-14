@@ -41,6 +41,9 @@ func fixture(t *testing.T) Env {
 	for _, skill := range curatorSkills {
 		write("skills-stash/wiki/curator/"+skill+"/SKILL.md", "---\n---\n")
 	}
+	for _, source := range codexZoneProfiles {
+		write("agent-profiles/"+source, "# zone profile\n")
+	}
 
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		t.Fatalf("mkdir home: %v", err)

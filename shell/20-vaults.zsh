@@ -17,5 +17,10 @@ wikipedik() {
     return 0
   fi
   command -v codex >/dev/null 2>&1 || { echo "⚠ codex не найден" >&2; return 1; }
-  CODEX_HOME="$HOME/.codex" codex --no-alt-screen
+
+  # Профиль зоны (~/.codex/<zone>.config.toml) убирает из промпта инструменты,
+  # которые в ней не нужны. Нет профиля — работаем на базовом конфиге.
+  local profile=()
+  [ -f "$HOME/.codex/$zone.config.toml" ] && profile=(-p "$zone")
+  CODEX_HOME="$HOME/.codex" codex "${profile[@]}" --no-alt-screen
 }

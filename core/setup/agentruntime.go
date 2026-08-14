@@ -82,6 +82,42 @@ func curatorSkillsStep() Step {
 	}
 }
 
+// codexZoneProfiles are per-zone codex config layers: `codex -p <zone>` loads
+// ~/.codex/<zone>.config.toml on top of the base config. They exist to keep
+// tools a zone never uses out of its prompt.
+var codexZoneProfiles = map[string]string{
+	"research": "codex-research.config.toml",
+}
+
+func codexProfilesStep() Step {
+	return Step{
+		Name:  "codex-profiles",
+		About: "профили зон codex прилинкованы (codex -p <зона>)",
+		check: func(env Env) Result {
+			var results []Result
+			for zone, source := range codexZoneProfiles {
+				src := filepath.Join(env.Dotfiles, "agent-profiles", source)
+				dst := filepath.Join(env.Home, ".codex", zone+".config.toml")
+				results = append(results, checkSymlink(src, dst))
+			}
+			return combine(results, "профили зон на месте")
+		},
+		apply: func(env Env) error {
+			for zone, source := range codexZoneProfiles {
+				src := filepath.Join(env.Dotfiles, "agent-profiles", source)
+				dst := filepath.Join(env.Home, ".codex", zone+".config.toml")
+				if err := ensureDir(filepath.Dir(dst)); err != nil {
+					return err
+				}
+				if err := ensureSymlink(src, dst); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+}
+
 // claudePlugins is the intentionally small plugin set of the Claude profile.
 var claudePlugins = []string{
 	"pyright-lsp@claude-plugins-official",
