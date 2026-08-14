@@ -99,58 +99,11 @@ EOF
   fi
 done
 
-LAUNCHER=~/dotfiles/shell/30-projects.zsh
-[ ! -f "$LAUNCHER" ] && echo "# Project launch shortcuts" > "$LAUNCHER"
-
-if ! grep -q "^${PROD}() {" "$LAUNCHER"; then
-  DEFAULT_ARG=""
-  [ ${#REPOS[@]} -eq 1 ] && DEFAULT_ARG=" \"${REPOS[0]}\""
-  cat >> "$LAUNCHER" <<EOF
-
-${PROD}() {
-  case \$# in
-    0) launch "${CO}" "${PROD}"${DEFAULT_ARG} ;;
-    1) launch "${CO}" "${PROD}" "\$1" ;;
-    *) echo "Usage: ${PROD} [<repo>]"; return 1 ;;
-  esac
-}
-EOF
-  echo "✓ added '${PROD}' launcher (repo-level 4-window layout)"
-fi
-
-DOC=~/dotfiles/docs/COMMANDS.md
-if [ -f "$DOC" ] && ! grep -q "^## ${PROD}$" "$DOC"; then
-  ENTRY_FILE=$(mktemp)
-  cat > "$ENTRY_FILE" <<EOF
-
-## ${PROD}
-**Что:** Open tmux session for ${CO}/${PROD}
-**Запуск:** \`${PROD}\`
-**Файлы:** \`${PDIR}/\`
-**Repos:** ${REPOS[*]}
-EOF
-
-  TMP=$(mktemp)
-  awk -v entry_file="$ENTRY_FILE" '
-    function load_entry(    line, content) {
-      content = ""
-      while ((getline line < entry_file) > 0) content = content line "\n"
-      close(entry_file)
-      return content
-    }
-    BEGIN { entry = load_entry(); in_ws = 0; inserted = 0 }
-    /^### Workspaces$/ { in_ws = 1 }
-    /^---$/ && in_ws && !inserted {
-      printf "%s", entry
-      inserted = 1
-      in_ws = 0
-    }
-    { print }
-    END { if (!inserted) printf "%s", entry }
-  ' "$DOC" > "$TMP" && mv "$TMP" "$DOC"
-  rm -f "$ENTRY_FILE"
-  echo "✓ added '${PROD}' to COMMANDS.md (Workspaces)"
-fi
+# Shell shortcuts are table-driven (shell/30-projects.zsh:_PROJECT_SHORTCUTS);
+# the company-level function is registered automatically from .company-config,
+# so the product is reachable as `<company> <product>` without any generated code.
+DEFAULT_REPO=""
+[ ${#REPOS[@]} -eq 1 ] && DEFAULT_REPO="${REPOS[0]}"
 
 VSCODE_SYNC="$HOME/dotfiles/scripts/vscode-projects-sync.py"
 if [ -x "$VSCODE_SYNC" ]; then
@@ -167,10 +120,12 @@ echo "✅ ${CO}/${PROD} bootstrapped (ns: $NS)"
 ls "$PDIR"
 echo ""
 echo "Next steps:"
-echo "  1. source ~/.zshrc                          (подхватить ${PROD} launcher)"
-echo "  2. onboard ${CO} ${PROD}                       (заполнить TODO в product AGENTS.md)"
-echo "  3. analyze-product ${CO} ${PROD}               (опц: deep dive → docs/ARCHITECTURE.md)"
-echo "  4. cd <repo> && onboard                     (для каждого репа)"
-echo "  5. cd <repo> && dev-stack connect           (подключить к dev-stack: .envrc + БД)"
-echo "  6. cd <repo> && analyze-repo                (опц: deep dive → docs/design.md)"
-echo "  7. ${PROD}                                   (открыть tmux session)"
+echo "  1. onboard ${CO} ${PROD}                       (заполнить TODO в product AGENTS.md)"
+echo "  2. analyze-product ${CO} ${PROD}               (опц: deep dive → docs/ARCHITECTURE.md)"
+echo "  3. cd <repo> && onboard                     (для каждого репа)"
+echo "  4. cd <repo> && dev-stack connect           (подключить к dev-stack: .envrc + БД)"
+echo "  5. cd <repo> && analyze-repo                (опц: deep dive → docs/design.md)"
+echo "  6. ${CO} ${PROD}                             (создать worktree и начать работу)"
+echo ""
+echo "Опционально — короткий алиас: добавь строку в _PROJECT_SHORTCUTS"
+echo "(shell/30-projects.zsh):  \"${PROD}:${CO}:${PROD}:${DEFAULT_REPO}\""
