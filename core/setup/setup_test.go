@@ -35,6 +35,12 @@ func fixture(t *testing.T) Env {
 	write("ghostty/config", "font-size = 14\n")
 	write("tmux/tmux.conf", "set -g mouse on\n")
 	write("scripts/launchd/"+scrubPlist, "<plist/>\n")
+	for _, source := range hookSources {
+		write("skills-stash/wiki/hooks/"+source, "#!/bin/sh\n")
+	}
+	for _, skill := range curatorSkills {
+		write("skills-stash/wiki/curator/"+skill+"/SKILL.md", "---\n---\n")
+	}
 
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		t.Fatalf("mkdir home: %v", err)

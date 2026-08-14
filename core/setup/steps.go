@@ -46,6 +46,10 @@ func Plan() []Step {
 		transcriptScrubStep(),
 		coreBinaryStep(),
 		skillLinksStep(),
+		wikiHooksStep(),
+		curatorSkillsStep(),
+		claudeSettingsStep(),
+		codexConfigStep(),
 	}
 }
 

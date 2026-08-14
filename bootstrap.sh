@@ -62,63 +62,9 @@ echo ""
 echo "→ Installing agent skills..."
 ./bin/hq skill install
 
-# === 8. Claude plugins and profile settings ===
+# === 8. Claude LSP plugins (network installs; profile state lives in hq setup) ===
 echo ""
-echo "→ Configuring Claude profiles..."
-configure_claude_profile() {
-  local profile_dir=$1
-  local hook_path="$profile_dir/hooks/SessionStart.sh"
-  local settings_path="$profile_dir/settings.json"
-
-  mkdir -p "$profile_dir/hooks"
-  ln -sfn "$HOME/dotfiles/skills-stash/wiki/hooks/auto-load-claude.sh" "$hook_path"
-
-  PROFILE_DIR="$profile_dir" HOOK_PATH="$hook_path" python3 - <<'PY'
-import json
-import os
-from pathlib import Path
-
-profile = Path(os.environ["PROFILE_DIR"])
-hook_path = os.environ["HOOK_PATH"]
-settings = profile / "settings.json"
-
-if settings.exists():
-    try:
-        data = json.loads(settings.read_text())
-    except Exception:
-        data = {}
-else:
-    data = {}
-
-# No "Co-Authored-By: Claude" in commits and no "Generated with Claude Code"
-# footer in PR/MR bodies — platform convention is clean attribution.
-data["includeCoAuthoredBy"] = False
-
-enabled = data.setdefault("enabledPlugins", {})
-enabled["pyright-lsp@claude-plugins-official"] = True
-enabled["vtsls@claude-code-lsps"] = True
-enabled["yaml-language-server@claude-code-lsps"] = True
-
-marketplaces = data.setdefault("extraKnownMarketplaces", {})
-marketplaces["claude-plugins-official"] = {
-    "source": {"source": "github", "repo": "anthropics/claude-plugins-official"}
-}
-marketplaces["claude-code-lsps"] = {
-    "source": {"source": "github", "repo": "boostvolt/claude-code-lsps"}
-}
-
-hooks = data.setdefault("hooks", {})
-items = hooks.setdefault("SessionStart", [])
-if not any(h.get("command") == hook_path for item in items for h in item.get("hooks", [])):
-    items.append({
-        "matcher": "*",
-        "hooks": [{"type": "command", "command": hook_path}],
-    })
-
-settings.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
-PY
-}
-
+echo "→ Installing Claude LSP plugins..."
 install_claude_lsp_plugins() {
   local profile_dir=$1
 
@@ -133,9 +79,8 @@ install_claude_lsp_plugins() {
   CLAUDE_CONFIG_DIR="$profile_dir" claude plugin install yaml-language-server@claude-code-lsps >/dev/null 2>&1 || true
 }
 
-configure_claude_profile "$HOME/.claude"
 install_claude_lsp_plugins "$HOME/.claude"
-echo "✓ Claude profile configured (pyright, vtsls, yaml-language-server)"
+echo "✓ Claude LSP plugins installed (pyright, vtsls, yaml-language-server)"
 
 # === 9. Final check ===
 echo ""
