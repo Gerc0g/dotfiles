@@ -64,12 +64,14 @@
       добавлены исключения `!core/secret/`.
 - [ ] Единый писатель `.envrc` — закрыть на этапе 4 (devstack).
 
-## Этап 4 — dev-stack
+## Этап 4 — dev-stack — DONE
 
-- [ ] `hq devstack {up,down,restart,pull,logs,ps,psql,redis-cli,ch,urls,
-      envrc,connect,doctor,db-ensure,db-create,db-drop,nuke}` — порт
-      `shell/60-devstack.zsh` (253); `nc` → `net.DialTimeout`; ctx из
-      `hq ctx`. В zsh остаётся `export DEV_STACK_HOST` + тонкая функция.
+- [x] `hq devstack {up,down,restart,pull,logs,ps,psql,redis-cli,ch,urls,
+      envrc,connect,doctor,db-ensure,db-create,db-drop,nuke}` — пакет
+      `core/devstack`; probes через `net.DialTimeout`, ctx через
+      `workspace.Locate`, интерактивные клиенты — сквозной stdio.
+      В zsh остался `export DEV_STACK_HOST` + диспетчер. Оба писателя
+      `.envrc` (secret, devstack) теперь в ядре.
 
 ## Этап 5 — wiki
 
