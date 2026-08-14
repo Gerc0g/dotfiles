@@ -10,31 +10,22 @@
 пути; ядро форкает python (`core/workspace/create.go` →
 `vscode-projects-sync.py`).
 
-## Этап 0 — зачистка мёртвого кода (до порта)
+## Этап 0 — зачистка мёртвого кода (до порта) — DONE
 
-- [ ] `scripts/new-project.sh:102-119` — генерирует лаунчер на удалённый
-      `launch` и ломает табличный `shell/30-projects.zsh`; убрать генерацию
-      функций и вставку в `COMMANDS.md`, печатать подсказку про
+- [x] `scripts/new-project.sh` — убрана генерация мёртвых launch-лаунчеров
+      и вставка в `COMMANDS.md`; вместо этого подсказка про
       `_PROJECT_SHORTCUTS`.
-- [ ] `skills-stash/wiki/scripts/install-wiki-runtime.sh` — dangling-симлинки
-      на несуществующий `worker/`, дословные дубли строк (47-48, 59-60),
-      двойной `ensure_codex_hook` (165-166).
-- [ ] `README.md` — артефакты замены «5 профилей → 2»: тройной
-      `codex login` (26-28), пять одинаковых буллетов (50-54), дубли в
-      Validation (372-382).
-- [ ] Ссылки на мёртвый `launch`: `docs/COMMANDS.md`, `docs/BACKLOG.md`,
-      `docs/wikipedik-roadmap.md`, `docs/wikipedik-cheatsheet.md`,
-      `scripts/wikipedik-autocommit.sh:10,15`, `shell/71-wiki.zsh:372`,
-      `core/world/world.go:6`.
-- [ ] `Makefile` — `bash -n` по zsh-файлу `wiki-bootstrap-product.sh`
-      (нужен `zsh -n`), пустой глоб `skills-stash/wiki/scripts/*.py`.
-- [ ] `skills-stash/wiki/README.md` — несуществующий
-      `fetch-wiki-skills.sh`, описание уехавшего `worker/`.
-- [ ] `docs/COMMANDS.md:190-193` — старые профили daily/setup/wiki в
-      описании `agent-skill`.
-- [ ] Мусор в git: `scripts/__pycache__/*.pyc`,
-      `tools/status-tui/status-tui`, `.agents/oracle/requests/*` —
-      `git rm --cached` (в `.gitignore` уже есть).
+- [x] `install-wiki-runtime.sh` — убраны dangling worker-симлинки и дубли.
+- [x] `README.md` — артефакты «5 профилей → 2» + мёртвая команда `agent`.
+- [x] Ссылки на мёртвый `launch` вычищены (COMMANDS, BACKLOG, roadmap,
+      cheatsheet, autocommit, 71-wiki). `core/world/world.go:6` оставлен —
+      это корректная историческая мотивация пакета.
+- [x] `Makefile` — shell-check выбирает bash/zsh по шебангу. Пустой глоб
+      `*.py` в python-check оставлен (безвреден, future-proof).
+- [x] `skills-stash/wiki/README.md` переписан под текущий состав стеша.
+- [x] `docs/COMMANDS.md` — agent-skill описан без daily/setup/wiki.
+- [x] Снято: «мусор в git» — `__pycache__`/status-tui/.agents на самом деле
+      не закоммичены (untracked под gitignore), чистить нечего.
 
 ## Этап 1 — фундамент: контекст и editor-sync
 
