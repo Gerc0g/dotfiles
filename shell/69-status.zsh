@@ -1,5 +1,9 @@
-# System pressure dashboard for local multi-agent work.
-
+# Live system/agent pressure dashboard (Go TUI, built into bin/ by `make build`).
 status() {
-  "$HOME/dotfiles/scripts/status-menu.sh" "$@"
+  local bin="$HOME/dotfiles/bin/status-tui"
+  if [ -x "$bin" ]; then
+    "$bin" "$@"
+  else
+    (cd "$HOME/dotfiles/tools/status-tui" && go run . "$@")
+  fi
 }

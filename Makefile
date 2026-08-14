@@ -21,7 +21,8 @@ build:
 	@cd core && go build \
 		-ldflags '-X github.com/Gerc0g/dotfiles/core/internal/cli.Version=$(VERSION)' \
 		-o ../bin/hq ./cmd/hq
-	@echo 'built bin/hq ($(VERSION))'
+	@cd tools/status-tui && go build -o ../../bin/status-tui .
+	@echo 'built bin/hq, bin/status-tui ($(VERSION))'
 
 lint: shell-check python-check skill-check
 

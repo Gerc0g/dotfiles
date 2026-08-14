@@ -51,6 +51,7 @@ func NewRoot() *cobra.Command {
 		newDevstackCmd(),
 		newWikiCmd(),
 		newHookCmd(),
+		newCommandsCmd(),
 	)
 
 	return root
