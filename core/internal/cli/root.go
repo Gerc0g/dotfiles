@@ -52,6 +52,7 @@ func NewRoot() *cobra.Command {
 		newWikiCmd(),
 		newHookCmd(),
 		newCommandsCmd(),
+		newOnboardCmd(),
 	)
 
 	return root

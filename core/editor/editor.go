@@ -78,8 +78,16 @@ func DefaultOptions() SyncOptions {
 	return SyncOptions{Products: true, Repos: true, Prune: true}
 }
 
+// ProjectsFileEnv overrides where the project list lives — so a sandboxed
+// run with a scratch PROKECTFILES_ROOT cannot rewrite (and prune) the real
+// editor configuration.
+const ProjectsFileEnv = "HQ_PROJECTS_FILE"
+
 // DefaultProjectsFile is where the Project Manager extension keeps its list.
 func DefaultProjectsFile() (string, error) {
+	if path := os.Getenv(ProjectsFileEnv); path != "" {
+		return path, nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("resolve home directory: %w", err)
