@@ -5,7 +5,7 @@
 - Dev infra: есть общий слой **dev-stack** (Postgres/Redis/Qdrant/ClickHouse/MinIO/OTel/Langfuse/Ollama), он работает локально на этой машине. Нужна инфра для локальной разработки — подключи репо командой `dev-stack connect` (проверка `dev-stack doctor`), НЕ поднимай своё (`brew install`, отдельный docker-compose). Не каждому репо это нужно — решай по задаче. Канон: `services/dev-stack/README.md`, live-список `dev-stack urls`.
 - Non-trivial change (>1 file, abstraction, refactor): give 2-3 options before editing.
 - Trivial obvious fix: patch it and show the diff.
-- Do not push, force-push, rebase pushed commits, edit `.env*`/`.envrc`, run migrations, or install globals without explicit ask. Exception: if `AGENT_GIT_MODE=commit-local`, commit each completed logical change with `agent-commit.sh` and explicit paths; finish completed tasks with `agent-finish.sh`.
+- Do not push, force-push, rebase pushed commits, edit `.env*`/`.envrc`, run migrations, or install globals without explicit ask. Exception: if `AGENT_GIT_MODE=commit-local`, commit each completed logical change with `hq commit` and explicit paths; finish completed tasks with `hq finish`.
 - After edits, run the smallest relevant check and report what changed/tested.
 - Durable lesson: use `lesson-append` if `docs/knowledge/_inbox.md` exists.
 - No tool attribution: never add `Co-Authored-By: Claude/Codex` to commits or a `Generated with Claude Code`/`🤖` footer to PR/MR bodies. Commits and reviews are authored as the user.
@@ -16,6 +16,6 @@ References:
 - Secrets/env: `~/dotfiles/docs/platform/secrets-env.md`
 - Local infra/dev-stack: `~/dotfiles/services/dev-stack/README.md` (canonical; live: `dev-stack urls`; connect a repo: `dev-stack connect`)
 - ML/quant: `~/dotfiles/docs/platform/ml-quant-workflow.md`
-- Commands: `hq` (ядро: `hq ls`, `hq doctor`, `hq setup`), `agent-workspace`, `agent-commit.sh`, `agent-finish.sh`, `agent-task-push.sh`, `dev-stack`, `agent-skill`, `secret`
+- Commands: `hq` (ядро: `hq ls`, `hq ctx`, `hq doctor`, `hq setup`, `hq commit`, `hq finish`, `hq skill`), `agent-workspace`, `dev-stack`, `secret`
 - Logs: Axiom CLI. DB: `psql`. Secrets: 1Password via `secret`.
 - New skills: use `skill-maintainer`; source lives in `~/dotfiles/skills`, then run `agent-skill install && agent-skill doctor`.

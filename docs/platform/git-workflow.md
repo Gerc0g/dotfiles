@@ -13,7 +13,7 @@ reviewing staged/unstaged changes.
 - Conventional Commit prefix/scope in English; description in Russian by
   default.
 - Do not raw-push, force-push, rebase pushed commits, merge PRs/MRs, or delete
-  branches without explicit user ask. Exception: a completed agent task finishes through `agent-finish.sh`, which verifies, pushes the task branch, and opens a draft PR/MR without merging.
+  branches without explicit user ask. Exception: a completed agent task finishes through `hq finish`, which verifies, pushes the task branch, and opens a draft PR/MR without merging.
 
 ## Branches
 
@@ -55,7 +55,7 @@ Rules:
 
 - default base branch is `dev` when present, otherwise `main`;
 - worktree path uses a short id; agent branch is `agent/<task-slug>-<id>`;
-- commit-local mode commits every completed logical change; task finish happens once with `agent-finish.sh`;
+- commit-local mode commits every completed logical change; task finish happens once with `hq finish`;
 - never switch branches in a shared checkout when another agent may be active;
 - stash is only an emergency tool, not the normal coordination model.
 
@@ -66,6 +66,6 @@ Before declaring ready:
 - self-review diff against target branch;
 - run relevant local verification;
 - report touched files and residual risk;
-- in agent worktrees, use `agent-finish.sh` to push and open a draft PR/MR; do not merge remotely unless the user explicitly asked.
+- in agent worktrees, use `hq finish` to push and open a draft PR/MR; do not merge remotely unless the user explicitly asked.
 
 Deep reference: `~/dotfiles/agent-profiles/PLATFORM.md` section "Git protocol".

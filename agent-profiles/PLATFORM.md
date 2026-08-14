@@ -122,9 +122,9 @@ When `AGENT_GIT_MODE=commit-local`, the user has delegated local atomic
 commits for this agent session. In that mode:
 
 - After every completed logical change, run:
-  `~/dotfiles/scripts/agent-commit.sh "type(scope): русское описание" -- <explicit paths>`
+  `hq commit "type(scope): русское описание" -- <explicit paths>`
 - Finish only when the logical task/branch is complete, using:
-  `~/dotfiles/scripts/agent-finish.sh`
+  `hq finish`
   This verifies/tests, pushes the branch, opens a draft PR/MR into the integration branch, and records review metadata.
 - No force-push, no rebase, no merge, no `git add .`, no `git add -A`.
 - Do not start the next feature/epic while the completed change is dirty/uncommitted.
@@ -327,7 +327,7 @@ If session was multi-step: end in branch/checkout user expects (not detached HEA
 
 ### Push & remote
 
-- NEVER run raw `git push` without explicit user ask. In agent worktrees, finish through `agent-finish.sh`; use `agent-task-push.sh` only as a low-level fallback when PR/MR creation is unavailable or explicitly requested.
+- NEVER run raw `git push` without explicit user ask. In agent worktrees, finish through `hq finish`; use `hq finish --no-review` only as a low-level fallback when PR/MR creation is unavailable or explicitly requested.
 - NEVER `--force-push` unless user explicitly says "force"
 - NEVER amend pushed commits unless user explicitly asks
 - `git pull` ok when user asks ("pull and push" = consent for both)

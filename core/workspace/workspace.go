@@ -35,6 +35,9 @@ const (
 	StateReady State = "ready"
 	// StateReview means a pull request exists; Cleanup checks whether it merged.
 	StateReview State = "review"
+	// StatePushed means the branch left the machine but no review exists yet.
+	// Cleanup treats it like active: pushed is not finished.
+	StatePushed State = "pushed"
 )
 
 // Workspace is one managed worktree.
@@ -51,6 +54,12 @@ type Workspace struct {
 	ReviewURL string
 	CreatedAt string
 	PushedAt  string
+	// Finish bookkeeping. The bash finisher used to write these keys past the
+	// core, and every core rewrite silently dropped them.
+	PushedBranch         string
+	ReviewBase           string
+	ReviewOpenedAt       string
+	ReadyWithoutReviewAt string
 }
 
 // Ref is the company/product/repo/id path of a workspace.
@@ -220,6 +229,14 @@ func readMeta(path string) (Workspace, error) {
 			w.CreatedAt = value
 		case "pushed_at":
 			w.PushedAt = value
+		case "pushed_branch":
+			w.PushedBranch = value
+		case "review_base":
+			w.ReviewBase = value
+		case "review_opened_at":
+			w.ReviewOpenedAt = value
+		case "ready_without_review_at":
+			w.ReadyWithoutReviewAt = value
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -252,6 +269,10 @@ func writeMeta(w Workspace) error {
 	write("review_url", w.ReviewURL)
 	write("created_at", w.CreatedAt)
 	write("pushed_at", w.PushedAt)
+	write("pushed_branch", w.PushedBranch)
+	write("review_base", w.ReviewBase)
+	write("review_opened_at", w.ReviewOpenedAt)
+	write("ready_without_review_at", w.ReadyWithoutReviewAt)
 
 	path := filepath.Join(w.Path, MetaFile)
 	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
