@@ -47,19 +47,15 @@ mkdir -p "$WIKI_BRAND"
 echo "✓ personal brand vault path: $WIKI_BRAND"
 
 mkdir -p "$HOME/.codex/skills" "$HOME/.codex/hooks"
-mkdir -p "$HOME/.codex/skills" "$HOME/.codex/hooks"
 mkdir -p "$HOME/.claude/skills" "$HOME/.claude/hooks"
 
-ln -sfn "$DOTFILES/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.codex/skills/wiki-context-pack"
-ln -sfn "$DOTFILES/skills-stash/wiki/worker/lesson-append" "$HOME/.codex/skills/lesson-append"
-ln -sfn "$DOTFILES/skills-stash/wiki/worker/wiki-context-pack" "$HOME/.claude/skills/wiki-context-pack"
-ln -sfn "$DOTFILES/skills-stash/wiki/worker/lesson-append" "$HOME/.claude/skills/lesson-append"
+# Worker skills (wiki-context-pack, lesson-append) are repo-owned in
+# ~/dotfiles/skills and installed by `agent-skill install`, not from the stash.
 
 for skill in source-ingest agent-history-ingest inbox-drain wiki-synthesize wiki-lint wiki-status autoresearch; do
   ln -sfn "$DOTFILES/skills-stash/wiki/curator/$skill" "$HOME/.codex/skills/$skill"
 done
 
-ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-codex.sh" "$HOME/.codex/hooks/SessionStart.sh"
 ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-codex.sh" "$HOME/.codex/hooks/SessionStart.sh"
 ln -sfn "$DOTFILES/skills-stash/wiki/hooks/auto-load-claude.sh" "$HOME/.claude/hooks/SessionStart.sh"
 echo "✓ skills and hooks symlinked"
@@ -160,7 +156,6 @@ print(f"✓ configured claude hook: {cfg}")
 PY
 }
 
-ensure_codex_hook "$HOME/.codex/config.toml" "$HOME/.codex/hooks/SessionStart.sh"
 ensure_codex_hook "$HOME/.codex/config.toml" "$HOME/.codex/hooks/SessionStart.sh"
 ensure_codex_project_trust "$HOME/.codex/config.toml" "$WIKI_DEV"
 ensure_codex_project_trust "$HOME/.codex/config.toml" "$WIKI_RESEARCH"
