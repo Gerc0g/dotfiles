@@ -30,7 +30,9 @@ test: go-check
 verify: lint test diff-check
 
 shell-check:
-	@set -e; for file in $(BASH_FILES); do bash -n "$$file"; done
+	@set -e; for file in $(BASH_FILES); do \
+		if head -n1 "$$file" | grep -q zsh; then zsh -n "$$file"; else bash -n "$$file"; fi; \
+	done
 	@set -e; for file in $(ZSH_FILES); do zsh -n "$$file"; done
 	@echo 'shell syntax: ok'
 
