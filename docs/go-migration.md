@@ -38,18 +38,19 @@
       Project Manager.
 - [x] `hq workspace path` — `shell/32` больше не знает раскладку пула.
 
-## Этап 2 — git-обвязка агентов
+## Этап 2 — git-обвязка агентов — DONE
 
-- [ ] `hq commit "type(scope): описание" -- <paths>` — порт
-      `agent-commit.sh` (132); `.company-config` читает `world.Config`.
-- [ ] `hq finish [--no-review]` — порт `agent-finish.sh` (178) +
-      `agent-task-push.sh` (82, растворяется во флаге); единственный
-      писатель `.agent-workspace` — `core/workspace`.
-- [ ] `hq skill {list,new,install,doctor}` — порт `agent-skill.sh` (215);
-      `make lint` и `bootstrap.sh` переходят на `hq skill`;
-      `skillLinksStep` в `core/setup` перестаёт дублировать doctor.
-- [ ] Скрипты остаются 3-строчными шимами (конвенции в BASELINE/PLATFORM
-      обновить на `hq ...`).
+- [x] `hq commit` — порт agent-commit.sh; identity-check теперь работает и
+      в worktree (bash его там молча пропускал).
+- [x] `hq finish [--no-review]` — порт agent-finish + task-push; метаданные
+      finish (pushed_branch, review_base, review_opened_at,
+      ready_without_review_at) добавлены в `core/workspace` — раньше Go
+      молча терял эти ключи при перезаписи.
+- [x] `hq skill {list,new,install,doctor}` — порт agent-skill.sh;
+      `make lint` (skill-check: build → `hq skill doctor`) и `bootstrap.sh`
+      идут через ядро.
+- [x] agent-commit/finish/task-push/skill — 3-строчные шимы; BASELINE,
+      PLATFORM, COMMANDS, git-workflow переведены на `hq ...`.
 
 ## Этап 3 — secrets
 
