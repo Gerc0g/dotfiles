@@ -4,6 +4,10 @@
 package cli
 
 import (
+	"os"
+	"strings"
+
+	"github.com/Gerc0g/dotfiles/core/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -55,5 +59,22 @@ func NewRoot() *cobra.Command {
 		newOnboardCmd(),
 	)
 
+	muteStubs(root)
 	return root
+}
+
+// muteStubs dims the descriptions of stub commands in the help listing, so
+// the eye skips them when scanning for something to run. The marker is the
+// word «заглушка» in Short — when a stub graduates, the word goes and the
+// colour goes with it. Styling only applies on a real terminal.
+func muteStubs(root *cobra.Command) {
+	r := ui.New(os.Stdout)
+	if !r.Rich() {
+		return
+	}
+	for _, cmd := range root.Commands() {
+		if strings.Contains(cmd.Short, "заглушка") {
+			cmd.Short = r.Muted(cmd.Short)
+		}
+	}
 }
