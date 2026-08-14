@@ -27,16 +27,16 @@
 - [x] Снято: «мусор в git» — `__pycache__`/status-tui/.agents на самом деле
       не закоммичены (untracked под gitignore), чистить нечего.
 
-## Этап 1 — фундамент: контекст и editor-sync
+## Этап 1 — фундамент: контекст и editor-sync — DONE
 
-- [ ] `hq ctx` — единый резолвер company/product/repo(/worktree) из `$PWD`,
-      включая разворот `.worktrees/...` обратно в репо; plain-вывод для
-      скриптов. Источник истины — `core/world` + `core/workspace`.
-- [ ] `hq editor sync` — порт `scripts/vscode-projects-sync.py` (382);
-      `syncEditorProjects` в `create.go` становится вызовом функции.
-      Обновить `shell/33-vscode-projects.zsh`, `scripts/new-project.sh`.
-- [ ] `hq workspace path <co> <prod> <repo> <id>` — убрать знание раскладки
-      из `shell/32-agent-workspace.zsh`.
+- [x] `hq ctx [--plain]` — `workspace.Locate` (+ `world.Is*Dir` хелперы),
+      резолвит company/product/repo/worktree с любой глубины.
+- [x] `hq editor sync` — пакет `core/editor` (merge-логика + тесты),
+      `workspace.SyncEditorProjects` — вызов функции вместо форка python;
+      `vscode-projects-sync.py` удалён, обёртка сохраняет старое имя.
+      Бонус: маркерная модель вычистила мусорные записи (rca-synapse) из
+      Project Manager.
+- [x] `hq workspace path` — `shell/32` больше не знает раскладку пула.
 
 ## Этап 2 — git-обвязка агентов
 
