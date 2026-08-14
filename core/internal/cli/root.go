@@ -4,10 +4,6 @@
 package cli
 
 import (
-	"os"
-	"strings"
-
-	"github.com/Gerc0g/dotfiles/core/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -59,22 +55,21 @@ func NewRoot() *cobra.Command {
 		newOnboardCmd(),
 	)
 
-	muteStubs(root)
+	groupStubs(root)
 	return root
 }
 
-// muteStubs dims the descriptions of stub commands in the help listing, so
-// the eye skips them when scanning for something to run. The marker is the
-// word «заглушка» in Short — when a stub graduates, the word goes and the
-// colour goes with it. Styling only applies on a real terminal.
-func muteStubs(root *cobra.Command) {
-	r := ui.New(os.Stdout)
-	if !r.Rich() {
-		return
-	}
+// stubGroupID collects the commands that only hold surface. Fang renders
+// cobra groups as separate titled sections, so stubs drop out of the main
+// list without any styling hacks — Short-embedded ANSI breaks fang's layout.
+const stubGroupID = "stubs"
+
+func groupStubs(root *cobra.Command) {
+	root.AddGroup(&cobra.Group{ID: stubGroupID, Title: "заглушки"})
 	for _, cmd := range root.Commands() {
-		if strings.Contains(cmd.Short, "заглушка") {
-			cmd.Short = r.Muted(cmd.Short)
+		switch cmd.Name() {
+		case "secret", "server":
+			cmd.GroupID = stubGroupID
 		}
 	}
 }
