@@ -24,8 +24,8 @@ profiles by `agent-skill install`.
     are not enabled until Codex support is verified locally.
 
 ### Scripts
-- `scripts/wiki-bootstrap-product.sh` — create
-  `20-projects/<co>/<prod>/repos/<repo>/` skeleton + repo symlinks
+- `scripts/wiki-bootstrap-product.sh` — shim over `hq wiki bootstrap`
+  (memory skeleton + repo symlinks live in the core)
 - `scripts/install-wiki-runtime.sh` — clone/install WikiPedik vault, curator
   skills, hooks, and profile config on a fresh machine
 

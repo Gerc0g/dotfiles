@@ -97,7 +97,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - Commit message: English Conventional Commit type/scope + русское описание.
 
 ## wiki
-**Что:** WikiPedik project-memory commands. Без аргументов запускает wiki product repo, с подкомандами управляет curator flow.
+**Что:** WikiPedik project-memory commands. Без аргументов запускает wiki product repo, с подкомандами управляет curator flow. Детерминированная логика в ядре (`hq wiki ...`, все подкоманды ниже — обёртки); LLM-половина остаётся кураторскими скиллами. Вольт резолвится через `WIKIPEDIK_ROOT` (дефолт `~/Desktop/WikiPedik`).
 **Запуск:**
 - `wiki` — создать worktree в `neurodesk/wiki/nrdsk_wiki` и перейти в него.
 - `wiki sync <company[/product[/repo]]>` — curator drain: `_inbox.md` → `lessons.md` / `gotchas.md` / etc. через `inbox-drain`.

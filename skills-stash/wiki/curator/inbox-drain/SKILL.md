@@ -185,7 +185,7 @@ For each repo that received at least one drained entry (and any repo the user ex
 Prefer writing hot.md yourself (richer one-line summaries). If you cannot, run the deterministic fallback and verify its output:
 
 ```bash
-python3 ~/dotfiles/scripts/wiki-hot-refresh.py <co>/<prod>/<repo>
+hq wiki hot-refresh <co>/<prod>/<repo>
 ```
 
 ### Phase 8: Summary report

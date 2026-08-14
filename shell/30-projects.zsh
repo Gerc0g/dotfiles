@@ -114,13 +114,12 @@ unset _co_dir _co_name
 # `wiki` is both a product shortcut and the memory dispatcher.
 wiki() {
   case "${1:-}" in
-    sync)       shift; wiki-sync "$@" ;;
-    status)     shift; wiki-status "$@" ;;
-    synthesize) shift; wiki-synthesize "$@" ;;
-    bootstrap)  shift; wiki-bootstrap-product "$@" ;;
-    autocommit) shift; wiki-autocommit "$@" ;;
-    rules-sync) shift; wiki-rules-sync "$@" ;;
-    *)          _project_open neurodesk wiki nrdsk_wiki "$@" ;;
+    sync|status|synthesize|commit|bootstrap|autocommit|hot-refresh|rules-sync)
+      hq wiki "$@" ;;
+    git)
+      shift; wiki-git "$@" ;;
+    *)
+      _project_open neurodesk wiki nrdsk_wiki "$@" ;;
   esac
 }
 
