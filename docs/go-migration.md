@@ -92,17 +92,37 @@
       Объединение секрет-паттернов — вместе с возможным портом
       transcript-scrub (этап 6+).
 
-## Этап 6 — полировка поверхности
+## Этап 6 — полировка поверхности — DONE
 
-- [ ] `hq status` — убрать цепочку zsh→bash→`go run`, status-tui под ядро.
-- [ ] `hq help` — рендер `docs/COMMANDS.md` вместо awk в `99-help.zsh`.
-- [ ] `hq onboard company|product` — порт `new-company.sh` (152) +
-      `new-project.sh` (176); envsubst → `text/template`; `~/.ssh/config`
-      как шаг `core/setup`; шорткаты — данные, не код в zsh.
-- [ ] SessionStart-хуки → шимы `exec hq hook session-start --agent=...`
-      с `|| exit 0` (fail-safe контракт сохраняется).
-- [ ] `install-wiki-runtime.sh` → шаги `core/setup` (клон вольта,
-      curator-симлинки, codex `config.toml`).
+- [x] rules-sync вызывается при `hq workspace start` — свежий worktree
+      сразу получает binding-правила.
+- [x] `hq hook session-start --agent claude|codex` — тела хуков в ядре
+      (без python3); шимы гарантируют `exit 0`. Хуки уважают
+      `PROKECTFILES_ROOT`/`WIKIPEDIK_ROOT`.
+- [x] status-tui собирается в `bin/` через `make build`; цепочка
+      zsh→bash→`go run` убрана. Слияние в `hq status` отложено осознанно:
+      TUI живёт отдельным модулем (см. память status-tui direction).
+- [x] `hq commands [имя]` — рендер `docs/COMMANDS.md` вместо awk;
+      `?`/`help` — обёртки.
+- [x] `hq onboard company|product` — порт new-company/new-project;
+      envsubst-шаблоны рендерятся `os.Expand` (файлы шаблонов не
+      менялись); у `hq setup` отобран алиас `onboard`.
+- [x] install-wiki-runtime.sh + python-блок bootstrap.sh → 4 шага
+      `core/setup` (session-hooks, curator-skills, claude-settings,
+      codex-config). `hq doctor` тут же поймал реальный дрейф: curator-
+      скиллы не были прилинкованы после рефакторинга «5 профилей → 2».
+
+## Итог миграции (2026-08-14)
+
+Вся доменная логика платформы — в `core/` (~11 тыс. строк Go с тестами).
+Вне ядра осознанно остаются:
+- тонкий zsh-слой: cd/редактор, export'ы, `eval` (op signin, direnv),
+  alias `?`, динамические функции компаний, таблица `_PROJECT_SHORTCUTS`;
+- шимы обратной совместимости (agent-*, secret-cache, wiki-*, хуки);
+- `transcript-scrub.py` + launchd (автономный ночной джоб на системном
+  python) и `agent-session-digest.py` (парсер внешних JSONL-форматов);
+- `tools/status-tui` — отдельный Go-модуль, собирается в `bin/`.
+Единственная заглушка ядра — `hq server` (новая функциональность, не порт).
 
 ## Вне переезда (осознанно)
 
