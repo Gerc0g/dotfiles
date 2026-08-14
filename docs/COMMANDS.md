@@ -217,15 +217,17 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ### Secrets
 
 ## secret
-**Что:** 1Password wrapper. Один vault на компанию (`Work-<co>`), но item names и `.envrc` scoped по company/product/repo. Default scope определяется из cwd, включая managed worktree.
+**Что:** 1Password wrapper. Один vault на компанию (`Work-<co>`), но item names и `.envrc` scoped по company/product/repo. Default scope определяется из cwd, включая managed worktree. Логика в ядре (`hq secret`); в оболочке остался только `secret signin` (мутирует окружение сессии) и диспетчер.
 **Запуск:**
 - `secret signin` — login
 - `secret add --repo <VAR> <VALUE>` — item `<product>__<repo>__<VAR>` + repo `.envrc`
 - `secret add --product <VAR> <VALUE>` — item `<product>__<VAR>` + product `.envrc`
 - `secret add --company <VAR> <VALUE>` — item `_company__<VAR>` + company `.envrc`
+- `secret edit --repo <VAR> <VALUE>` — обновить значение существующего item
 - `secret name --repo <VAR>` — показать 1Password item name без значения
 - `secret envline --repo <VAR>` — показать export line без значения
 - `secret list <vault>`
+- `secret cache get|refresh|clear|list` — TTL-кэш значений (он же `secret-cache`); ключи и раскладка прежние
 
 ---
 

@@ -7,6 +7,9 @@
 !shell/50-secret-cache.zsh
 !scripts/secret-cache.sh
 !docs/platform/secrets-env.md
+!core/secret/
+!core/secret/**
+!core/internal/cli/secret.go
 shell/local.zsh
 docs/private/
 
