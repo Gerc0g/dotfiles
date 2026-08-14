@@ -84,16 +84,14 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Правила:** push не на каждый commit; merge не выполняется автоматически.
 
 ## wikipedik
-**Что:** перейти в зону вольта WikiPedik (`dev` по умолчанию, также `research` и `brand`) и показать число незакоммиченных файлов.
-**Запуск:** `wikipedik`
-**Панели:**
-- `~/Desktop/WikiPedik/dev` — project-memory curator (`wiki sync/status/synthesize`).
-- `~/Desktop/WikiPedik/research` — research/study agent для источников, статей, концептов и study notes.
-- `~/Desktop/WikiPedik/Personal Brand` — изолированный brand-agent для идей, черновиков, inbound и weekly metrics.
-**Правила brand-agent:**
-- Пишет и отвечает на русском; English content делает только по явной просьбе и отдельной копией ` - EN.md`.
-- SessionStart hook напоминает после изменений сделать commit+push vault state в GitHub.
-- Git покрывает весь vault `~/Desktop/WikiPedik`: `dev`, `research`, `Personal Brand` и Obsidian metadata.
+**Что:** Вольт и его личные зоны как отдельная сущность (`hq wikipedik`): `dev` принадлежит памяти проектов (`hq wiki`), `research` (обучение) и `brand` (статьи, контент) — личное пространство. Зоны research/brand снесены под редизайн 2026-08-14 (история в git вольта); структура и пайплайны проектируются отдельно, вход в зону создаёт её каталог лениво.
+**Запуск:**
+- `hq wikipedik` — обзор: зоны (есть/нет, файлы), последний коммит, незакоммичено/незапушено.
+- `wikipedik [root|dev|research|brand]` — перейти в зону (обёртка: `hq wikipedik path` + cd; по умолчанию root).
+- `hq wikipedik sync` — catch-all коммит вольта (секрет-скан) + best-effort pull/push.
+**Правила вольта:**
+- Пишем на русском; English content — по явной просьбе, отдельной копией ` - EN.md` (напоминает SessionStart-чекпойнт в сессиях внутри вольта).
+- Git покрывает весь vault: `dev`, зоны и Obsidian metadata; push — руками или `hq wikipedik sync`.
 - Commit message: English Conventional Commit type/scope + русское описание.
 
 ## wiki

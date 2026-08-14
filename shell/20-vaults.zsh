@@ -1,27 +1,14 @@
-# WikiPedik vault entry point.
-#
-# This used to open a tmux session with a codex pane per vault zone. The panes
-# are gone with the rest of the tmux layer: three agents waiting in three
-# directories is not a workflow, it is three agents waiting.
-
+# WikiPedik vault zones. Zone resolution lives in the core (`hq wikipedik`);
+# the wrapper does what a child process cannot — cd. Entering a zone creates
+# its directory lazily, so a freshly wiped zone is enterable right away.
 wikipedik() {
-  local root="${WIKIPEDIK_ROOT:-$HOME/Desktop/WikiPedik}"
-  local zone=${1:-dev}
-
-  case "$zone" in
-    dev|research|brand) ;;
-    *) echo "Usage: wikipedik [dev|research|brand]" >&2; return 1 ;;
-  esac
-
-  [ "$zone" = "brand" ] && zone="Personal Brand"
-
-  local target="$root/$zone"
-  [ -d "$target" ] || { echo "⚠ нет зоны вольта: $target" >&2; return 1; }
-
-  cd "$target" || return 1
-  print -P "%F{cyan}$target%f"
+  local dir
+  dir=$(hq wikipedik path "${1:-root}") || return 1
+  mkdir -p "$dir"
+  cd "$dir" || return 1
+  print -P "%F{cyan}$dir%f"
 
   local dirty
-  dirty=$(git -C "$root" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-  [ "${dirty:-0}" -gt 0 ] && print -P "%F{244}незакоммиченных файлов: $dirty%f"
+  dirty=$(git -C "${WIKIPEDIK_ROOT:-$HOME/Desktop/WikiPedik}" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+  [ "${dirty:-0}" -gt 0 ] && print -P "%F{244}незакоммиченных файлов: $dirty (hq wikipedik sync)%f"
 }
