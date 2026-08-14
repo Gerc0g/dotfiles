@@ -293,3 +293,14 @@ func hasMarker(dir, marker string) bool {
 	_, err := os.Stat(filepath.Join(dir, marker))
 	return err == nil
 }
+
+// IsCompanyDir reports whether dir carries the company marker. The Is*Dir
+// helpers exist so path-based resolvers (ctx, scripts) share the marker
+// definition with Scan instead of re-hardcoding file names.
+func IsCompanyDir(dir string) bool { return hasMarker(dir, companyMarker) }
+
+// IsProductDir reports whether dir carries the product marker.
+func IsProductDir(dir string) bool { return hasMarker(dir, productMarker) }
+
+// IsRepoDir reports whether dir carries the repo marker (.git as dir or file).
+func IsRepoDir(dir string) bool { return hasMarker(dir, repoMarker) }

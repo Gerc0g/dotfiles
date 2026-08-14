@@ -22,10 +22,10 @@ agent-workspace() {
       local wt
       if [ $# -eq 1 ]; then
         wt=$1
+        [ -f "$wt/.agent-workspace" ] || { echo "⚠ это не управляемый worktree: $wt" >&2; return 1; }
       else
-        wt="${PROKECTFILES_ROOT:-$HOME/Desktop/Prokectfiles}/.worktrees/$1/$2/$3/$4"
+        wt=$(hq workspace path "$1" "$2" "$3" "$4") || return $?
       fi
-      [ -f "$wt/.agent-workspace" ] || { echo "⚠ это не управляемый worktree: $wt" >&2; return 1; }
       _workspace_enter "$wt"
       ;;
 

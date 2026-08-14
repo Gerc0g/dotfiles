@@ -32,10 +32,32 @@ func newWorkspaceCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(
-		wsStartCmd(), wsListCmd(), wsStaleCmd(),
+		wsStartCmd(), wsListCmd(), wsStaleCmd(), wsPathCmd(),
 		wsReadyCmd(), wsRemoveCmd(), wsCleanupCmd(), wsPruneCmd(),
 	)
 	return cmd
+}
+
+func wsPathCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "path <компания> <продукт> <репозиторий> <id>",
+		Short: "Путь управляемого воркспейса",
+		Long: "Печатает каталог воркспейса, если он существует и управляем. Обёртки\n" +
+			"переходят по нему, не зная раскладку пула.",
+		Args: cobra.ExactArgs(4),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			m, err := newManager()
+			if err != nil {
+				return err
+			}
+			w, err := m.Find(args[0], args[1], args[2], args[3])
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), w.Path)
+			return nil
+		},
+	}
 }
 
 func wsStartCmd() *cobra.Command {

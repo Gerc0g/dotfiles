@@ -48,17 +48,23 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Git:** base branch = `dev`, иначе `main`; каталог = короткий id; ветка = `agent/<task>-<id>`; `user.name`/`user.email` берутся из конфига компании.
 **Salvage:** перед удалением worktree незакоммиченные `docs/epics/*.md` спасаются в WikiPedik `repos/<repo>/_salvage/<id>/`. Изменённые tracked-файлы по-прежнему блокируют удаление.
 **Автоудаления нет:** worktree удаляется только явно (`remove`) или через `cleanup` (нужен флаг ready и 7 дней). Автоматическая уборка при старте когда-то дважды снесла живую работу и была убрана.
-## vscode-projects-sync
-**Что:** Синхронизировать `~/Desktop/Prokectfiles/<company>/<product>/<repo>` и активные `~/Desktop/Prokectfiles/.worktrees/...` с VS Code Project Manager (`alefragnani.project-manager`). По умолчанию Project Manager становится зеркалом платформенных product/repo/worktree entries; старые внешние записи удаляются. Управляемые записи помечаются тегом `dotfiles`, перед ручной записью делает backup `projects.json`.
+## hq-ctx
+**Что:** Определить контекст текущего каталога в модели мира: компания/продукт/репозиторий/worktree, из любой глубины вложенности. Единственный резолвер контекста — скрипты и обёртки не разбирают пути сами.
+**Запуск:**
+- `hq ctx` — человекочитаемый ответ (ref, kind, путь).
+- `hq ctx --plain` — `key=value` по строке для скриптов: kind/company/product/repo (+ id/task/branch/state в worktree).
+- `hq ctx <dir>` — контекст произвольного каталога.
+
+## hq-editor-sync
+**Что:** Синхронизировать модель мира (продукты, репозитории, активные worktree) с VS Code Project Manager (`alefragnani.project-manager`). Project Manager — зеркало платформы: управляемые записи помечены тегом `dotfiles`, протухшие и внешние записи удаляются. Логика в ядре (`core/editor`); ярлык `vscode-projects-sync` сохранён. Автоматически вызывается при `hq workspace start`.
 **Naming:** repo entries называются коротко (`synapse`), product entries — `Product: company/product`, worktree entries — `repo @ id · task`; company/product/state/branch доступны через tags.
 **Запуск:**
-- `vscode-projects-sync` — добавить/обновить product + repo + worktree entries и убрать внешние старые entries.
-- `vscode-projects-sync --dry-run` — показать изменения без записи.
-- `vscode-projects-sync --check` — вернуть exit 1 если файл не синхронизирован.
-- `vscode-projects-sync --repos-only` — синхронизировать только репозитории.
-- `vscode-projects-sync --products-only` — синхронизировать только продукты.
-- `vscode-projects-sync --no-worktrees` — не добавлять agent worktree entries.
-- `vscode-projects-sync --preserve-external` — сохранить проекты, добавленные вручную вне dotfiles.
+- `hq editor sync` — добавить/обновить product + repo + worktree entries, убрать протухшие; перед записью делает backup.
+- `hq editor sync --dry-run` — показать изменения без записи.
+- `hq editor sync --check` — exit 1, если файл не синхронизирован.
+- `hq editor sync --repos-only | --products-only | --no-worktrees` — сузить набор записей.
+- `hq editor sync --preserve-external` — сохранить проекты, добавленные вручную вне dotfiles.
+- `hq editor sync --no-prune | --no-backup | --project-file <path>` — тонкая настройка.
 **Файл:** `~/Library/Application Support/Code/User/globalStorage/alefragnani.project-manager/projects.json`
 
 ## agent-commit

@@ -38,10 +38,12 @@ func NewRoot() *cobra.Command {
 
 	root.AddCommand(
 		newLsCmd(),
+		newCtxCmd(),
 		newSetupCmd(),
 		newDoctorCmd(),
 		newServerCmd(),
 		newWorkspaceCmd(),
+		newEditorCmd(),
 	)
 
 	return root
