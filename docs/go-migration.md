@@ -52,14 +52,17 @@
 - [x] agent-commit/finish/task-push/skill — 3-строчные шимы; BASELINE,
       PLATFORM, COMMANDS, git-workflow переведены на `hq ...`.
 
-## Этап 3 — secrets
+## Этап 3 — secrets — DONE
 
-- [ ] `hq secret {add,edit,cache}` — порт `shell/50-secrets.zsh` (342,
-      кроме `secret signin`) и `scripts/secret-cache.sh` (154).
-- [ ] `scripts/secret-cache.sh` → shim `exec hq secret cache "$@"` —
-      путь вморожен в `.envrc` проектов, не переписываем их.
-- [ ] Единая логика записи `.envrc` в ядре (сейчас два писателя:
-      secrets и devstack).
+- [x] `hq secret {add,edit,name,envline,list,get,cache}` — пакет
+      `core/secret`; контекст через `workspace.Locate` + slug-оверрайды;
+      кэш бинарно совместим (sha256-ключи, та же раскладка файлов).
+- [x] `scripts/secret-cache.sh` → shim (путь вморожен в `.envrc`).
+      В zsh остался только `secret signin` + диспетчер.
+- [x] Гоча: бланкетный `*secret*` в `.gitignore` молча выкинул бы
+      исходники ядра (как когда-то secret-cache.sh, фикс a79fb4a) —
+      добавлены исключения `!core/secret/`.
+- [ ] Единый писатель `.envrc` — закрыть на этапе 4 (devstack).
 
 ## Этап 4 — dev-stack
 
