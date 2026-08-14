@@ -18,7 +18,7 @@ Status: исследование / поэтапно. Ноут (16 ГБ, Ubuntu, 
    ноута через `DEV_STACK_HOST=<tailnet>`. Уже server-ready заложено.
    - launchpad: скрипт деплоя compose на ноут (rsync services/dev-stack + up).
    - мак не меняется. Тест: проект с мака видит Postgres/Qdrant/… ноута.
-2. **Агенты на ноут** (эксперимент): `launch` поднимает tmux на ноуте по ssh,
+2. **Агенты на ноут** (эксперимент): воркспейс поднимается на ноуте по ssh (`hq workspace` + tmux),
    мак/телефон аттачатся. Даёт телефон-доступ (Blink + Tailscale → tmux attach).
    - РИСК: WikiPedik вольт локален на маке. Агенты на ноуте пишут в вольт
      ноута. Решение: вольт = git-репо → синк push/pull (автокоммит уже есть),
@@ -77,7 +77,7 @@ Status: todo
 Цикл памяти работает на страховочном минимуме; неиспользованные возможности и
 рекомендованный порядок внедрения — в [wikipedik-roadmap.md](./wikipedik-roadmap.md).
 Топ-3: history-ingest backfill июня, bootstrap самого dotfiles в память,
-wiki-context-pack в launch-флоу по умолчанию.
+wiki-context-pack в workspace-флоу по умолчанию.
 
 ## WikiPedik memory v2 — по итогам research рынка и SOTA
 
@@ -132,7 +132,7 @@ hosted-платформы как замена (lock-in), авто-майнинг
 
 ## Automatic WikiPedik vault commits
 
-Status: done (2026-06-11) — `scripts/wikipedik-autocommit.sh`: catch-all commit с secret-scan, без push; `launch` вызывает раз в сутки через `--if-due`, вручную — `wiki autocommit`. launchd отклонён из-за TCC-доступа к Desktop у фоновых процессов.
+Status: done (2026-06-11) — `scripts/wikipedik-autocommit.sh`: catch-all commit с secret-scan, без push; вручную — `wiki autocommit`. launchd отклонён из-за TCC-доступа к Desktop у фоновых процессов. UPDATE 2026-08-14: суточный вызыватель (`launch --if-due`) удалён вместе с tmux-раскладкой — автокоммит снова только ручной, нужен новый планировщик.
 
 Problem: nothing commits the WikiPedik vault automatically — no obsidian-git plugin, no launchd/cron job, no hook. The vault has 8 manual commits total; curator work (drain, synthesize, hot.md refresh) sits uncommitted until someone runs `wiki-commit` by hand. Human edits in Obsidian are never captured at all.
 
@@ -169,7 +169,7 @@ Goal: `~/dotfiles/bootstrap.sh` should make a fresh Mac or fresh agent profile r
 Acceptance criteria:
 - Bootstrap installs/syncs repo-owned skills into Codex and Claude skill directories.
 - Bootstrap installs/syncs agent configs and profile files from dotfiles.
-- Bootstrap builds or links local TUI tools used by `launch`.
+- Bootstrap builds or links local TUI tools (status-tui).
 - Bootstrap verifies required CLIs: `codex`, `claude`, `oracle`, `tmux`, `direnv`, `op`, `go`.
 - Bootstrap prints manual steps only for things that cannot be automated safely, such as browser login or 1Password approval.
 - Re-running bootstrap is idempotent and does not overwrite user-local secrets.
@@ -216,7 +216,7 @@ Status: decided (модель) + research/todo (детали), 2026-06-23
 НА ПОТОМ (разобрать/заресёрчить + внедрить):
 - Полный git-sync флоу: правила синхронизации по репозиториям и внутри проектов.
 - WikiPedik: автокоммит + PUSH (сейчас never-push, scripts/wikipedik-autocommit.sh) +
-  PULL на старте (cron / launch-hook). Политика конфликтов (append в _inbox.md обычно тривиален).
+  PULL на старте (cron / shell-hook). Политика конфликтов (append в _inbox.md обычно тривиален).
 - Опц.: имя БД с id worktree (`<product>__<repo>__<id>`), чтобы параллельные фичи на
   Mac и сервере не делили данные общей dev-stack.
 - Кроны на pull (вольт/доки): частота, где вешать (launchd на Mac / systemd на сервере).

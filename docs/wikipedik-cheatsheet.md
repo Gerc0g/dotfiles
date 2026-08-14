@@ -14,7 +14,7 @@ wiki-git push            # отправить вольт на GitHub
 
 ## 3 рефлекса (система сама заговорит)
 
-1. `ℹ inbox N candidate — пора wiki sync` при launch → запусти sync.
+1. `ℹ inbox N candidate — пора wiki sync` в SessionStart-контексте → запусти sync.
 2. `⚠ wiki memory: не подключена` → `wiki bootstrap <co> <prod>`.
 3. Куратор предлагает правило → вопрос себе: «обязан ли это соблюдать каждый
    агент?» → да/нет. После «да»: `wiki rules-sync`.
@@ -34,7 +34,7 @@ wiki-git push            # отправить вольт на GitHub
 2. Всё — markdown в `~/Desktop/WikiPedik/dev/20-projects/` под git: Obsidian
    для чтения — можно, потерять — нельзя.
 
-## Редкое (по нуджам из launch)
+## Редкое (по нуджам из SessionStart-хуков)
 
 - `wiki lint <scope>` — раз в месяц, протухание/противоречия.
 - history-ingest — раз в 2 недели, в чат куратора:

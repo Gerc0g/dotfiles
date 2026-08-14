@@ -91,7 +91,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ## wiki
 **Что:** WikiPedik project-memory commands. Без аргументов запускает wiki product repo, с подкомандами управляет curator flow.
 **Запуск:**
-- `wiki` — открыть `neurodesk/wiki/nrdsk_wiki` через стандартный launch layout.
+- `wiki` — создать worktree в `neurodesk/wiki/nrdsk_wiki` и перейти в него.
 - `wiki sync <company[/product[/repo]]>` — curator drain: `_inbox.md` → `lessons.md` / `gotchas.md` / etc. через `inbox-drain`.
 - `wiki sync --commit <scope>` — drain + локальный commit WikiPedik changes. Заранее dirty файлы разрешены только внутри указанного scope.
 - `wiki sync --push <scope>` — drain + commit + push.
@@ -99,7 +99,7 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `wiki synthesize <company/product>` — найти повторяющиеся lessons/gotchas и предложить product shared patterns.
 - `wiki bootstrap <company> [product] [repo]` — создать WikiPedik skeleton + repo symlinks.
 - `wiki-commit <scope>` — вручную закоммитить только changes внутри WikiPedik scope.
-- `wiki autocommit` / `wiki-autocommit` — catch-all commit всего dirty вольта (без push, с secret-scan). Автоматического вызывающего сейчас НЕТ — раньше его дёргал `launch` раз в сутки.
+- `wiki autocommit` / `wiki-autocommit` — catch-all commit всего dirty вольта (без push, с secret-scan). Автоматического вызывающего сейчас НЕТ (запускать вручную; `--if-due` оставлен для будущего планировщика).
 - `wiki-hot-refresh <co>[/<prod>[/<repo>]]` — детерминированно пересобрать `hot.md` из curated-страниц + дайджест «Binding rules» (fallback, если куратор пропустил свою фазу).
 - `wiki rules-sync [<co>[/<prod>[/<repo>]]]` — материализовать правила вольта (`repos/<repo>/rules/`, `shared/rules/`) в path-scoped `.claude/rules/wiki-*` симлинки (основные чекауты + активные worktrees); правила без `paths:` отклоняются; удалённые из вольта — prune.
 - `agent-session-digest.py --source claude|codex|all [--since D] [--until D] [--project substr]` — сжать JSONL-сессии в markdown-дайджесты для майнинга куратором (`10-wiki/sources/sessions/_digests/`); secrets редактируются, объём падает с MB до десятков KB.
@@ -156,8 +156,8 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 **Repos:** cerebro
 
 ## <company> (neurodesk / chimera / SupportOps-Core)
-**Что:** Вход с уровня компании: продукт → репо → launch. Команда на каждую компанию с `.company-config` регистрируется автоматически.
-**Запуск:** `neurodesk` (выбор продукта, затем репо) · `neurodesk agents` (выбор репо) · `neurodesk agents synapse` (сразу launch)
+**Что:** Вход с уровня компании: продукт → репо → worktree. Команда на каждую компанию с `.company-config` регистрируется автоматически.
+**Запуск:** `neurodesk` (выбор продукта, затем репо) · `neurodesk agents` (выбор репо) · `neurodesk agents synapse` (сразу worktree)
 **Иерархия:** компания (`neurodesk`) → продукт (`agents`) → продукт-шорткат сразу (`agents`).
 
 
@@ -185,12 +185,12 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 ### Agent context setup
 
 ## agent-skill
-**Что:** Управление repo-owned skills: создать шаблон, установить symlink в нужные runtime profiles, проверить frontmatter, links и isolation между daily/setup/wiki.
+**Что:** Управление repo-owned skills: создать шаблон, установить symlinks в оба профиля (`~/.claude/skills`, `~/.codex/skills`), проверить frontmatter и links.
 **Запуск:**
-- `agent-skill list` — показать skills из `~/dotfiles/skills` и статус установки daily/setup/wiki
+- `agent-skill list` — показать skills из `~/dotfiles/skills` и статус установки в обоих профилях
 - `agent-skill new <name>` — создать `~/dotfiles/skills/<name>/SKILL.md`
-- `agent-skill install` — поставить symlinks: setup skills в setup profiles, universal skills во все профили
-- `agent-skill doctor` — проверить YAML frontmatter, symlinks и отсутствие setup-only skills в daily/wiki profiles
+- `agent-skill install` — поставить symlinks каждого skill в оба профиля
+- `agent-skill doctor` — проверить YAML frontmatter, symlinks и dangling-ссылки в профилях
 **Используй:** когда добавляешь/меняешь reusable skill. Для agent-led изменений сначала используй `skill-maintainer`.
 
 ## dev-stack

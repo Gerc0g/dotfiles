@@ -7,12 +7,12 @@
 #
 # Cross-machine sync: after committing, pulls remote (rebase) and pushes, so the
 # vault stays consistent across Mac + server. Sync is best-effort and guarded —
-# network/conflict issues only warn, never break the caller (launch runs it `|| true`).
+# network/conflict issues only warn, never break the caller.
 # Aborts without committing when the diff looks like it contains a secret.
 #
 # Usage:
 #   wikipedik-autocommit.sh            # commit now if dirty
-#   wikipedik-autocommit.sh --if-due   # only if last run was >24h ago (for launch tail)
+#   wikipedik-autocommit.sh --if-due   # only if last run was >24h ago (no automatic caller today)
 
 set -euo pipefail
 

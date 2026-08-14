@@ -369,7 +369,7 @@ wiki-commit() {
   _wiki_commit "$scope" "0"
 }
 
-# Catch-all vault commit; `launch` calls it daily via --if-due.
+# Catch-all vault commit; no automatic caller today (run `wiki autocommit`).
 wiki-autocommit() {
   bash "$HOME/dotfiles/scripts/wikipedik-autocommit.sh" "$@"
 }
