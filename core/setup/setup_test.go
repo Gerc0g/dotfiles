@@ -41,12 +41,21 @@ func fixture(t *testing.T) Env {
 	for _, skill := range curatorSkills {
 		write("skills-stash/wiki/curator/"+skill+"/SKILL.md", "---\n---\n")
 	}
-	for _, source := range codexZoneProfiles {
-		write("agent-profiles/"+source, "# zone profile\n")
+	for _, zone := range codexZones {
+		write("agent-profiles/codex-"+zone+"/config.toml", "model = \"x\"\n[projects.\"{{HOME}}/vault\"]\n")
 	}
 
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		t.Fatalf("mkdir home: %v", err)
+	}
+
+	// The default codex profile as it looks after `codex login`: zone profiles
+	// share these two entries instead of duplicating them.
+	if err := os.MkdirAll(filepath.Join(home, ".codex", "plugins"), 0o755); err != nil {
+		t.Fatalf("mkdir codex plugins: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".codex", "auth.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatalf("write auth.json: %v", err)
 	}
 
 	return Env{

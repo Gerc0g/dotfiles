@@ -82,40 +82,101 @@ func curatorSkillsStep() Step {
 	}
 }
 
-// codexZoneProfiles are per-zone codex config layers: `codex -p <zone>` loads
-// ~/.codex/<zone>.config.toml on top of the base config. They exist to keep
-// tools a zone never uses out of its prompt.
-var codexZoneProfiles = map[string]string{
-	"research": "codex-research.config.toml",
+// codexZones are the codex profiles isolated by the kind of work they serve.
+// The default ~/.codex owns code and project memory; a zone profile owns one
+// semantic area and only carries its own skills, hooks and history.
+//
+// Isolation has to be a separate CODEX_HOME: the profile layer (`codex -p`)
+// overrides settings but not the skills directory, so a zone would still load
+// every skill of the default profile into every prompt.
+var codexZones = []string{"research"}
+
+// codexShared are the entries a zone profile symlinks back to the default
+// one: one login for both, and no second copy of the plugin cache.
+var codexShared = []string{"auth.json", "plugins"}
+
+func codexHome(env Env, zone string) string {
+	return filepath.Join(env.Home, ".codex-"+zone)
 }
 
-func codexProfilesStep() Step {
+func codexZoneProfilesStep() Step {
 	return Step{
-		Name:  "codex-profiles",
-		About: "профили зон codex прилинкованы (codex -p <зона>)",
+		Name:  "codex-zones",
+		About: "изолированные профили codex по зонам (свои скиллы, общий логин)",
 		check: func(env Env) Result {
 			var results []Result
-			for zone, source := range codexZoneProfiles {
-				src := filepath.Join(env.Dotfiles, "agent-profiles", source)
-				dst := filepath.Join(env.Home, ".codex", zone+".config.toml")
-				results = append(results, checkSymlink(src, dst))
+			for _, zone := range codexZones {
+				home := codexHome(env, zone)
+
+				results = append(results, checkDir(filepath.Join(home, "skills")))
+				for _, name := range codexShared {
+					src := filepath.Join(env.Home, ".codex", name)
+					// auth.json appears only after `codex login`, which is a
+					// manual step: report, do not fail the machine.
+					if _, err := os.Stat(src); err != nil {
+						results = append(results, skipped("нет %s — сначала codex login", short(src)))
+						continue
+					}
+					results = append(results, checkSymlink(src, filepath.Join(home, name)))
+				}
+				results = append(results, checkSymlink(
+					filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", "auto-load-codex.sh"),
+					filepath.Join(home, "hooks", "SessionStart.sh")))
+
+				if _, err := os.Stat(filepath.Join(home, "config.toml")); err != nil {
+					results = append(results, missing("нет %s", short(filepath.Join(home, "config.toml"))))
+				}
 			}
 			return combine(results, "профили зон на месте")
 		},
 		apply: func(env Env) error {
-			for zone, source := range codexZoneProfiles {
-				src := filepath.Join(env.Dotfiles, "agent-profiles", source)
-				dst := filepath.Join(env.Home, ".codex", zone+".config.toml")
-				if err := ensureDir(filepath.Dir(dst)); err != nil {
+			for _, zone := range codexZones {
+				home := codexHome(env, zone)
+				if err := ensureDir(filepath.Join(home, "skills")); err != nil {
 					return err
 				}
-				if err := ensureSymlink(src, dst); err != nil {
+				for _, name := range codexShared {
+					src := filepath.Join(env.Home, ".codex", name)
+					if _, err := os.Stat(src); err != nil {
+						continue
+					}
+					if err := ensureSymlink(src, filepath.Join(home, name)); err != nil {
+						return err
+					}
+				}
+				if err := ensureSymlink(
+					filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", "auto-load-codex.sh"),
+					filepath.Join(home, "hooks", "SessionStart.sh")); err != nil {
+					return err
+				}
+				if err := seedZoneConfig(env, zone, home); err != nil {
 					return err
 				}
 			}
 			return nil
 		},
 	}
+}
+
+// seedZoneConfig copies the profile template once. It is never rewritten:
+// codex itself appends trust levels and hook hashes to this file, so an
+// overwriting step would silently discard the user's own trust decisions.
+func seedZoneConfig(env Env, zone, home string) error {
+	dst := filepath.Join(home, "config.toml")
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	}
+
+	src := filepath.Join(env.Dotfiles, "agent-profiles", "codex-"+zone, "config.toml")
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return fmt.Errorf("чтение шаблона %s: %w", src, err)
+	}
+	rendered := strings.ReplaceAll(string(data), "{{HOME}}", env.Home)
+	if err := os.WriteFile(dst, []byte(rendered), 0o644); err != nil {
+		return fmt.Errorf("запись %s: %w", dst, err)
+	}
+	return nil
 }
 
 // claudePlugins is the intentionally small plugin set of the Claude profile.

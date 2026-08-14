@@ -1,0 +1,38 @@
+# Codex-профиль зоны обучения (CODEX_HOME=~/.codex-research).
+#
+# Профиль изолирован по семантике работы: здесь только то, что нужно
+# конспектировать и объяснять. Скиллы платформы и курации памяти проектов
+# сюда не ставятся — они живут в дефолтном ~/.codex, который обслуживает
+# код и dev-память.
+#
+# Общее с дефолтным профилем шарится симлинками (см. core/setup):
+#   auth.json  — один логин на оба профиля;
+#   plugins/   — кэш плагинов (сотни мегабайт, качать дважды незачем).
+# Своё: skills/, hooks/, sessions/, история — чтобы контуры не смешивались.
+#
+# Это ЗАГОТОВКА: hq setup копирует её при первом запуске и больше не трогает,
+# потому что codex сам дописывает сюда trust-уровни проектов и хэши хуков.
+# {{HOME}} подставляется при копировании.
+
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
+service_tier = "default"
+
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+# Читать оригиналы из raw/ при уточнении формулы.
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+# Разбирать .docx-материалы, если такие появятся.
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[hooks]
+SessionStart = [
+  { matcher = "startup|resume", hooks = [{ type = "command", command = "{{HOME}}/.codex-research/hooks/SessionStart.sh" }] },
+]
+
+[projects."{{HOME}}/Desktop/WikiPedik"]
+trust_level = "trusted"

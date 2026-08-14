@@ -48,7 +48,7 @@ func Plan() []Step {
 		skillLinksStep(),
 		wikiHooksStep(),
 		curatorSkillsStep(),
-		codexProfilesStep(),
+		codexZoneProfilesStep(),
 		claudeSettingsStep(),
 		codexConfigStep(),
 	}
