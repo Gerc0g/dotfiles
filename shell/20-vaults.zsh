@@ -23,4 +23,8 @@ wikipedik() {
   local home="$HOME/.codex-$zone"
   [ -d "$home" ] || home="$HOME/.codex"
   CODEX_HOME="$home" codex --no-alt-screen
+
+  # Последний рубеж: что бы ни случилось в сессии — агент забыл закоммитить,
+  # Stop-хук не доверен, сессия оборвалась — вольт не остаётся грязным.
+  hq wikipedik autosync
 }
