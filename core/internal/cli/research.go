@@ -27,8 +27,35 @@ func newResearchCmd() *cobra.Command {
 	cmd.AddCommand(
 		researchNewCmd(), researchListCmd(), researchLintCmd(),
 		researchIndexCmd(), researchMapCandidatesCmd(), researchPathCmd(),
+		researchGraphCmd(),
 	)
 	return cmd
+}
+
+func researchGraphCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "graph",
+		Short: "Настроить граф Obsidian под учебную зону",
+		Long: "Оставляет в графе только research (без индекса и журнала — они\n" +
+			"ссылаются на всё и стягивают граф в звезду), красит темы по доменам,\n" +
+			"показывает направление связей и сирот.\n\n" +
+			"Прежние настройки сохраняются в graph.json.bak.<время>. После\n" +
+			"применения перезапусти Obsidian: он держит настройки графа в памяти.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path, backup, err := research.WriteGraph()
+			if err != nil {
+				return err
+			}
+			r := ui.New(cmd.OutOrStdout())
+			r.Line(r.OK("✓ ") + "настройки графа: " + path)
+			if backup != "" {
+				r.Line(r.Muted("  прежние: " + backup))
+			}
+			r.Line(r.Muted("  перезапусти Obsidian, чтобы применилось"))
+			return nil
+		},
+	}
 }
 
 func researchStatus(cmd *cobra.Command) error {
