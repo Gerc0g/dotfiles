@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/Gerc0g/dotfiles/core/internal/ui"
 	"github.com/Gerc0g/dotfiles/core/wiki"
@@ -66,11 +68,16 @@ func wikipedikAutosyncCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if len(wiki.Dirty(root)) == 0 {
+
+			dirty := len(wiki.Dirty(root))
+			if dirty == 0 {
+				wiki.LogAutosync("чисто, push=%v", push)
 				return nil
 			}
-			return wiki.AutocommitMessage(false, wiki.AutoMessage(root),
-				cmd.OutOrStdout(), wiki.WithPush(push))
+
+			message := wiki.AutoMessage(root)
+			wiki.LogAutosync("грязных %d, push=%v, коммит: %s", dirty, push, message)
+			return wiki.AutocommitMessage(false, message, cmd.OutOrStdout(), wiki.WithPush(push))
 		},
 	}
 
@@ -144,6 +151,30 @@ func runWikipedikOverview(cmd *cobra.Command) error {
 	if state.Unpushed > 0 {
 		r.Line("  " + r.Drifted(fmt.Sprintf("незапушено коммитов: %d", state.Unpushed)))
 	}
+
+	// The autocommit hooks are the part that fails silently, so their last
+	// trace belongs in the overview rather than in someone's memory.
+	if last := lastAutosyncLine(); last != "" {
+		r.Line("  " + r.Muted("автокоммит: "+last))
+	}
 	r.Blank()
 	return nil
+}
+
+// lastAutosyncLine reports the most recent hook invocation, or "" when the
+// hooks have never run.
+func lastAutosyncLine() string {
+	path, err := wiki.AutosyncLogPath()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "ни разу не запускался"
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	if len(lines) == 0 || lines[len(lines)-1] == "" {
+		return "ни разу не запускался"
+	}
+	return lines[len(lines)-1]
 }
