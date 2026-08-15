@@ -172,9 +172,9 @@ Current WikiPedik scope: %s
 - Code identifiers, commands, URLs, and stable product names stay as written.
 - Personal Brand content is Russian by default. Translate or write English only on explicit user request.
 - English Personal Brand output should preserve the Russian source and usually be a separate copy with filename suffix `+"` - EN.md`"+`.
-- Before the final answer, if this session changed the vault, remind the user to commit and push the vault state to GitHub.
+- Изменил вольт — заверши это коммитом: `+"`hq wikipedik sync \"<кратко по-русски>\"`"+` (коммитит весь вольт и пушит). Не накапливай изменения и не жди просьбы.
 - Current Git boundary: `+"`%s`"+` is the vault Git repository. Project memory lives in `+"`%s/dev`"+`, research in `+"`%s/research`"+`, and Personal Brand in `+"`%s/Personal Brand`"+`.
-- Do not run `+"`git commit`"+` or `+"`git push`"+` unless the user explicitly asks for commit+push in the current session or a configured finish command does it.
+- Сырой `+"`git commit`"+`/`+"`git push`"+` не используй: коммит вольта идёт только через `+"`hq wikipedik sync`"+` — там секрет-скан диффа и pull --rebase перед пушем.
 - Commit messages: English Conventional Commit type/scope, Russian description/body, for example `+"`docs(brand): обновить трекер личного бренда`"+`.
 `, scope, vaultRoot, vaultRoot, vaultRoot, vaultRoot)
 }

@@ -38,17 +38,34 @@ func newWikipedikCmd() *cobra.Command {
 				return nil
 			},
 		},
-		&cobra.Command{
-			Use:   "sync",
-			Short: "Коммит всего некоммиченного в вольте + pull/push",
-			Long: "Обёртка над catch-all автокоммитом: секрет-скан диффа, коммит, затем\n" +
-				"best-effort pull --rebase и push, если у вольта есть remote.",
-			Args: cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, args []string) error {
-				return wiki.Autocommit(false, cmd.OutOrStdout())
-			},
-		},
+		wikipedikSyncCmd(),
 	)
+	return cmd
+}
+
+func wikipedikSyncCmd() *cobra.Command {
+	var message string
+	var ifDue bool
+
+	cmd := &cobra.Command{
+		Use:   "sync [краткое описание]",
+		Short: "Закоммитить весь вольт и запушить",
+		Long: "Коммитит всё некоммиченное в вольте одним коммитом, затем best-effort\n" +
+			"pull --rebase и push. Перед коммитом дифф сканируется на секреты.\n\n" +
+			"Описание — кратко и по-русски; префикс Conventional Commit ставится\n" +
+			"автоматически, если его нет. Это то, чем агент завершает каждое\n" +
+			"изменение вольта.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 1 && message == "" {
+				message = args[0]
+			}
+			return wiki.AutocommitMessage(ifDue, wiki.VaultCommitMessage(message), cmd.OutOrStdout())
+		},
+	}
+
+	cmd.Flags().StringVarP(&message, "message", "m", "", "краткое описание изменения")
+	cmd.Flags().BoolVar(&ifDue, "if-due", false, "только если прошлый запуск был больше суток назад")
 	return cmd
 }
 

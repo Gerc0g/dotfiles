@@ -179,10 +179,41 @@ func companyGitEmail(company string) string {
 var secretRe = regexp.MustCompile(
 	`(BEGIN [A-Z ]*PRIVATE KEY|ghp_[A-Za-z0-9]{20,}|glpat-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[bap]-[A-Za-z0-9-]{10,})`)
 
-// Autocommit sweeps everything dirty in the vault into one catch-all commit,
-// then best-effort pull --rebase + push. Scope-atomic curator commits stay
-// the meaningful history; this keeps human edits from sitting uncommitted.
+// defaultAutocommitMessage is used when the caller has nothing better to say.
+const defaultAutocommitMessage = "chore(vault): автокоммит несинхронизированных изменений"
+
+// conventionalPrefixRe matches the platform's commit convention: an English
+// Conventional Commit type/scope followed by a Russian description.
+var conventionalPrefixRe = regexp.MustCompile(
+	`^(feat|fix|refactor|build|ci|chore|docs|style|perf|test)(\([^)]*\))?:`)
+
+// VaultCommitMessage normalises a short human description into the platform
+// convention. A bare "конспект по матрицам" becomes
+// "docs(vault): конспект по матрицам"; an already-prefixed message is kept.
+func VaultCommitMessage(description string) string {
+	description = strings.TrimSpace(description)
+	if description == "" {
+		return ""
+	}
+	if conventionalPrefixRe.MatchString(description) {
+		return description
+	}
+	return "docs(vault): " + description
+}
+
+// Autocommit sweeps everything dirty in the vault into one commit with the
+// given message (empty falls back to the generic one), then best-effort
+// pull --rebase + push.
+//
+// The whole vault is committed on purpose: an agent that just wrote a
+// conspectus should leave nothing behind, and the vault used to accumulate
+// uncommitted edits for months.
 func Autocommit(ifDue bool, out io.Writer) error {
+	return AutocommitMessage(ifDue, "", out)
+}
+
+// AutocommitMessage is Autocommit with an explicit commit message.
+func AutocommitMessage(ifDue bool, message string, out io.Writer) error {
 	root, err := VaultRoot()
 	if err != nil {
 		return err
@@ -227,7 +258,10 @@ func Autocommit(ifDue bool, out io.Writer) error {
 			return fmt.Errorf("похоже на секрет в diff — автокоммит отменён, проверь вручную (git -C %s diff)", root)
 		}
 
-		if _, err := gitOut(root, "commit", "--quiet", "-m", "chore(vault): автокоммит несинхронизированных изменений"); err != nil {
+		if message == "" {
+			message = defaultAutocommitMessage
+		}
+		if _, err := gitOut(root, "commit", "--quiet", "-m", message); err != nil {
 			return err
 		}
 		stat, _ := gitOut(root, "show", "--stat", "--format=", "HEAD")
