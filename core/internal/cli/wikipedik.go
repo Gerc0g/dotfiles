@@ -71,6 +71,12 @@ func wikipedikAutosyncCmd() *cobra.Command {
 
 			dirty := len(wiki.Dirty(root))
 			if dirty == 0 {
+				// Nothing to commit, but per-step commits are local: without
+				// this the whole session could stay unpushed.
+				if unpushed := wiki.Unpushed(root); push && unpushed > 0 {
+					wiki.LogAutosync("чисто, незапушено %d — пушу", unpushed)
+					return wiki.PushVault(root, cmd.OutOrStdout())
+				}
 				wiki.LogAutosync("чисто, push=%v", push)
 				return nil
 			}

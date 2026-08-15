@@ -379,12 +379,22 @@ func autocommit(ifDue bool, message string, conf syncConfig, out io.Writer) erro
 		fmt.Fprintf(out, "wikipedik-autocommit: закоммичено %s\n", strings.TrimSpace(lines[len(lines)-1]))
 	}
 
-	// Cross-machine sync, best-effort and guarded: any network or conflict
-	// issue warns and never breaks the caller. Skipped for per-step commits,
-	// where the network round-trip would be felt on every edit.
+	// Skipped for per-step commits, where the network round-trip would be
+	// felt on every edit.
 	if !conf.push {
 		return nil
 	}
+	return PushVault(root, out)
+}
+
+// PushVault syncs the vault with its remote: pull --rebase, then push. It is
+// separate from committing because per-step commits stay local, and the push
+// at the end of a turn has to happen even when there is nothing new to commit
+// — otherwise those local commits never leave the machine.
+//
+// Best-effort and guarded: any network or conflict issue warns and never
+// breaks the caller.
+func PushVault(root string, out io.Writer) error {
 	remotes, _ := gitOut(root, "remote")
 	if remotes == "" {
 		return nil
@@ -400,4 +410,15 @@ func autocommit(ifDue bool, message string, conf syncConfig, out io.Writer) erro
 	}
 	fmt.Fprintln(out, "wikipedik-autocommit: синхронизировано (pull+push)")
 	return nil
+}
+
+// Unpushed counts local commits the remote does not have yet.
+func Unpushed(root string) int {
+	out, err := gitOut(root, "rev-list", "--count", "@{u}..HEAD")
+	if err != nil {
+		return 0
+	}
+	count := 0
+	_, _ = fmt.Sscanf(out, "%d", &count)
+	return count
 }
