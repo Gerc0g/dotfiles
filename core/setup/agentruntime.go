@@ -98,9 +98,12 @@ var codexShared = []string{"auth.json", "plugins"}
 // codexZoneHooks maps a zone profile's hook file to its source in the repo.
 // Stop commits the vault after every answer — the mechanical duplicate of the
 // contract rule the model skips.
+// Committing is the agent's job — only it knows what a change means, and a
+// per-edit hook would always beat it to the commit, leaving every message
+// machine-made. The hooks stay as the safety net at the end of a turn and a
+// session, so a forgotten commit costs a worse message, never lost work.
 var codexZoneHooks = map[string]string{
 	"SessionStart.sh": "auto-load-codex.sh",
-	"PostToolUse.sh":  "vault-commit-step.sh",
 	"Stop.sh":         "vault-autosync.sh",
 	"SessionEnd.sh":   "vault-autosync.sh",
 }

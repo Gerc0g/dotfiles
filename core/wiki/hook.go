@@ -172,7 +172,7 @@ Current WikiPedik scope: %s
 - Code identifiers, commands, URLs, and stable product names stay as written.
 - Personal Brand content is Russian by default. Translate or write English only on explicit user request.
 - English Personal Brand output should preserve the Russian source and usually be a separate copy with filename suffix `+"` - EN.md`"+`.
-- Коммиты вольта автоматические: после каждого твоего шага хук коммитит локально, в конце хода — пушит. Не зови `+"`git`"+` руками и не пиши «не забудь закоммитить».
+- Закончил логическое изменение — сразу коммить сам: `+"`hq wikipedik sync \"<что сделал по смыслу>\"`"+` (коммитит вольт и пушит). Не жди конца сессии, не пиши «не забудь закоммитить» — коммит твой.
 - Current Git boundary: `+"`%s`"+` is the vault Git repository. Project memory lives in `+"`%s/dev`"+`, research in `+"`%s/research`"+`, and Personal Brand in `+"`%s/Personal Brand`"+`.
 - Сырой `+"`git commit`"+`/`+"`git push`"+` не используй: коммит вольта идёт через `+"`hq wikipedik`"+` — там секрет-скан диффа и pull --rebase перед пушем.
 - Commit messages: English Conventional Commit type/scope, Russian description/body, for example `+"`docs(brand): обновить трекер личного бренда`"+`.

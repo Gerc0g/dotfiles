@@ -85,7 +85,8 @@ func SessionContext() string {
 	}
 
 	b.WriteString("\nКонтракт зоны — `AGENTS.md` в корне research. " +
-		"Пользователь работает только через чат: команды `hq research …` вызываешь ты, не он.\n")
+		"Пользователь работает только через чат: команды `hq research …` и " +
+		"`hq wikipedik sync \"<что сделал>\"` вызываешь ты, не он.\n")
 	return b.String()
 }
 
