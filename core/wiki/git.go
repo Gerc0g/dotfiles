@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -186,6 +187,47 @@ const defaultAutocommitMessage = "chore(vault): автокоммит несин�
 // Conventional Commit type/scope followed by a Russian description.
 var conventionalPrefixRe = regexp.MustCompile(
 	`^(feat|fix|refactor|build|ci|chore|docs|style|perf|test)(\([^)]*\))?:`)
+
+// AutoMessage builds a commit message from what actually changed, for the
+// safety net that runs when the agent forgot to commit itself. It names the
+// touched topics, because "автокоммит" tells nobody anything a year later.
+func AutoMessage(root string) string {
+	var topics, zones []string
+	seenTopic := map[string]bool{}
+	seenZone := map[string]bool{}
+
+	for _, line := range Dirty(root) {
+		path := porcelainPath(line)
+		switch {
+		case strings.HasPrefix(path, "research/topics/") && strings.HasSuffix(path, ".md"):
+			name := strings.TrimSuffix(filepath.Base(path), ".md")
+			if !seenTopic[name] {
+				seenTopic[name] = true
+				topics = append(topics, name)
+			}
+		case path != "":
+			zone := strings.SplitN(path, "/", 2)[0]
+			if zone != "" && !seenZone[zone] {
+				seenZone[zone] = true
+				zones = append(zones, zone)
+			}
+		}
+	}
+
+	sort.Strings(topics)
+	switch {
+	case len(topics) > 3:
+		return fmt.Sprintf("docs(vault): конспекты — %s и ещё %d",
+			strings.Join(topics[:3], ", "), len(topics)-3)
+	case len(topics) > 0:
+		return "docs(vault): конспекты — " + strings.Join(topics, ", ")
+	case len(zones) > 0:
+		sort.Strings(zones)
+		return "chore(vault): изменения — " + strings.Join(zones, ", ")
+	default:
+		return defaultAutocommitMessage
+	}
+}
 
 // VaultCommitMessage normalises a short human description into the platform
 // convention. A bare "конспект по матрицам" becomes

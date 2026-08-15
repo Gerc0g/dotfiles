@@ -34,5 +34,10 @@ SessionStart = [
   { matcher = "startup|resume", hooks = [{ type = "command", command = "{{HOME}}/.codex-research/hooks/SessionStart.sh" }] },
 ]
 
+# Страховка: коммитит вольт после каждого ответа агента, если тот забыл.
+Stop = [
+  { matcher = "*", hooks = [{ type = "command", command = "{{HOME}}/.codex-research/hooks/Stop.sh" }] },
+]
+
 [projects."{{HOME}}/Desktop/WikiPedik"]
 trust_level = "trusted"

@@ -95,6 +95,14 @@ var codexZones = []string{"research"}
 // one: one login for both, and no second copy of the plugin cache.
 var codexShared = []string{"auth.json", "plugins"}
 
+// codexZoneHooks maps a zone profile's hook file to its source in the repo.
+// Stop commits the vault after every answer — the mechanical duplicate of the
+// contract rule the model skips.
+var codexZoneHooks = map[string]string{
+	"SessionStart.sh": "auto-load-codex.sh",
+	"Stop.sh":         "vault-autosync.sh",
+}
+
 func codexHome(env Env, zone string) string {
 	return filepath.Join(env.Home, ".codex-"+zone)
 }
@@ -119,9 +127,11 @@ func codexZoneProfilesStep() Step {
 					}
 					results = append(results, checkSymlink(src, filepath.Join(home, name)))
 				}
-				results = append(results, checkSymlink(
-					filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", "auto-load-codex.sh"),
-					filepath.Join(home, "hooks", "SessionStart.sh")))
+				for hook, source := range codexZoneHooks {
+					results = append(results, checkSymlink(
+						filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", source),
+						filepath.Join(home, "hooks", hook)))
+				}
 
 				if _, err := os.Stat(filepath.Join(home, "config.toml")); err != nil {
 					results = append(results, missing("нет %s", short(filepath.Join(home, "config.toml"))))
@@ -144,10 +154,12 @@ func codexZoneProfilesStep() Step {
 						return err
 					}
 				}
-				if err := ensureSymlink(
-					filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", "auto-load-codex.sh"),
-					filepath.Join(home, "hooks", "SessionStart.sh")); err != nil {
-					return err
+				for hook, source := range codexZoneHooks {
+					if err := ensureSymlink(
+						filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", source),
+						filepath.Join(home, "hooks", hook)); err != nil {
+						return err
+					}
 				}
 				if err := seedZoneConfig(env, zone, home); err != nil {
 					return err

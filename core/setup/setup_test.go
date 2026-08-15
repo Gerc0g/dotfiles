@@ -38,6 +38,9 @@ func fixture(t *testing.T) Env {
 	for _, source := range hookSources {
 		write("skills-stash/wiki/hooks/"+source, "#!/bin/sh\n")
 	}
+	for _, source := range codexZoneHooks {
+		write("skills-stash/wiki/hooks/"+source, "#!/bin/sh\n")
+	}
 	for _, skill := range curatorSkills {
 		write("skills-stash/wiki/curator/"+skill+"/SKILL.md", "---\n---\n")
 	}

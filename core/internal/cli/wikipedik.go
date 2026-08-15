@@ -24,6 +24,27 @@ func newWikipedikCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		&cobra.Command{
+			Use:   "autosync",
+			Short: "Страховка: закоммитить вольт, если агент этого не сделал",
+			Long: "Вызывается Stop-хуком после каждого ответа агента. Если вольт чист —\n" +
+				"молчит и ничего не делает. Если нет — коммитит с сообщением,\n" +
+				"собранным по изменённым файлам, и пушит.\n\n" +
+				"Существует потому, что модель систематически пропускает служебные\n" +
+				"фазы: правило в контракте — это ускорение, а не гарантия.",
+			Hidden: true,
+			Args:   cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, args []string) error {
+				root, err := wiki.VaultRoot()
+				if err != nil {
+					return err
+				}
+				if len(wiki.Dirty(root)) == 0 {
+					return nil
+				}
+				return wiki.AutocommitMessage(false, wiki.AutoMessage(root), cmd.OutOrStdout())
+			},
+		},
+		&cobra.Command{
 			Use:   "path [зона]",
 			Short: "Путь зоны (root, dev, research, brand)",
 			Long: "Печатает каталог зоны; обёртка в оболочке делает cd. Каталог не\n" +
