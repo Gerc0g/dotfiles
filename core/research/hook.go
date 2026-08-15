@@ -84,24 +84,9 @@ func SessionContext() string {
 		b.WriteString("\nПора собрать карты: " + strings.Join(tags, ", ") + ".\n")
 	}
 
-	if dirty := vaultDirtyCount(); dirty > 0 {
-		fmt.Fprintf(&b, "\nВ вольте %d незакоммиченных файлов — закоммить: "+
-			"`hq wikipedik sync \"<кратко>\"`.\n", dirty)
-	}
-
 	b.WriteString("\nКонтракт зоны — `AGENTS.md` в корне research. " +
 		"Пользователь работает только через чат: команды `hq research …` вызываешь ты, не он.\n")
 	return b.String()
-}
-
-// vaultDirtyCount reports uncommitted files in the vault, so a session that
-// starts on top of unfinished work says so instead of piling more on it.
-func vaultDirtyCount() int {
-	root, err := wiki.VaultRoot()
-	if err != nil {
-		return 0
-	}
-	return len(wiki.Dirty(root))
 }
 
 // recentTopics lists the most recently updated topics by their `updated` field.

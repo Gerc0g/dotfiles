@@ -202,45 +202,79 @@ const defaultAutocommitMessage = "chore(vault): автокоммит несин�
 var conventionalPrefixRe = regexp.MustCompile(
 	`^(feat|fix|refactor|build|ci|chore|docs|style|perf|test)(\([^)]*\))?:`)
 
-// AutoMessage builds a commit message from what actually changed, for the
-// safety net that runs when the agent forgot to commit itself. It names the
-// touched topics, because "автокоммит" tells nobody anything a year later.
+// AutoMessage builds a commit message from what actually changed. Commits
+// land after every edit, so the message has to say what happened in that step
+// — "автокоммит" tells nobody anything a year later.
 func AutoMessage(root string) string {
-	var topics, zones []string
-	seenTopic := map[string]bool{}
-	seenZone := map[string]bool{}
-
-	for _, line := range Dirty(root) {
-		path := porcelainPath(line)
-		switch {
-		case strings.HasPrefix(path, "research/topics/") && strings.HasSuffix(path, ".md"):
-			name := strings.TrimSuffix(filepath.Base(path), ".md")
-			if !seenTopic[name] {
-				seenTopic[name] = true
-				topics = append(topics, name)
-			}
-		case path != "":
-			zone := strings.SplitN(path, "/", 2)[0]
-			if zone != "" && !seenZone[zone] {
-				seenZone[zone] = true
-				zones = append(zones, zone)
-			}
+	var created, updated, deleted, other []string
+	seen := map[string]bool{}
+	add := func(list *[]string, name string) {
+		if name != "" && !seen[name] {
+			seen[name] = true
+			*list = append(*list, name)
 		}
 	}
 
-	sort.Strings(topics)
-	switch {
-	case len(topics) > 3:
-		return fmt.Sprintf("docs(vault): конспекты — %s и ещё %d",
-			strings.Join(topics[:3], ", "), len(topics)-3)
-	case len(topics) > 0:
-		return "docs(vault): конспекты — " + strings.Join(topics, ", ")
-	case len(zones) > 0:
-		sort.Strings(zones)
-		return "chore(vault): изменения — " + strings.Join(zones, ", ")
-	default:
-		return defaultAutocommitMessage
+	for _, line := range Dirty(root) {
+		path := porcelainPath(line)
+		if path == "" {
+			continue
+		}
+
+		switch {
+		case isDocPath(path, "topics"), isDocPath(path, "maps"), isDocPath(path, "sources"):
+			name := strings.TrimSuffix(filepath.Base(path), ".md")
+			// Porcelain status lives in the first two columns: "??"/"A" is a
+			// new file, "D" in either column is a removal.
+			switch {
+			case strings.HasPrefix(line, "??"), strings.HasPrefix(line, "A"):
+				add(&created, name)
+			case strings.ContainsRune(line[:2], 'D'):
+				add(&deleted, name)
+			default:
+				add(&updated, name)
+			}
+		default:
+			add(&other, strings.SplitN(path, "/", 2)[0])
+		}
 	}
+
+	sort.Strings(created)
+	sort.Strings(updated)
+	sort.Strings(deleted)
+	sort.Strings(other)
+
+	var parts []string
+	if len(created) > 0 {
+		parts = append(parts, "создан "+joinNames(created))
+	}
+	if len(updated) > 0 {
+		parts = append(parts, "дополнен "+joinNames(updated))
+	}
+	if len(deleted) > 0 {
+		parts = append(parts, "удалён "+joinNames(deleted))
+	}
+	if len(parts) > 0 {
+		return "docs(vault): " + strings.Join(parts, ", ")
+	}
+	if len(other) > 0 {
+		return "chore(vault): изменения — " + strings.Join(other, ", ")
+	}
+	return defaultAutocommitMessage
+}
+
+// isDocPath reports whether a vault path is a markdown page of one of the
+// research sub-directories.
+func isDocPath(path, dir string) bool {
+	return strings.HasPrefix(path, "research/"+dir+"/") && strings.HasSuffix(path, ".md")
+}
+
+// joinNames keeps the subject readable when a step touched many files.
+func joinNames(names []string) string {
+	if len(names) > 3 {
+		return fmt.Sprintf("%s и ещё %d", strings.Join(names[:3], ", "), len(names)-3)
+	}
+	return strings.Join(names, ", ")
 }
 
 // VaultCommitMessage normalises a short human description into the platform
@@ -268,8 +302,28 @@ func Autocommit(ifDue bool, out io.Writer) error {
 	return AutocommitMessage(ifDue, "", out)
 }
 
-// AutocommitMessage is Autocommit with an explicit commit message.
-func AutocommitMessage(ifDue bool, message string, out io.Writer) error {
+// SyncOption tunes what Autocommit does after committing.
+type SyncOption func(*syncConfig)
+
+type syncConfig struct{ push bool }
+
+// WithPush controls the network half of the sync. Commits happen after every
+// edit and must stay fast; pushing is left to the end of a turn or session.
+func WithPush(push bool) SyncOption {
+	return func(c *syncConfig) { c.push = push }
+}
+
+// AutocommitMessage is Autocommit with an explicit commit message. Pushing is
+// on unless WithPush(false) says otherwise.
+func AutocommitMessage(ifDue bool, message string, out io.Writer, opts ...SyncOption) error {
+	conf := syncConfig{push: true}
+	for _, opt := range opts {
+		opt(&conf)
+	}
+	return autocommit(ifDue, message, conf, out)
+}
+
+func autocommit(ifDue bool, message string, conf syncConfig, out io.Writer) error {
 	root, err := VaultRoot()
 	if err != nil {
 		return err
@@ -326,7 +380,11 @@ func AutocommitMessage(ifDue bool, message string, out io.Writer) error {
 	}
 
 	// Cross-machine sync, best-effort and guarded: any network or conflict
-	// issue warns and never breaks the caller.
+	// issue warns and never breaks the caller. Skipped for per-step commits,
+	// where the network round-trip would be felt on every edit.
+	if !conf.push {
+		return nil
+	}
 	remotes, _ := gitOut(root, "remote")
 	if remotes == "" {
 		return nil

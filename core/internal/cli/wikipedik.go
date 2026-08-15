@@ -23,27 +23,7 @@ func newWikipedikCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(
-		&cobra.Command{
-			Use:   "autosync",
-			Short: "Страховка: закоммитить вольт, если агент этого не сделал",
-			Long: "Вызывается Stop-хуком после каждого ответа агента. Если вольт чист —\n" +
-				"молчит и ничего не делает. Если нет — коммитит с сообщением,\n" +
-				"собранным по изменённым файлам, и пушит.\n\n" +
-				"Существует потому, что модель систематически пропускает служебные\n" +
-				"фазы: правило в контракте — это ускорение, а не гарантия.",
-			Hidden: true,
-			Args:   cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, args []string) error {
-				root, err := wiki.VaultRoot()
-				if err != nil {
-					return err
-				}
-				if len(wiki.Dirty(root)) == 0 {
-					return nil
-				}
-				return wiki.AutocommitMessage(false, wiki.AutoMessage(root), cmd.OutOrStdout())
-			},
-		},
+		wikipedikAutosyncCmd(),
 		&cobra.Command{
 			Use:   "path [зона]",
 			Short: "Путь зоны (root, dev, research, brand)",
@@ -61,6 +41,40 @@ func newWikipedikCmd() *cobra.Command {
 		},
 		wikipedikSyncCmd(),
 	)
+	return cmd
+}
+
+// wikipedikAutosyncCmd is the machine path: hooks call it after every edit
+// (commit only, must be fast) and at the end of a turn or session (with a
+// push). It is silent on a clean vault, so it can run as often as needed.
+func wikipedikAutosyncCmd() *cobra.Command {
+	var push bool
+
+	cmd := &cobra.Command{
+		Use:   "autosync",
+		Short: "Закоммитить вольт, если он изменился (для хуков)",
+		Long: "Коммит на каждый шаг агента: сообщение собирается из того, что\n" +
+			"реально изменилось («создан matrix-rank», «дополнен matrices»).\n" +
+			"Без --push коммитит локально и быстро — это путь для PostToolUse;\n" +
+			"с --push ещё и отправляет, это путь для конца хода и выхода.\n\n" +
+			"Существует потому, что модель систематически пропускает служебные\n" +
+			"фазы: правило в контракте — ускорение, а не гарантия.",
+		Hidden: true,
+		Args:   cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			root, err := wiki.VaultRoot()
+			if err != nil {
+				return err
+			}
+			if len(wiki.Dirty(root)) == 0 {
+				return nil
+			}
+			return wiki.AutocommitMessage(false, wiki.AutoMessage(root),
+				cmd.OutOrStdout(), wiki.WithPush(push))
+		},
+	}
+
+	cmd.Flags().BoolVar(&push, "push", false, "ещё и запушить (медленнее: сеть)")
 	return cmd
 }
 

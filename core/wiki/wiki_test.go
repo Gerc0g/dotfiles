@@ -83,6 +83,51 @@ func TestDirtyKeepsLeadingSpace(t *testing.T) {
 	}
 }
 
+// AutoMessage must say what the step actually did: per-step commits are
+// useless if every one of them reads the same.
+func TestAutoMessageDescribesStep(t *testing.T) {
+	vault := vaultEnv(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", vault}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	topics := filepath.Join(vault, "research", "topics", "ml")
+	if err := os.MkdirAll(topics, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(topics, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	run("init", "-q")
+	run("config", "user.email", "t@example.com")
+	run("config", "user.name", "t")
+	write("matrices.md", "old")
+	write("doomed.md", "x")
+	run("add", "-A")
+	run("commit", "-qm", "init")
+
+	// One new file, one edited, one removed — all three must show up.
+	write("attention.md", "new")
+	write("matrices.md", "changed")
+	if err := os.Remove(filepath.Join(topics, "doomed.md")); err != nil {
+		t.Fatal(err)
+	}
+
+	msg := AutoMessage(vault)
+	for _, want := range []string{"создан attention", "дополнен matrices", "удалён doomed"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("сообщение %q не содержит %q", msg, want)
+		}
+	}
+}
+
 // vaultEnv points the package at a temp vault for the duration of a test.
 func vaultEnv(t *testing.T) string {
 	t.Helper()

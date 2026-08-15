@@ -34,9 +34,18 @@ SessionStart = [
   { matcher = "startup|resume", hooks = [{ type = "command", command = "{{HOME}}/.codex-research/hooks/SessionStart.sh" }] },
 ]
 
-# Страховка: коммитит вольт после каждого ответа агента, если тот забыл.
+# Коммит на каждый шаг агента: одна правка — один коммит, локально и быстро.
+PostToolUse = [
+  { matcher = "*", hooks = [{ type = "command", command = "{{HOME}}/.codex-research/hooks/PostToolUse.sh" }] },
+]
+
+# Конец хода и конец сессии: добрать остаток и отправить вольт.
 Stop = [
   { matcher = "*", hooks = [{ type = "command", command = "{{HOME}}/.codex-research/hooks/Stop.sh" }] },
+]
+
+SessionEnd = [
+  { matcher = "*", hooks = [{ type = "command", command = "{{HOME}}/.codex-research/hooks/SessionEnd.sh" }] },
 ]
 
 [projects."{{HOME}}/Desktop/WikiPedik"]

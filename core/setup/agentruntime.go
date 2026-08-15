@@ -100,7 +100,9 @@ var codexShared = []string{"auth.json", "plugins"}
 // contract rule the model skips.
 var codexZoneHooks = map[string]string{
 	"SessionStart.sh": "auto-load-codex.sh",
+	"PostToolUse.sh":  "vault-commit-step.sh",
 	"Stop.sh":         "vault-autosync.sh",
+	"SessionEnd.sh":   "vault-autosync.sh",
 }
 
 func codexHome(env Env, zone string) string {
