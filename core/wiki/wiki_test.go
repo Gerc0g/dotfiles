@@ -3,6 +3,7 @@ package wiki
 import (
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -39,6 +40,46 @@ func TestPorcelainPath(t *testing.T) {
 		if got := porcelainPath(line); got != want {
 			t.Errorf("porcelainPath(%q) = %q, want %q", line, got, want)
 		}
+	}
+}
+
+// Dirty must preserve the leading status columns: trimming them shifts every
+// path by one character, which once produced a commit named "изменения —
+// esearch" and could mis-scope the dirty-outside-scope guard.
+func TestDirtyKeepsLeadingSpace(t *testing.T) {
+	vault := vaultEnv(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", vault}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	run("init", "-q")
+	run("config", "user.email", "t@example.com")
+	run("config", "user.name", "t")
+
+	if err := os.MkdirAll(filepath.Join(vault, "research"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(vault, "research", "a.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "research/a.md")
+	run("commit", "-qm", "init")
+	if err := os.WriteFile(filepath.Join(vault, "research", "a.md"), []byte("y"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	lines := Dirty(vault)
+	if len(lines) != 1 {
+		t.Fatalf("want 1 dirty line, got %v", lines)
+	}
+	if got := porcelainPath(lines[0]); got != "research/a.md" {
+		t.Errorf("path mangled: %q (line %q)", got, lines[0])
+	}
+	if msg := AutoMessage(vault); !strings.Contains(msg, "research") {
+		t.Errorf("commit message lost the zone name: %q", msg)
 	}
 }
 

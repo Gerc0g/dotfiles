@@ -29,12 +29,26 @@ func gitOut(root string, args ...string) (string, error) {
 }
 
 // Dirty reports `git status --porcelain` lines of the vault.
+//
+// Porcelain encodes the status in the first two columns, and an unstaged
+// change starts with a space (" M path"). Trimming that leading space shifts
+// every path by one character, which silently mangled both the commit message
+// and the "dirty outside scope" check — so this reads raw output.
 func Dirty(root string) []string {
-	out, err := gitOut(root, "status", "--porcelain")
-	if err != nil || out == "" {
+	cmd := exec.Command("git", "-C", root, "status", "--porcelain")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
 		return nil
 	}
-	return strings.Split(out, "\n")
+
+	var lines []string
+	for _, line := range strings.Split(strings.TrimRight(out.String(), "\n"), "\n") {
+		if line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return lines
 }
 
 // porcelainPath extracts the path of one porcelain line; renames and copies
