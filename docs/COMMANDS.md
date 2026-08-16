@@ -123,6 +123,9 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `wiki sync <company[/product[/repo]]>` — curator drain: `_inbox.md` → `lessons.md` / `gotchas.md` / etc. через `inbox-drain`.
 - `wiki sync --commit <scope>` — drain + локальный commit WikiPedik changes. Заранее dirty файлы разрешены только внутри указанного scope.
 - `wiki sync --push <scope>` — drain + commit + push.
+- `wiki drain [<scope>]` — тот же curator drain, но в автономном режиме, без подтверждений по каждой записи. Без аргумента скоуп берётся из текущего каталога (`~/dotfiles` → `_platform`, воркспейс → `<co>/<prod>/<repo>`).
+- `wiki drain --check [<scope>]` — показать решение гвардов, ничего не запуская и не тратя токены.
+- `wiki drain --background --commit` — то, что вызывает SessionEnd-хук: проверить гварды и, если надо, отцепить разбор в фон.
 - `wiki status <company[/product[/repo]]>` — отчёт по pending inbox, curated pages, synthesis candidates.
 - `wiki synthesize <company/product>` — найти повторяющиеся lessons/gotchas и предложить product shared patterns.
 - `wiki bootstrap <company> [product] [repo]` — создать WikiPedik skeleton + repo symlinks.
@@ -138,6 +141,12 @@ Format: `## <command>` + `**Что:**` `**Запуск:**` `**Файлы:**` etc
 - `wiki-git status`
 - `wiki status neurodesk`
 - `wiki synthesize neurodesk/agents`
+
+**Автоматический разбор:**
+- Триггер — `SessionEnd` обоих профилей (`~/.claude`, `~/.codex` → `skills-stash/wiki/hooks/memory-drain.sh`): сессия закончилась, уроки записаны, самое время их разобрать.
+- Гварды: не меньше 5 кандидатов и не чаще раза в 24 часа на скоуп (штамп в `~/.cache/wikipedik/`). Ставится ДО запуска куратора — упавший прогон не превращается в цикл повторов.
+- Один прогон делает до 3 проходов и останавливается раньше, если проход не сдвинул счётчик: автономный куратор за раз разбирает далеко не весь бэклог.
+- Каждое решение, запуск и пропуск, пишется в `~/.cache/wikipedik-autosync.log` и видно в `hq wikipedik`.
 
 **Git sync policy:**
 - `wiki sync` never commits by itself.
