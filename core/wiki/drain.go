@@ -5,7 +5,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/Gerc0g/dotfiles/core/world"
 )
 
 // A background drain spends money on every run, so it is guarded twice:
@@ -104,8 +107,54 @@ func MarkDrained(scope Scope) error {
 	return os.WriteFile(stamp, nil, 0o644)
 }
 
-// AutoDrain is the background entry point: guards, then an autonomous
-// curator run, then a scope-atomic commit of what it produced.
+// ScopeForDir resolves which memory scope a working directory belongs to, so
+// a hook can drain "the repo I just worked in" without being told.
+//
+// The platform repo is special: its memory lives at _platform/repos/dotfiles,
+// which the company/product/repo model does not describe — the scope is the
+// company level instead.
+func ScopeForDir(dir string) (Scope, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return Scope{}, err
+	}
+	dotfiles := filepath.Join(home, "dotfiles")
+	if dir == dotfiles || strings.HasPrefix(dir, dotfiles+string(filepath.Separator)) {
+		return Scope{Company: "_platform"}, nil
+	}
+
+	workRoot, err := world.Root()
+	if err != nil {
+		return Scope{}, err
+	}
+	rel := strings.TrimPrefix(dir, workRoot+string(filepath.Separator))
+	if rel == dir {
+		return Scope{}, fmt.Errorf("каталог вне рабочего корня: %s", dir)
+	}
+
+	// The worktree pool repeats the triple one level deeper:
+	// .worktrees/<co>/<prod>/<repo>/<id>/…
+	parts := strings.Split(rel, string(filepath.Separator))
+	if len(parts) > 0 && parts[0] == ".worktrees" {
+		parts = parts[1:]
+	}
+	if len(parts) < 3 {
+		return Scope{}, fmt.Errorf("каталог не внутри репозитория: %s", dir)
+	}
+	return Scope{Company: parts[0], Product: parts[1], Repo: parts[2]}, nil
+}
+
+// maxDrainPasses bounds one background run.
+//
+// A curator asked to drain a large backlog stops well before the inbox is
+// empty — the first live run curated 9 of 138 and quit. One pass per day would
+// take that repo two weeks, so a run repeats itself while it is still making
+// progress. The cap is what keeps an unattended job from spending the whole
+// subscription on one inbox.
+const maxDrainPasses = 3
+
+// AutoDrain is the background entry point: guards, then autonomous curator
+// passes, each committing what it produced.
 func AutoDrain(scope Scope, guards DrainGuards, commit bool, out io.Writer) error {
 	decision, err := ShouldDrain(scope, guards)
 	if err != nil {
@@ -117,18 +166,36 @@ func AutoDrain(scope Scope, guards DrainGuards, commit bool, out io.Writer) erro
 		return nil
 	}
 
+	// Stamp before the first pass: a crashed run must not become a retry loop
+	// that spends tokens on every session end.
 	if err := MarkDrained(scope); err != nil {
 		return err
 	}
 	LogAutosync("drain %s: старт, %s", scope, decision.Reason)
 
-	if err := Sync(scope, SyncOptions{Autonomous: true, Commit: commit}, out); err != nil {
-		LogAutosync("drain %s: ошибка — %v", scope, err)
-		return err
+	dir, _ := scope.Path()
+	left := decision.Candidates
+	for pass := 1; pass <= maxDrainPasses; pass++ {
+		if err := Sync(scope, SyncOptions{Autonomous: true, Commit: commit}, out); err != nil {
+			LogAutosync("drain %s: ошибка на проходе %d — %v", scope, pass, err)
+			return err
+		}
+
+		before := left
+		left = CountStatus(dir, "candidate")
+		LogAutosync("drain %s: проход %d, было %d, осталось %d", scope, pass, before, left)
+
+		// Nothing left to do, or the pass moved nothing: another one would
+		// only repeat the same refusal at full price.
+		if left < guards.MinCandidates {
+			break
+		}
+		if left >= before {
+			LogAutosync("drain %s: прогресса нет, останавливаюсь", scope)
+			break
+		}
 	}
 
-	dir, _ := scope.Path()
-	left := CountStatus(dir, "candidate")
 	LogAutosync("drain %s: готово, было %d, осталось %d", scope, decision.Candidates, left)
 	fmt.Fprintf(out, "разбор завершён: было %d кандидатов, осталось %d\n", decision.Candidates, left)
 	return nil

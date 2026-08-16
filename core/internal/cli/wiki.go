@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/Gerc0g/dotfiles/core/wiki"
@@ -40,19 +41,23 @@ func wikiDrainCmd() *cobra.Command {
 		intervalH int
 	)
 
+	var background, check bool
+
 	cmd := &cobra.Command{
-		Use:   "drain <company[/product[/repo]]>",
+		Use:   "drain [company[/product[/repo]]]",
 		Short: "Фоновый разбор inbox куратором (без подтверждений)",
 		Long: "Тот же скилл inbox-drain и то же суждение куратора — дедуп, проверка\n" +
 			"выводимости, ретирация, — но без подтверждения каждой записи: уверенное\n" +
 			"применяется, спорное остаётся candidate с объяснением. Ревью — по диффу\n" +
 			"вольта, а не по 138 диалогам подряд.\n\n" +
+			"Без аргумента скоуп берётся из текущего каталога — так его вызывает\n" +
+			"SessionEnd-хук для репозитория, в котором только что работали.\n\n" +
 			"Два гварда против лишних трат: порог кандидатов и интервал между\n" +
 			"запусками. Каждый запуск и каждый пропуск пишутся в журнал\n" +
 			"(~/.cache/wikipedik-autosync.log).",
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			scope, err := parseScopeArg(args)
+			scope, err := drainScope(args)
 			if err != nil {
 				return err
 			}
@@ -66,15 +71,51 @@ func wikiDrainCmd() *cobra.Command {
 			if force {
 				guards = wiki.DrainGuards{MinCandidates: 1}
 			}
+
+			// --check answers "would this run, and why" without spending a
+			// single token. Anything that costs money needs a dry way to ask.
+			if check {
+				decision, err := wiki.ShouldDrain(scope, guards)
+				if err != nil {
+					return err
+				}
+				verdict := "пропуск"
+				if decision.Run {
+					verdict = "запустился бы"
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "%s: %s (%s)\n", scope, verdict, decision.Reason)
+				return nil
+			}
+
+			// Hooks must not wait: a drain takes minutes, and the guards are
+			// checked in the child anyway.
+			if background {
+				return wiki.SpawnDrain(scope, guards, commit)
+			}
 			return wiki.AutoDrain(scope, guards, commit, cmd.OutOrStdout())
 		},
 	}
 
+	cmd.Flags().BoolVar(&check, "check", false, "показать решение гвардов, ничего не запуская")
+	cmd.Flags().BoolVar(&background, "background", false, "запустить отдельным процессом и сразу вернуться")
 	cmd.Flags().BoolVar(&commit, "commit", false, "закоммитить результат scope-атомарно")
 	cmd.Flags().BoolVar(&force, "force", false, "игнорировать гварды (порог и интервал)")
 	cmd.Flags().IntVar(&minCands, "min-candidates", 0, "порог кандидатов (по умолчанию 5)")
 	cmd.Flags().IntVar(&intervalH, "interval-hours", 0, "минимум часов между разборами (по умолчанию 24)")
 	return cmd
+}
+
+// drainScope takes the scope from the argument, or from the current
+// directory when a hook calls it without one.
+func drainScope(args []string) (wiki.Scope, error) {
+	if len(args) == 1 {
+		return wiki.ParseScope(args[0])
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return wiki.Scope{}, err
+	}
+	return wiki.ScopeForDir(cwd)
 }
 
 func parseScopeArg(args []string) (wiki.Scope, error) {
