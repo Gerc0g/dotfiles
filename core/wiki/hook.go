@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/Gerc0g/dotfiles/core/world"
 )
@@ -76,16 +77,61 @@ func SessionStartContext(agent, cwd string) string {
 	if err != nil || len(strings.TrimSpace(string(hot))) == 0 {
 		// Memory not attached. Do not stay silent: the memory loop once died
 		// invisibly for weeks because a hook chose not to bother anyone.
-		return hookJSON(memoryWarning(workRoot, repoRoot))
+		return hookJSON(memoryWarning(workRoot, repoRoot) + memoryCheckpoint)
 	}
 
-	context := "# Recent wiki context (auto-loaded from docs/knowledge/hot.md)\n\n" +
-		strings.TrimSpace(string(hot)) + memoryCheckpoint
+	var context string
+	if reason := staleReason(string(hot)); reason != "" {
+		// A stale index is worse than none: the agent trusts it as current.
+		// This is not theory — a gotcha marked obsolete on 2026-07-17 was
+		// still served as a Critical Gotcha weeks later, and three inbox
+		// entries cited it as authority.
+		context = "# WikiPedik memory is stale\n\n" +
+			"docs/knowledge/hot.md " + reason + ", so it is NOT loaded as current context.\n" +
+			"Do not rely on remembered claims until it is rebuilt: `hq wiki hot-refresh <scope>`.\n" +
+			"Curated pages under docs/knowledge/ can still be read directly — verify their citations first." +
+			memoryCheckpoint
+	} else {
+		context = "# Recent wiki context (auto-loaded from docs/knowledge/hot.md)\n\n" +
+			strings.TrimSpace(string(hot)) + memoryCheckpoint
+	}
 
-	if candidates := countInboxCandidates(repoRoot); candidates >= 5 {
+	if candidates := countInboxCandidates(repoRoot); candidates >= inboxNudgeThreshold {
 		context += fmt.Sprintf("\n\nInbox status: %d candidate lessons are pending in docs/knowledge/_inbox.md. Mention to the user that `wiki sync` is overdue.", candidates)
 	}
 	return hookJSON(context)
+}
+
+// inboxNudgeThreshold is the single source for "the inbox needs attention".
+// The number used to differ between the hook, the curator skill and the
+// cheatsheet, so nobody could say what "overdue" meant.
+const inboxNudgeThreshold = 5
+
+// hotMaxAge is how long a rebuilt index stays trustworthy. Memory that has
+// not been touched for two months describes a codebase that no longer exists.
+const hotMaxAge = 60 * 24 * time.Hour
+
+var hotStampRe = regexp.MustCompile(`<!-- last refreshed: ([^(]+?)\s*(?:\(|-->)`)
+
+// staleReason explains why an index must not be injected, or "" when it is
+// fresh enough to trust.
+func staleReason(hot string) string {
+	match := hotStampRe.FindStringSubmatch(hot)
+	if match == nil {
+		return "carries no refresh stamp"
+	}
+	stamp := strings.TrimSpace(match[1])
+	if stamp == "never" {
+		return "was never rebuilt (it is still the empty template)"
+	}
+	when, err := time.Parse("2006-01-02 15:04", stamp)
+	if err != nil {
+		return ""
+	}
+	if age := time.Since(when); age > hotMaxAge {
+		return fmt.Sprintf("was last rebuilt %d days ago (%s)", int(age.Hours()/24), stamp)
+	}
+	return ""
 }
 
 // zoneOf reports which vault zone a directory belongs to.

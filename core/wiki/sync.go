@@ -9,11 +9,31 @@ import (
 	"strings"
 )
 
+// autonomousRules turn the interactive drain into one that can run in the
+// background. The judgement stays with the curator — dedup, retirement,
+// derivability — only the per-entry confirmation goes away, because a human
+// answering 138 prompts in a row is exactly why the inbox stopped being
+// drained at all.
+const autonomousRules = `АВТОНОМНЫЙ РЕЖИМ. Подтверждений не жди — их некому дать.
+
+- Применяй только те решения, в которых уверен: сигнал однозначно ложится в
+  целевой файл, дубля нет, запись не выводится из кода репозитория.
+- Всё спорное — противоречие с существующей записью, неясный сигнал, выбор
+  между двумя файлами, подозрение на устаревание — НЕ применяй: оставь
+  Status: candidate и назови причину в отчёте.
+- Ничего не удаляй и не переписывай в curated-страницах: только добавляй.
+  Устаревшее помечай, но не стирай.
+- Обязательно доведи до конца фазу hot.md для каждого затронутого репо.
+- В конце: сколько разобрано, сколько оставлено и почему, что требует
+  человека.`
+
 // Curator instructions, ported verbatim: the LLM half of the memory cycle.
 const (
 	drainInstruction = "Drain worker captures into curated WikiPedik pages. Preserve company boundaries. " +
 		"For each candidate, propose the target and ask before applying. " +
 		"Update repo index, product log, and hot.md when accepted."
+	autonomousDrainInstruction = "Drain worker captures into curated WikiPedik pages. Preserve company boundaries. " +
+		"Update repo index, product log, and hot.md for every repo you touch."
 	statusInstruction = "Report inbox counts, curated pages, synthesis candidates, stale health files, " +
 		"recent log entries, and recommended next actions. Do not modify files."
 	synthesizeInstruction = "Review synthesis candidates and repeated repo lessons/gotchas. " +
@@ -97,10 +117,22 @@ func Postflight(scope Scope, out io.Writer) {
 	}
 }
 
+// curatorMode is how a curator run interacts with the user.
+type curatorMode int
+
+const (
+	// modeInteractive requires a terminal: the curator asks about every entry.
+	modeInteractive curatorMode = iota
+	// modeReadonly may run headless because it changes nothing.
+	modeReadonly
+	// modeAutonomous runs headless and writes: the curator applies what it is
+	// sure about and leaves anything doubtful as a candidate. Review happens
+	// afterwards over the diff instead of per-entry confirmation.
+	modeAutonomous
+)
+
 // runCurator launches the codex curator with a skill over the memory root.
-// Interactive terminals get the full TUI; non-interactive callers may only
-// run read-only skills through `codex exec`.
-func runCurator(skill string, scope Scope, instruction string, readonlyOK bool) error {
+func runCurator(skill string, scope Scope, instruction string, mode curatorMode) error {
 	memoryRoot, err := MemoryRoot()
 	if err != nil {
 		return err
@@ -111,16 +143,18 @@ func runCurator(skill string, scope Scope, instruction string, readonlyOK bool) 
 	}
 
 	prompt := fmt.Sprintf("Use skill %s. Scope: %s. %s", skill, scope, instruction)
-	interactive := stdinIsTerminal()
+	if mode == modeAutonomous {
+		prompt += "\n\n" + autonomousRules
+	}
 
 	var cmd *exec.Cmd
 	switch {
-	case interactive:
+	case mode != modeAutonomous && stdinIsTerminal():
 		cmd = exec.Command("codex", "--no-alt-screen", prompt)
-	case readonlyOK:
-		cmd = exec.Command("codex", "exec", prompt)
-	default:
+	case mode == modeInteractive:
 		return fmt.Errorf("wiki %s требует интерактивный терминал для подтверждений — запусти из своей оболочки", skill)
+	default:
+		cmd = exec.Command("codex", "exec", prompt)
 	}
 
 	cmd.Dir = memoryRoot
@@ -140,6 +174,10 @@ func stdinIsTerminal() bool {
 type SyncOptions struct {
 	Commit bool
 	Push   bool
+	// Autonomous runs the curator headless: it applies what it is sure about
+	// and leaves the rest as candidates, instead of asking per entry. This is
+	// what makes a background drain possible at all.
+	Autonomous bool
 }
 
 // Sync drives the drain cycle: preflight → curator → postflight, then the
@@ -161,10 +199,24 @@ func Sync(scope Scope, opts SyncOptions, out io.Writer) error {
 		return err
 	}
 
-	curatorErr := runCurator("inbox-drain", scope, drainInstruction, false)
+	mode := modeInteractive
+	instruction := drainInstruction
+	if opts.Autonomous {
+		mode = modeAutonomous
+		instruction = autonomousDrainInstruction
+	}
+
+	curatorErr := runCurator("inbox-drain", scope, instruction, mode)
 	Postflight(scope, out)
 	if curatorErr != nil {
 		return fmt.Errorf("wiki sync: куратор завершился с ошибкой: %w", curatorErr)
+	}
+
+	// The curator has skipped its hot.md phase before, which is how a stale
+	// index got served as memory for weeks. Rebuild deterministically after
+	// every drain instead of trusting the phase.
+	if err := RefreshHot(scope, false, out); err != nil {
+		fmt.Fprintf(out, "⚠ hot.md не пересобран: %v\n", err)
 	}
 
 	if !opts.Commit {
@@ -184,14 +236,14 @@ func Status(scope Scope, out io.Writer) error {
 	if err := Preflight(scope, out); err != nil {
 		return err
 	}
-	curatorErr := runCurator("wiki-status", scope, statusInstruction, true)
+	curatorErr := runCurator("wiki-status", scope, statusInstruction, modeReadonly)
 	Postflight(scope, out)
 	return curatorErr
 }
 
 // Synthesize launches the cross-repo pattern curator.
 func Synthesize(scope Scope) error {
-	return runCurator("wiki-synthesize", scope, synthesizeInstruction, false)
+	return runCurator("wiki-synthesize", scope, synthesizeInstruction, modeInteractive)
 }
 
 func shortHome(path string) string {

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Gerc0g/dotfiles/core/wiki"
 	"github.com/Gerc0g/dotfiles/core/world"
@@ -23,7 +24,56 @@ func newWikiCmd() *cobra.Command {
 	cmd.AddCommand(
 		wikiSyncCmd(), wikiStatusCmd(), wikiSynthesizeCmd(), wikiCommitCmd(),
 		wikiAutocommitCmd(), wikiHotRefreshCmd(), wikiRulesSyncCmd(), wikiBootstrapCmd(),
+		wikiDrainCmd(),
 	)
+	return cmd
+}
+
+// wikiDrainCmd is the background half of curation: the same curator skill,
+// but launched without a human answering per-entry prompts. Guards keep it
+// from spending tokens on nothing.
+func wikiDrainCmd() *cobra.Command {
+	var (
+		commit    bool
+		force     bool
+		minCands  int
+		intervalH int
+	)
+
+	cmd := &cobra.Command{
+		Use:   "drain <company[/product[/repo]]>",
+		Short: "Фоновый разбор inbox куратором (без подтверждений)",
+		Long: "Тот же скилл inbox-drain и то же суждение куратора — дедуп, проверка\n" +
+			"выводимости, ретирация, — но без подтверждения каждой записи: уверенное\n" +
+			"применяется, спорное остаётся candidate с объяснением. Ревью — по диффу\n" +
+			"вольта, а не по 138 диалогам подряд.\n\n" +
+			"Два гварда против лишних трат: порог кандидатов и интервал между\n" +
+			"запусками. Каждый запуск и каждый пропуск пишутся в журнал\n" +
+			"(~/.cache/wikipedik-autosync.log).",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			scope, err := parseScopeArg(args)
+			if err != nil {
+				return err
+			}
+			guards := wiki.DefaultDrainGuards()
+			if minCands > 0 {
+				guards.MinCandidates = minCands
+			}
+			if intervalH > 0 {
+				guards.Interval = time.Duration(intervalH) * time.Hour
+			}
+			if force {
+				guards = wiki.DrainGuards{MinCandidates: 1}
+			}
+			return wiki.AutoDrain(scope, guards, commit, cmd.OutOrStdout())
+		},
+	}
+
+	cmd.Flags().BoolVar(&commit, "commit", false, "закоммитить результат scope-атомарно")
+	cmd.Flags().BoolVar(&force, "force", false, "игнорировать гварды (порог и интервал)")
+	cmd.Flags().IntVar(&minCands, "min-candidates", 0, "порог кандидатов (по умолчанию 5)")
+	cmd.Flags().IntVar(&intervalH, "interval-hours", 0, "минимум часов между разборами (по умолчанию 24)")
 	return cmd
 }
 
