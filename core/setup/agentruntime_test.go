@@ -19,13 +19,15 @@ func makeRuntimeEnv(t *testing.T) Env {
 		Vault:     filepath.Join(home, "vault"),
 	}
 
-	for _, source := range hookSources {
-		path := filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", source)
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
-			t.Fatal(err)
+	for _, hooks := range profileHooks {
+		for _, source := range hooks {
+			path := filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", source)
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 	for _, skill := range curatorSkills {
@@ -116,18 +118,67 @@ func TestCodexConfigStep(t *testing.T) {
 
 	raw, _ := os.ReadFile(codexConfigPath(env))
 	content := string(raw)
-	if !strings.Contains(content, "[hooks]") || !strings.Contains(content, "SessionStart.sh") {
+	if !strings.Contains(content, "[hooks]") {
 		t.Errorf("hook block missing:\n%s", content)
+	}
+	for _, script := range sessionEvents {
+		if !strings.Contains(content, script) {
+			t.Errorf("%s missing:\n%s", script, content)
+		}
 	}
 	if strings.Count(content, "trust_level") != len(vaultTrustZones(env)) {
 		t.Errorf("trust entries wrong:\n%s", content)
 	}
 
-	// Foreign [hooks] section without our hook: refuse, do not mangle.
+	// Foreign [hooks] section that already owns the event: refuse, do not mangle.
 	if err := os.WriteFile(codexConfigPath(env), []byte("[hooks]\nSessionStart = []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := step.Apply(env); err == nil {
 		t.Error("foreign hooks section must refuse apply")
+	}
+}
+
+// The real config.toml carries hooks from other tools. Our events must slot
+// into that table instead of appending a second [hooks] header, which TOML
+// forbids.
+func TestCodexConfigStepJoinsForeignHooksTable(t *testing.T) {
+	env := makeRuntimeEnv(t)
+	step := codexConfigStep()
+
+	foreign := "model = \"x\"\n\n[hooks]\nNotification = [\n" +
+		"  { matcher = \"*\", hooks = [{ type = \"command\", command = \"/other/tool\" }] },\n]\n"
+	if err := os.MkdirAll(filepath.Dir(codexConfigPath(env)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(codexConfigPath(env), []byte(foreign), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := step.Apply(env); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(codexConfigPath(env))
+	content := string(raw)
+
+	if strings.Count(content, "[hooks]") != 1 {
+		t.Errorf("[hooks] duplicated:\n%s", content)
+	}
+	if !strings.Contains(content, "/other/tool") {
+		t.Errorf("foreign hook dropped:\n%s", content)
+	}
+	for _, script := range sessionEvents {
+		if !strings.Contains(content, script) {
+			t.Errorf("%s missing:\n%s", script, content)
+		}
+	}
+
+	// Second apply must be a no-op.
+	if err := step.Apply(env); err != nil {
+		t.Fatal(err)
+	}
+	again, _ := os.ReadFile(codexConfigPath(env))
+	if string(again) != content {
+		t.Errorf("apply is not idempotent:\n%s", string(again))
 	}
 }

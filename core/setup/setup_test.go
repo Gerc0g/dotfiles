@@ -35,8 +35,10 @@ func fixture(t *testing.T) Env {
 	write("ghostty/config", "font-size = 14\n")
 	write("tmux/tmux.conf", "set -g mouse on\n")
 	write("scripts/launchd/"+scrubPlist, "<plist/>\n")
-	for _, source := range hookSources {
-		write("skills-stash/wiki/hooks/"+source, "#!/bin/sh\n")
+	for _, hooks := range profileHooks {
+		for _, source := range hooks {
+			write("skills-stash/wiki/hooks/"+source, "#!/bin/sh\n")
+		}
 	}
 	for _, source := range codexZoneHooks {
 		write("skills-stash/wiki/hooks/"+source, "#!/bin/sh\n")

@@ -18,34 +18,47 @@ var curatorSkills = []string{
 	"wiki-synthesize", "wiki-lint", "wiki-status", "autoresearch",
 }
 
-// hookSources maps each profile to its SessionStart hook source.
-var hookSources = map[string]string{
-	".claude": "auto-load-claude.sh",
-	".codex":  "auto-load-codex.sh",
+// profileHooks maps each agent profile to the hooks it runs: SessionStart
+// injects memory, SessionEnd hands the inbox to the curator. Draining at the
+// end of a session is what keeps captured lessons from piling up unread —
+// 268 of them had accumulated before this existed.
+var profileHooks = map[string]map[string]string{
+	".claude": {
+		"SessionStart.sh": "auto-load-claude.sh",
+		"SessionEnd.sh":   "memory-drain.sh",
+	},
+	".codex": {
+		"SessionStart.sh": "auto-load-codex.sh",
+		"SessionEnd.sh":   "memory-drain.sh",
+	},
 }
 
 func wikiHooksStep() Step {
 	return Step{
 		Name:  "session-hooks",
-		About: "SessionStart-хуки обоих профилей ведут на хуки из репо",
+		About: "хуки памяти обоих профилей ведут на хуки из репо",
 		check: func(env Env) Result {
 			var results []Result
-			for profile, source := range hookSources {
-				src := filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", source)
-				dst := filepath.Join(env.Home, profile, "hooks", "SessionStart.sh")
-				results = append(results, checkSymlink(src, dst))
+			for profile, hooks := range profileHooks {
+				for hook, source := range hooks {
+					src := filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", source)
+					dst := filepath.Join(env.Home, profile, "hooks", hook)
+					results = append(results, checkSymlink(src, dst))
+				}
 			}
 			return combine(results, "хуки на месте")
 		},
 		apply: func(env Env) error {
-			for profile, source := range hookSources {
-				src := filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", source)
-				dst := filepath.Join(env.Home, profile, "hooks", "SessionStart.sh")
-				if err := ensureDir(filepath.Dir(dst)); err != nil {
-					return err
-				}
-				if err := ensureSymlink(src, dst); err != nil {
-					return err
+			for profile, hooks := range profileHooks {
+				for hook, source := range hooks {
+					src := filepath.Join(env.Dotfiles, "skills-stash", "wiki", "hooks", source)
+					dst := filepath.Join(env.Home, profile, "hooks", hook)
+					if err := ensureDir(filepath.Dir(dst)); err != nil {
+						return err
+					}
+					if err := ensureSymlink(src, dst); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
@@ -212,14 +225,21 @@ func claudeSettingsPath(env Env) string {
 	return filepath.Join(env.Home, ".claude", "settings.json")
 }
 
-func claudeHookPath(env Env) string {
-	return filepath.Join(env.Home, ".claude", "hooks", "SessionStart.sh")
+// sessionEvents maps each hook event to the script it runs; both profiles
+// install the same pair.
+var sessionEvents = map[string]string{
+	"SessionStart": "SessionStart.sh",
+	"SessionEnd":   "SessionEnd.sh",
+}
+
+func claudeHookPath(env Env, script string) string {
+	return filepath.Join(env.Home, ".claude", "hooks", script)
 }
 
 func claudeSettingsStep() Step {
 	return Step{
 		Name:  "claude-settings",
-		About: "settings.json: плагины, маркетплейсы, SessionStart-хук, без co-authored-by",
+		About: "settings.json: плагины, маркетплейсы, хуки сессии, без co-authored-by",
 		check: func(env Env) Result {
 			data, err := readSettings(claudeSettingsPath(env))
 			if err != nil {
@@ -235,8 +255,10 @@ func claudeSettingsStep() Step {
 					missingBits = append(missingBits, plugin)
 				}
 			}
-			if !hasHookEntry(data, claudeHookPath(env)) {
-				missingBits = append(missingBits, "SessionStart-хук")
+			for event, script := range sessionEvents {
+				if !hasHookEntry(data, event, claudeHookPath(env, script)) {
+					missingBits = append(missingBits, event+"-хук")
+				}
 			}
 			if len(missingBits) > 0 {
 				return missing("нет: %s", strings.Join(missingBits, ", "))
@@ -263,15 +285,11 @@ func claudeSettingsStep() Step {
 				}
 			}
 
-			hookPath := claudeHookPath(env)
-			if !hasHookEntry(data, hookPath) {
-				hooks := ensureMap(data, "hooks")
-				items, _ := hooks["SessionStart"].([]any)
-				items = append(items, map[string]any{
-					"matcher": "*",
-					"hooks":   []any{map[string]any{"type": "command", "command": hookPath}},
-				})
-				hooks["SessionStart"] = items
+			for event, script := range sessionEvents {
+				hookPath := claudeHookPath(env, script)
+				if !hasHookEntry(data, event, hookPath) {
+					addHookEntry(data, event, hookPath)
+				}
 			}
 
 			if err := ensureDir(filepath.Dir(path)); err != nil {
@@ -312,9 +330,9 @@ func ensureMap(data map[string]any, key string) map[string]any {
 	return m
 }
 
-func hasHookEntry(data map[string]any, command string) bool {
+func hasHookEntry(data map[string]any, event, command string) bool {
 	hooks, _ := data["hooks"].(map[string]any)
-	items, _ := hooks["SessionStart"].([]any)
+	items, _ := hooks[event].([]any)
 	for _, item := range items {
 		entry, _ := item.(map[string]any)
 		nested, _ := entry["hooks"].([]any)
@@ -328,12 +346,44 @@ func hasHookEntry(data map[string]any, command string) bool {
 	return false
 }
 
+// addHookEntry registers command under event, leaving any hooks the user
+// added by hand untouched.
+func addHookEntry(data map[string]any, event, command string) {
+	hooks := ensureMap(data, "hooks")
+	items, _ := hooks[event].([]any)
+	items = append(items, map[string]any{
+		"matcher": "*",
+		"hooks":   []any{map[string]any{"type": "command", "command": command}},
+	})
+	hooks[event] = items
+}
+
 func codexConfigPath(env Env) string {
 	return filepath.Join(env.Home, ".codex", "config.toml")
 }
 
-func codexHookPath(env Env) string {
-	return filepath.Join(env.Home, ".codex", "hooks", "SessionStart.sh")
+func codexHookPath(env Env, script string) string {
+	return filepath.Join(env.Home, ".codex", "hooks", script)
+}
+
+// insertCodexHook adds one event line to config.toml. The file belongs to
+// codex and already carries hooks from other tools, so the edit is textual and
+// minimal: a new key right under the [hooks] header (TOML keys after a header
+// belong to that table), or a fresh [hooks] table when there is none.
+func insertCodexHook(content, event, command string) string {
+	line := fmt.Sprintf("%s = [\n  { matcher = \"*\", hooks = [{ type = \"command\", command = %q }] },\n]\n",
+		event, command)
+
+	header := "[hooks]\n"
+	idx := strings.Index(content, header)
+	if idx < 0 {
+		if !strings.HasSuffix(content, "\n") && content != "" {
+			content += "\n"
+		}
+		return content + "\n[hooks]\n" + line
+	}
+	at := idx + len(header)
+	return content[:at] + line + content[at:]
 }
 
 // codexConfigStep keeps the codex hook and vault trust entries in
@@ -342,7 +392,7 @@ func codexHookPath(env Env) string {
 func codexConfigStep() Step {
 	return Step{
 		Name:  "codex-config",
-		About: "config.toml: SessionStart-хук и trust для зон вольта",
+		About: "config.toml: хуки сессии и trust для зон вольта",
 		check: func(env Env) Result {
 			data, err := os.ReadFile(codexConfigPath(env))
 			if err != nil {
@@ -351,8 +401,10 @@ func codexConfigStep() Step {
 			content := string(data)
 
 			var missingBits []string
-			if !strings.Contains(content, codexHookPath(env)) {
-				missingBits = append(missingBits, "SessionStart-хук")
+			for event, script := range sessionEvents {
+				if !strings.Contains(content, codexHookPath(env, script)) {
+					missingBits = append(missingBits, event+"-хук")
+				}
 			}
 			for _, zone := range vaultTrustZones(env) {
 				if !strings.Contains(content, fmt.Sprintf("[projects.%q]", zone)) {
@@ -374,15 +426,17 @@ func codexConfigStep() Step {
 			}
 			content := string(data)
 
-			if !strings.Contains(content, codexHookPath(env)) {
-				if strings.Contains(content, "[hooks]") {
-					return fmt.Errorf("%s уже содержит [hooks] без нашего хука — добавь вручную:\n"+
-						"SessionStart = [{ matcher = \"startup|resume\", hooks = [{ type = \"command\", command = %q }] }]",
-						path, codexHookPath(env))
+			for event, script := range sessionEvents {
+				hookPath := codexHookPath(env, script)
+				if strings.Contains(content, hookPath) {
+					continue
 				}
-				content += fmt.Sprintf("\n[hooks]\nSessionStart = [\n"+
-					"  { matcher = \"startup|resume\", hooks = [{ type = \"command\", command = %q }] },\n]\n",
-					codexHookPath(env))
+				if strings.Contains(content, event+" = [") {
+					return fmt.Errorf("%s уже содержит %s без нашего хука — добавь вручную:\n"+
+						"{ matcher = \"*\", hooks = [{ type = \"command\", command = %q }] }",
+						path, event, hookPath)
+				}
+				content = insertCodexHook(content, event, hookPath)
 			}
 
 			for _, zone := range vaultTrustZones(env) {
