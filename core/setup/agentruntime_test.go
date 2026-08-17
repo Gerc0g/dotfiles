@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/Gerc0g/dotfiles/core/wiki"
 )
 
 // makeRuntimeEnv builds a temp Env with the hook/skill sources present.
@@ -180,5 +183,41 @@ func TestCodexConfigStepJoinsForeignHooksTable(t *testing.T) {
 	again, _ := os.ReadFile(codexConfigPath(env))
 	if string(again) != content {
 		t.Errorf("apply is not idempotent:\n%s", string(again))
+	}
+}
+
+// The pulse step exists to catch a hook that stopped firing, so that is what
+// it must detect: config-level checks reported health for three days while the
+// hooks were dead.
+func TestHookPulseStep(t *testing.T) {
+	env := makeRuntimeEnv(t)
+	step := hookPulseStep()
+
+	if result := step.Check(env); result.Status != StatusDrifted {
+		t.Fatalf("never-fired hooks: %s (%s)", result.Status, result.Detail)
+	}
+
+	for profile := range profileHooks {
+		agent := strings.TrimPrefix(profile, ".")
+		for _, event := range []string{"session-start", "session-end"} {
+			wiki.TouchHook(env.Home, agent, event)
+		}
+	}
+	if result := step.Check(env); result.Status != StatusOK {
+		t.Fatalf("after firing: %s (%s)", result.Status, result.Detail)
+	}
+
+	// A hook that fired once and then went quiet is the actual failure.
+	stale := time.Now().Add(-wiki.HookStale - time.Hour)
+	path := filepath.Join(env.Home, ".cache", "wikipedik", "hook-codex-session-end.stamp")
+	if err := os.Chtimes(path, stale, stale); err != nil {
+		t.Fatal(err)
+	}
+	result := step.Check(env)
+	if result.Status != StatusDrifted || !strings.Contains(result.Detail, "codex/session-end") {
+		t.Fatalf("stale hook: %s (%s)", result.Status, result.Detail)
+	}
+	if step.Applicable() {
+		t.Error("pulse must not claim it can fix itself")
 	}
 }

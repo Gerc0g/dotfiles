@@ -109,8 +109,10 @@ func TestApplyMakesCheckPass(t *testing.T) {
 	}
 
 	for _, report := range reports {
-		// core-binary is check-only: nothing builds it during a test.
-		if report.Step.Name == "core-binary" {
+		// Check-only steps observe things Apply does not own — whether the
+		// binary is built, whether hooks have been firing. Apply cannot make
+		// them green and is not supposed to.
+		if !report.Step.Applicable() {
 			continue
 		}
 		if report.Result.Status != StatusOK {

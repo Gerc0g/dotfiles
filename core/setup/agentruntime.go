@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
+
+	"github.com/Gerc0g/dotfiles/core/wiki"
 )
 
 // The agent runtime: SessionStart hooks, curator skills and profile settings.
@@ -25,11 +29,11 @@ var curatorSkills = []string{
 var profileHooks = map[string]map[string]string{
 	".claude": {
 		"SessionStart.sh": "auto-load-claude.sh",
-		"SessionEnd.sh":   "memory-drain.sh",
+		"SessionEnd.sh":   "memory-drain-claude.sh",
 	},
 	".codex": {
 		"SessionStart.sh": "auto-load-codex.sh",
-		"SessionEnd.sh":   "memory-drain.sh",
+		"SessionEnd.sh":   "memory-drain-codex.sh",
 	},
 }
 
@@ -384,6 +388,41 @@ func insertCodexHook(content, event, command string) string {
 	}
 	at := idx + len(header)
 	return content[:at] + line + content[at:]
+}
+
+// hookPulseStep reports whether the session hooks are actually firing.
+//
+// Nothing else notices when they stop. Codex revokes hook trust whenever the
+// script changes and says nothing; the config keeps its trust entry with a
+// stale hash, so checking the config reports health that is not there. Only
+// the firing itself is evidence, and this step has no apply — a human has to
+// re-trust the hook in the agent.
+func hookPulseStep() Step {
+	return Step{
+		Name:  "hook-pulse",
+		About: "хуки сессии реально срабатывали за последние дни",
+		check: func(env Env) Result {
+			var cold []string
+			for profile := range profileHooks {
+				agent := strings.TrimPrefix(profile, ".")
+				for _, event := range []string{"session-start", "session-end"} {
+					last := wiki.LastHook(env.Home, agent, event)
+					switch {
+					case last.IsZero():
+						cold = append(cold, fmt.Sprintf("%s/%s ни разу", agent, event))
+					case time.Since(last) > wiki.HookStale:
+						cold = append(cold, fmt.Sprintf("%s/%s молчит %d дн.",
+							agent, event, int(time.Since(last).Hours()/24)))
+					}
+				}
+			}
+			if len(cold) > 0 {
+				sort.Strings(cold)
+				return drifted("%s — проверь доверие к хукам в агенте", strings.Join(cold, ", "))
+			}
+			return ok("все хуки срабатывали")
+		},
+	}
 }
 
 // codexConfigStep keeps the codex hook and vault trust entries in

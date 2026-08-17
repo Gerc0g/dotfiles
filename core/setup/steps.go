@@ -51,6 +51,7 @@ func Plan() []Step {
 		codexZoneProfilesStep(),
 		claudeSettingsStep(),
 		codexConfigStep(),
+		hookPulseStep(),
 	}
 }
 

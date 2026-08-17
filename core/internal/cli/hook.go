@@ -25,6 +25,8 @@ func newHookCmd() *cobra.Command {
 			"хук не имеет права ломать старт сессии агента.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			home, _ := os.UserHomeDir()
+			wiki.TouchHook(home, agent, "session-start")
 			cwd, err := os.Getwd()
 			if err != nil {
 				return nil
@@ -37,6 +39,37 @@ func newHookCmd() *cobra.Command {
 	}
 	sessionStart.Flags().StringVar(&agent, "agent", "claude", "claude или codex")
 
-	cmd.AddCommand(sessionStart)
+	sessionEnd := &cobra.Command{
+		Use:   "session-end",
+		Short: "SessionEnd: отдать инбокс текущего репо куратору",
+		Long: "Проверяет гварды и, если надо, отцепляет разбор в фон. Никогда не падает\n" +
+			"и ничего не ждёт: хук не имеет права держать завершение сессии.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			home, _ := os.UserHomeDir()
+			wiki.TouchHook(home, agent, "session-end")
+			cwd, err := os.Getwd()
+			if err != nil {
+				return nil
+			}
+			// Log the firing before anything else. Without this a silent log
+			// is ambiguous — a hook that never ran and one that ran and failed
+			// look identical, which is how a dead trigger hid for three days.
+			wiki.LogAutosync("hook session-end: %s (%s)", cwd, agent)
+
+			scope, err := wiki.ScopeForDir(cwd)
+			if err != nil {
+				wiki.LogAutosync("hook session-end: скоуп не определён — %v", err)
+				return nil
+			}
+			if err := wiki.SpawnDrain(scope, wiki.DefaultDrainGuards(), true); err != nil {
+				wiki.LogAutosync("hook session-end: %v", err)
+			}
+			return nil
+		},
+	}
+	sessionEnd.Flags().StringVar(&agent, "agent", "claude", "claude или codex")
+
+	cmd.AddCommand(sessionStart, sessionEnd)
 	return cmd
 }
