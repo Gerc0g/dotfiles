@@ -14,6 +14,11 @@ import (
 // session id out of it. Anything unreadable is not an error: the caller falls
 // back to a directory-derived key, and a hook must never fail a prompt.
 func sessionIDFromStdin(in io.Reader) string {
+	// Hooks are fed their payload on a pipe. Run by hand from a terminal there
+	// is nothing to read, and reading anyway would hang waiting for input.
+	if info, err := os.Stdin.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
+		return ""
+	}
 	data, err := io.ReadAll(io.LimitReader(in, 1<<20))
 	if err != nil || len(data) == 0 {
 		return ""
@@ -53,8 +58,17 @@ func newHookCmd() *cobra.Command {
 			if err != nil {
 				return nil
 			}
-			if out := wiki.SessionStartContext(agent, cwd); out != "" {
-				fmt.Fprintln(cmd.OutOrStdout(), out)
+			out := wiki.SessionStartContext(agent, cwd)
+			if out == "" {
+				return nil
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), out)
+
+			// Record what this session was served, so its first prompt has
+			// something to compare against and stays quiet.
+			if hot := wiki.RepoHotFile(cwd); hot != "" {
+				key := wiki.SessionKey(sessionIDFromStdin(cmd.InOrStdin()), agent, cwd)
+				wiki.MarkHotSeen(home, key, hot)
 			}
 			return nil
 		},

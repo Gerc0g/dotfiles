@@ -31,9 +31,11 @@ func snapshotPath(home, session string) string {
 // HotDelta reports what appeared in hot.md since this session last saw it, and
 // records the current state as the new baseline.
 //
-// An empty result means there is nothing to say. A session that has never been
-// shown anything gets nothing either: SessionStart already delivered the full
-// file, and repeating it would be noise.
+// A session with no baseline is one that SessionStart never served — it began
+// before the hooks existed, or while the agent had them disabled. Those
+// sessions get the whole file rather than silence: they were never given the
+// memory in the first place, and they are exactly the long-lived ones this
+// mechanism is for.
 func HotDelta(home, session, hotFile string) string {
 	current, err := os.ReadFile(hotFile)
 	if err != nil {
@@ -43,9 +45,11 @@ func HotDelta(home, session, hotFile string) string {
 	path := snapshotPath(home, session)
 	previous, err := os.ReadFile(path)
 	if err != nil {
-		// First sight of this session: record the baseline, say nothing.
 		writeSnapshot(path, current)
-		return ""
+		return "# Память проекта (сессия начата без неё)\n\n" +
+			"Эта сессия стартовала до того, как память подключилась. Текущий индекс:\n\n" +
+			string(current) +
+			"\nПолные страницы читай по требованию — это индекс, не весь текст."
 	}
 	if string(previous) == string(current) {
 		return ""
@@ -114,6 +118,16 @@ func pruneSnapshots(dir string) {
 			_ = os.Remove(filepath.Join(dir, entry.Name()))
 		}
 	}
+}
+
+// MarkHotSeen records what a session was served at start, so the first prompt
+// does not repeat it.
+func MarkHotSeen(home, session, hotFile string) {
+	current, err := os.ReadFile(hotFile)
+	if err != nil {
+		return
+	}
+	writeSnapshot(snapshotPath(home, session), current)
 }
 
 // SessionKey identifies the session a prompt belongs to.

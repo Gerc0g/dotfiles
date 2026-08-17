@@ -35,7 +35,8 @@ func TestHotDeltaSpeaksOnlyAboutWhatIsNew(t *testing.T) {
 	hot := filepath.Join(t.TempDir(), "hot.md")
 	writeHot(t, hot, hotBefore)
 
-	// First contact is silent: SessionStart has already delivered the file.
+	// A session SessionStart served is quiet on its first prompt.
+	MarkHotSeen(home, "s1", hot)
 	if got := HotDelta(home, "s1", hot); got != "" {
 		t.Fatalf("first call said %q, want silence", got)
 	}
@@ -76,11 +77,12 @@ func TestHotDeltaIsPerSession(t *testing.T) {
 	hot := filepath.Join(t.TempDir(), "hot.md")
 	writeHot(t, hot, hotBefore)
 
-	HotDelta(home, "old", hot)
+	MarkHotSeen(home, "old", hot)
 	writeHot(t, hot, hotBefore+"\n- lessons.md#b: Второй урок\n")
 
+	MarkHotSeen(home, "fresh", hot)
 	if got := HotDelta(home, "fresh", hot); got != "" {
-		t.Errorf("a session seeing the file for the first time got %q", got)
+		t.Errorf("a session served at start got %q on its first prompt", got)
 	}
 	if got := HotDelta(home, "old", hot); !strings.Contains(got, "Второй урок") {
 		t.Errorf("the older session was not told: %q", got)
@@ -98,5 +100,22 @@ func TestSessionKeyFallsBackToDirectory(t *testing.T) {
 	}
 	if a != SessionKey("", "codex", "/tmp/one") {
 		t.Error("the fallback key must be stable")
+	}
+}
+
+// A session that began while the hooks were dead was never served memory at
+// all. Silence would leave it blind for as long as it lives — and those are
+// the sessions that live for weeks.
+func TestHotDeltaServesSessionsThatNeverGotMemory(t *testing.T) {
+	home := t.TempDir()
+	hot := filepath.Join(t.TempDir(), "hot.md")
+	writeHot(t, hot, hotBefore)
+
+	got := HotDelta(home, "orphan", hot)
+	if !strings.Contains(got, "Первый урок") || !strings.Contains(got, "Старые грабли") {
+		t.Fatalf("unserved session did not get the memory:\n%s", got)
+	}
+	if again := HotDelta(home, "orphan", hot); again != "" {
+		t.Errorf("memory served twice: %q", again)
 	}
 }
