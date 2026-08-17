@@ -41,7 +41,7 @@ func wikiDrainCmd() *cobra.Command {
 		intervalH int
 	)
 
-	var background, check bool
+	var background, check, sweep bool
 
 	cmd := &cobra.Command{
 		Use:   "drain [company[/product[/repo]]]",
@@ -57,11 +57,14 @@ func wikiDrainCmd() *cobra.Command {
 			"(~/.cache/wikipedik-autosync.log).",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			guards := wiki.DefaultDrainGuards()
+			if sweep {
+				return wiki.SweepDrain(guards, commit)
+			}
 			scope, err := drainScope(args)
 			if err != nil {
 				return err
 			}
-			guards := wiki.DefaultDrainGuards()
 			if minCands > 0 {
 				guards.MinCandidates = minCands
 			}
@@ -97,6 +100,7 @@ func wikiDrainCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&check, "check", false, "показать решение гвардов, ничего не запуская")
+	cmd.Flags().BoolVar(&sweep, "sweep", false, "разобрать самый запущенный репо вольта, а не текущий")
 	cmd.Flags().BoolVar(&background, "background", false, "запустить отдельным процессом и сразу вернуться")
 	cmd.Flags().BoolVar(&commit, "commit", false, "закоммитить результат scope-атомарно")
 	cmd.Flags().BoolVar(&force, "force", false, "игнорировать гварды (порог и интервал)")

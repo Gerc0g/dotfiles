@@ -107,6 +107,10 @@ func MarkDrained(scope Scope) error {
 	return os.WriteFile(stamp, nil, 0o644)
 }
 
+// platformCompany is where the dotfiles repo keeps its memory. It does not fit
+// the company/product/repo model, so it is a company-level scope of its own.
+const platformCompany = "_platform"
+
 // ScopeForDir resolves which memory scope a working directory belongs to, so
 // a hook can drain "the repo I just worked in" without being told.
 //
@@ -120,7 +124,7 @@ func ScopeForDir(dir string) (Scope, error) {
 	}
 	dotfiles := filepath.Join(home, "dotfiles")
 	if dir == dotfiles || strings.HasPrefix(dir, dotfiles+string(filepath.Separator)) {
-		return Scope{Company: "_platform"}, nil
+		return Scope{Company: platformCompany}, nil
 	}
 
 	workRoot, err := world.Root()
@@ -199,4 +203,71 @@ func AutoDrain(scope Scope, guards DrainGuards, commit bool, out io.Writer) erro
 	LogAutosync("drain %s: готово, было %d, осталось %d", scope, decision.Candidates, left)
 	fmt.Fprintf(out, "разбор завершён: было %d кандидатов, осталось %d\n", decision.Candidates, left)
 	return nil
+}
+
+// RepoScopes lists every repo-level scope in the vault, plus the platform
+// scope, which lives one level up.
+func RepoScopes() ([]Scope, error) {
+	projects, err := ProjectsRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	dirs, err := filepath.Glob(filepath.Join(projects, "*", "*", "repos", "*"))
+	if err != nil {
+		return nil, err
+	}
+
+	scopes := []Scope{{Company: platformCompany}}
+	for _, dir := range dirs {
+		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+			continue
+		}
+		rel, err := filepath.Rel(projects, dir)
+		if err != nil {
+			continue
+		}
+		parts := strings.Split(rel, string(filepath.Separator))
+		if len(parts) != 4 {
+			continue
+		}
+		scopes = append(scopes, Scope{Company: parts[0], Product: parts[1], Repo: parts[3]})
+	}
+	return scopes, nil
+}
+
+// SweepDrain drains the single most backed-up scope that passes the guards.
+//
+// The session trigger only ever reaches the repo just worked in, and the
+// backlog does not sit there: it collects in repos nobody has opened for
+// weeks — 55 captures in one, 20 in another. Sweeping at the end of a session
+// lends that moment to whichever repo needs it most.
+//
+// One scope per sweep, on purpose. Draining four repos at once quadruples the
+// spend of a single session ending, and the guards would let that happen every
+// day.
+func SweepDrain(guards DrainGuards, commit bool) error {
+	scopes, err := RepoScopes()
+	if err != nil {
+		return err
+	}
+
+	var best Scope
+	var bestCount int
+	for _, scope := range scopes {
+		decision, err := ShouldDrain(scope, guards)
+		if err != nil || !decision.Run {
+			continue
+		}
+		if decision.Candidates > bestCount {
+			best, bestCount = scope, decision.Candidates
+		}
+	}
+	if bestCount == 0 {
+		LogAutosync("sweep: разбирать нечего")
+		return nil
+	}
+
+	LogAutosync("sweep: выбран %s (кандидатов %d)", best, bestCount)
+	return SpawnDrain(best, guards, commit)
 }

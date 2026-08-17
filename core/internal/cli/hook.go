@@ -57,13 +57,24 @@ func newHookCmd() *cobra.Command {
 			// look identical, which is how a dead trigger hid for three days.
 			wiki.LogAutosync("hook session-end: %s (%s)", cwd, agent)
 
+			guards := wiki.DefaultDrainGuards()
 			scope, err := wiki.ScopeForDir(cwd)
-			if err != nil {
+			if err == nil {
+				started, err := wiki.SpawnDrainStarted(scope, guards, true)
+				if err != nil {
+					wiki.LogAutosync("hook session-end: %v", err)
+				}
+				if started {
+					return nil
+				}
+			} else {
 				wiki.LogAutosync("hook session-end: скоуп не определён — %v", err)
-				return nil
 			}
-			if err := wiki.SpawnDrain(scope, wiki.DefaultDrainGuards(), true); err != nil {
-				wiki.LogAutosync("hook session-end: %v", err)
+
+			// The repo just worked in is fine; lend the moment to whichever
+			// repo is most behind. Backlogs collect where sessions do not.
+			if err := wiki.SweepDrain(guards, true); err != nil {
+				wiki.LogAutosync("hook session-end: sweep — %v", err)
 			}
 			return nil
 		},
