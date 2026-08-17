@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Gerc0g/dotfiles/core/wiki"
+	"github.com/Gerc0g/dotfiles/core/workspace"
 )
 
 // The agent runtime: SessionStart hooks, curator skills and profile settings.
@@ -388,6 +389,47 @@ func insertCodexHook(content, event, command string) string {
 	}
 	at := idx + len(header)
 	return content[:at] + line + content[at:]
+}
+
+// worktreeMemoryStep keeps project memory reachable from worktrees.
+//
+// The links are untracked, so a worktree only has them if something puts them
+// there. Start does that now, but the pool predates it: work happens in
+// worktrees, and in most of them memory was invisible in both directions.
+func worktreeMemoryStep() Step {
+	return Step{
+		Name:  "worktree-memory",
+		About: "воркспейсы видят память своего репо",
+		check: func(env Env) Result {
+			gaps, err := memoryGaps(env)
+			if err != nil {
+				return skipped("%v", err)
+			}
+			if len(gaps) > 0 {
+				return missing("%d воркспейсов без памяти", len(gaps))
+			}
+			return ok("все воркспейсы связаны")
+		},
+		apply: func(env Env) error {
+			manager, err := workspace.New(env.Workspace)
+			if err != nil {
+				return err
+			}
+			_, err = manager.RelinkMemory()
+			return err
+		},
+	}
+}
+
+func memoryGaps(env Env) ([]workspace.MemoryGap, error) {
+	if _, err := os.Stat(env.Workspace); err != nil {
+		return nil, fmt.Errorf("нет %s", short(env.Workspace))
+	}
+	manager, err := workspace.New(env.Workspace)
+	if err != nil {
+		return nil, err
+	}
+	return manager.MemoryGaps()
 }
 
 // hookPulseStep reports whether the session hooks are actually firing.
