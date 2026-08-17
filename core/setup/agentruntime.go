@@ -30,12 +30,14 @@ var curatorSkills = []string{
 // 268 of them had accumulated before this existed.
 var profileHooks = map[string]map[string]string{
 	".claude": {
-		"SessionStart.sh": "auto-load-claude.sh",
-		"SessionEnd.sh":   "memory-drain-claude.sh",
+		"SessionStart.sh":     "auto-load-claude.sh",
+		"SessionEnd.sh":       "memory-drain-claude.sh",
+		"UserPromptSubmit.sh": "memory-fresh-claude.sh",
 	},
 	".codex": {
-		"SessionStart.sh": "auto-load-codex.sh",
-		"SessionEnd.sh":   "memory-drain-codex.sh",
+		"SessionStart.sh":     "auto-load-codex.sh",
+		"SessionEnd.sh":       "memory-drain-codex.sh",
+		"UserPromptSubmit.sh": "memory-fresh-codex.sh",
 	},
 }
 
@@ -234,8 +236,9 @@ func claudeSettingsPath(env Env) string {
 // sessionEvents maps each hook event to the script it runs; both profiles
 // install the same pair.
 var sessionEvents = map[string]string{
-	"SessionStart": "SessionStart.sh",
-	"SessionEnd":   "SessionEnd.sh",
+	"SessionStart":     "SessionStart.sh",
+	"SessionEnd":       "SessionEnd.sh",
+	"UserPromptSubmit": "UserPromptSubmit.sh",
 }
 
 func claudeHookPath(env Env, script string) string {
@@ -372,14 +375,21 @@ func codexHookPath(env Env, script string) string {
 	return filepath.Join(env.Home, ".codex", "hooks", script)
 }
 
-// insertCodexHook adds one event line to config.toml. The file belongs to
-// codex and already carries hooks from other tools, so the edit is textual and
-// minimal: a new key right under the [hooks] header (TOML keys after a header
-// belong to that table), or a fresh [hooks] table when there is none.
+// insertCodexHook adds one hook to config.toml. The file belongs to codex and
+// already carries hooks from other tools, so the edit is textual and minimal.
+//
+// Three cases, in order: the event already exists and belongs to someone else,
+// so join its array; the [hooks] table exists, so add a key under its header
+// (TOML keys after a header belong to that table); neither, so start the table.
 func insertCodexHook(content, event, command string) string {
-	line := fmt.Sprintf("%s = [\n  { matcher = \"*\", hooks = [{ type = \"command\", command = %q }] },\n]\n",
-		event, command)
+	entry := fmt.Sprintf("  { matcher = \"*\", hooks = [{ type = \"command\", command = %q }] },\n", command)
 
+	if open := event + " = [\n"; strings.Contains(content, open) {
+		at := strings.Index(content, open) + len(open)
+		return content[:at] + entry + content[at:]
+	}
+
+	line := event + " = [\n" + entry + "]\n"
 	header := "[hooks]\n"
 	idx := strings.Index(content, header)
 	if idx < 0 {
@@ -542,11 +552,6 @@ func codexConfigStep() Step {
 				hookPath := codexHookPath(env, script)
 				if strings.Contains(content, hookPath) {
 					continue
-				}
-				if strings.Contains(content, event+" = [") {
-					return fmt.Errorf("%s уже содержит %s без нашего хука — добавь вручную:\n"+
-						"{ matcher = \"*\", hooks = [{ type = \"command\", command = %q }] }",
-						path, event, hookPath)
 				}
 				content = insertCodexHook(content, event, hookPath)
 			}

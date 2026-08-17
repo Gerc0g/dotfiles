@@ -133,12 +133,25 @@ func TestCodexConfigStep(t *testing.T) {
 		t.Errorf("trust entries wrong:\n%s", content)
 	}
 
-	// Foreign [hooks] section that already owns the event: refuse, do not mangle.
-	if err := os.WriteFile(codexConfigPath(env), []byte("[hooks]\nSessionStart = []\n"), 0o644); err != nil {
+	// An event another tool already owns: join its array, keep its entry.
+	foreign := "[hooks]\nUserPromptSubmit = [\n" +
+		"  { matcher = \"*\", hooks = [{ type = \"command\", command = \"/other/tool\" }] },\n]\n"
+	if err := os.WriteFile(codexConfigPath(env), []byte(foreign), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := step.Apply(env); err == nil {
-		t.Error("foreign hooks section must refuse apply")
+	if err := step.Apply(env); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ = os.ReadFile(codexConfigPath(env))
+	joined := string(raw)
+	if strings.Count(joined, "UserPromptSubmit = [") != 1 {
+		t.Errorf("event key duplicated:\n%s", joined)
+	}
+	if !strings.Contains(joined, "/other/tool") {
+		t.Errorf("foreign hook dropped:\n%s", joined)
+	}
+	if !strings.Contains(joined, "UserPromptSubmit.sh") {
+		t.Errorf("our hook not added:\n%s", joined)
 	}
 }
 

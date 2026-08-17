@@ -1,12 +1,34 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/Gerc0g/dotfiles/core/wiki"
 	"github.com/spf13/cobra"
 )
+
+// sessionIDFromStdin reads the hook payload agents pass on stdin and pulls the
+// session id out of it. Anything unreadable is not an error: the caller falls
+// back to a directory-derived key, and a hook must never fail a prompt.
+func sessionIDFromStdin(in io.Reader) string {
+	data, err := io.ReadAll(io.LimitReader(in, 1<<20))
+	if err != nil || len(data) == 0 {
+		return ""
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return ""
+	}
+	for _, key := range []string{"session_id", "sessionId", "conversationId", "thread_id"} {
+		if v, ok := payload[key].(string); ok && v != "" {
+			return v
+		}
+	}
+	return ""
+}
 
 func newHookCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -81,6 +103,36 @@ func newHookCmd() *cobra.Command {
 	}
 	sessionEnd.Flags().StringVar(&agent, "agent", "claude", "claude или codex")
 
-	cmd.AddCommand(sessionStart, sessionEnd)
+	promptSubmit := &cobra.Command{
+		Use:   "prompt-submit",
+		Short: "UserPromptSubmit: досылать то, что память узнала за время сессии",
+		Long: "SessionStart вкладывает память один раз, и сессия живёт с этой копией\n" +
+			"неделями — а куратор разбирает инбокс по нескольку раз в день.\n\n" +
+			"Печатает только строки, появившиеся в hot.md с прошлого раза. Ничего\n" +
+			"не изменилось — ничего не печатает, и это обычный случай.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return nil
+			}
+			cwd, err := os.Getwd()
+			if err != nil {
+				return nil
+			}
+			hot := wiki.RepoHotFile(cwd)
+			if hot == "" {
+				return nil
+			}
+			key := wiki.SessionKey(sessionIDFromStdin(cmd.InOrStdin()), agent, cwd)
+			if delta := wiki.HotDelta(home, key, hot); delta != "" {
+				fmt.Fprintln(cmd.OutOrStdout(), wiki.PromptHookJSON(delta))
+			}
+			return nil
+		},
+	}
+	promptSubmit.Flags().StringVar(&agent, "agent", "claude", "claude или codex")
+
+	cmd.AddCommand(sessionStart, sessionEnd, promptSubmit)
 	return cmd
 }

@@ -163,6 +163,21 @@ func hookJSON(context string) string {
 	return string(data)
 }
 
+// PromptHookJSON wraps context for the UserPromptSubmit event.
+func PromptHookJSON(context string) string {
+	payload := map[string]any{
+		"hookSpecificOutput": map[string]any{
+			"hookEventName":     "UserPromptSubmit",
+			"additionalContext": context,
+		},
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
 func gitToplevel(dir string) string {
 	cmd := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel")
 	out, err := cmd.Output()
