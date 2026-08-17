@@ -161,7 +161,12 @@ func runCurator(skill string, scope Scope, instruction string, mode curatorMode)
 
 	cmd.Dir = memoryRoot
 	cmd.Env = append(os.Environ(), "CODEX_HOME="+filepath.Join(home, ".codex"))
-	cmd.Stdin = os.Stdin
+	// Only an interactive curator may hold stdin. A headless one inherits it
+	// and drains whatever the caller was reading — a loop piping a work list
+	// into `hq wiki drain` lost every item after the first.
+	if mode != modeAutonomous && mode != modeReadonly {
+		cmd.Stdin = os.Stdin
+	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -183,8 +188,9 @@ type SyncOptions struct {
 }
 
 // Sync drives the drain cycle: preflight → curator → postflight, then the
-// optional scope-atomic commit. Auto-commit refuses when the vault already
-// had dirty files outside the scope before the curator ran.
+// optional scope-atomic commit. Files dirty outside the scope are reported and
+// left untouched: the commit stages scope paths explicitly, so it cannot pick
+// them up.
 func Sync(scope Scope, opts SyncOptions, out io.Writer) error {
 	root, err := VaultRoot()
 	if err != nil {
@@ -225,7 +231,8 @@ func Sync(scope Scope, opts SyncOptions, out io.Writer) error {
 		return nil
 	}
 	if len(outsideBefore) > 0 {
-		return fmt.Errorf("отказ от автокоммита: до синка в вольте были грязные файлы вне скоупа.\nРазбери вручную: git -C %s status", root)
+		fmt.Fprintf(out, "\nЗаметка автокоммита: вне скоупа было грязно, эти файлы не трогаем:\n  %s\n",
+			strings.Join(outsideBefore, "\n  "))
 	}
 	if len(dirtyBefore) > 0 {
 		fmt.Fprintln(out, "\nЗаметка автокоммита: файлы, грязные до синка, были внутри скоупа и считаются входом inbox.")

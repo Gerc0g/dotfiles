@@ -103,8 +103,12 @@ func DirtyOutsideScope(root string, scope Scope) ([]string, error) {
 }
 
 // Commit records the scope's memory changes as one commit, authored with the
-// company's git_email when the company config declares one. Refuses when
-// dirty files exist outside the scope.
+// company's git_email when the company config declares one.
+//
+// Staging is explicit and scoped, so changes elsewhere in the vault cannot be
+// swept in — they are reported and left alone. Refusing over them instead used
+// to cascade: one drain that failed to commit left its files dirty, and every
+// later drain of every other scope then refused too.
 func Commit(scope Scope, push bool, out io.Writer) error {
 	root, err := VaultRoot()
 	if err != nil {
@@ -121,7 +125,7 @@ func Commit(scope Scope, push bool, out io.Writer) error {
 		return err
 	}
 	if len(outside) > 0 {
-		return fmt.Errorf("отказ от wiki commit: грязные файлы вне скоупа %q:\n  %s",
+		fmt.Fprintf(out, "вне скоупа %q грязно, не трогаю:\n  %s\n",
 			scope, strings.Join(outside, "\n  "))
 	}
 
