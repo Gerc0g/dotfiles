@@ -212,7 +212,7 @@ func TestHookPulseStep(t *testing.T) {
 
 	for profile := range profileHooks {
 		agent := strings.TrimPrefix(profile, ".")
-		for _, event := range []string{"session-start", "session-end"} {
+		for _, event := range []string{"session-start", "session-end", "prompt-submit"} {
 			wiki.TouchHook(env.Home, agent, event)
 		}
 	}

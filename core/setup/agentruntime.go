@@ -488,7 +488,10 @@ func hookPulseStep() Step {
 			var cold []string
 			for profile := range profileHooks {
 				agent := strings.TrimPrefix(profile, ".")
-				for _, event := range []string{"session-start", "session-end"} {
+				// prompt-submit fires on every message, so its silence is the
+				// loudest signal of all: it means the agent stopped running our
+				// hooks entirely.
+				for _, event := range []string{"session-start", "session-end", "prompt-submit"} {
 					last := wiki.LastHook(env.Home, agent, event)
 					switch {
 					case last.IsZero():

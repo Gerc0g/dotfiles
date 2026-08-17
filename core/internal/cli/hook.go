@@ -116,6 +116,7 @@ func newHookCmd() *cobra.Command {
 			if err != nil {
 				return nil
 			}
+			wiki.TouchHook(home, agent, "prompt-submit")
 			cwd, err := os.Getwd()
 			if err != nil {
 				return nil
