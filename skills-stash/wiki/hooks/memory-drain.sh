@@ -8,5 +8,22 @@
 #
 # Guards (threshold + interval) live in `hq wiki drain`; every decision, run
 # or skip, lands in ~/.cache/wikipedik-autosync.log.
-"${HQ_BIN:-$HOME/dotfiles/bin/hq}" wiki drain --background --commit >/dev/null 2>&1
+#
+# The hook logs its own firing before doing anything. Without that, a silent
+# log is ambiguous — a hook that never ran and a hook that ran and failed look
+# identical, which is exactly how the first version hid a dead trigger for a
+# whole day.
+hq="${HQ_BIN:-$HOME/dotfiles/bin/hq}"
+log="$HOME/.cache/wikipedik-autosync.log"
+
+mkdir -p "$(dirname "$log")"
+printf '%s hook SessionEnd: %s (%s)\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$PWD" \
+  "${CLAUDE_AGENT:-${CODEX_HOME:+codex}}" >>"$log"
+
+if ! err=$("$hq" wiki drain --background --commit 2>&1 >/dev/null); then
+  printf '%s hook SessionEnd: ошибка — %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" \
+    "${err:-неизвестно}" >>"$log"
+fi
+
+# A hook must never fail the session it is attached to.
 exit 0
