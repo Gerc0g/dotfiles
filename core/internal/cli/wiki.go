@@ -26,6 +26,7 @@ func newWikiCmd() *cobra.Command {
 		wikiSyncCmd(), wikiStatusCmd(), wikiSynthesizeCmd(), wikiCommitCmd(),
 		wikiAutocommitCmd(), wikiHotRefreshCmd(), wikiRulesSyncCmd(), wikiBootstrapCmd(),
 		wikiDrainCmd(),
+		wikiCronCmd(),
 	)
 	return cmd
 }
@@ -33,6 +34,30 @@ func newWikiCmd() *cobra.Command {
 // wikiDrainCmd is the background half of curation: the same curator skill,
 // but launched without a human answering per-entry prompts. Guards keep it
 // from spending tokens on nothing.
+func wikiCronCmd() *cobra.Command {
+	var commit bool
+	cmd := &cobra.Command{
+		Use:   "cron",
+		Short: "Плановый разбор: то, что запускает launchd",
+		Long: "Единственный триггер, не зависящий от того, как вы работаете: сессионные\n" +
+			"хуки не срабатывают у того, кто сидит в одной сессии неделями.\n\n" +
+			"Сначала проверяет доступ к вольту и записывает исход прогона — вольт\n" +
+			"лежит под ~/Desktop, куда macOS пускает только по Full Disk Access, а\n" +
+			"этот грант привязан к бинарю и слетает при пересборке. `hq doctor`\n" +
+			"читает эту запись, чтобы отказ не остался незамеченным.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return err
+			}
+			return wiki.RunCron(home, wiki.DefaultDrainGuards(), commit, cmd.OutOrStdout())
+		},
+	}
+	cmd.Flags().BoolVar(&commit, "commit", false, "закоммитить результат scope-атомарно")
+	return cmd
+}
+
 func wikiDrainCmd() *cobra.Command {
 	var (
 		commit    bool

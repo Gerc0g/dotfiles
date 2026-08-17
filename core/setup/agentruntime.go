@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -430,6 +431,36 @@ func memoryGaps(env Env) ([]workspace.MemoryGap, error) {
 		return nil, err
 	}
 	return manager.MemoryGaps()
+}
+
+// cronPulseStep reports whether the scheduled drain is actually running.
+//
+// The job needs Full Disk Access to reach a vault under ~/Desktop, and that
+// grant is keyed to the binary — `make build` rewrites it, so macOS can revoke
+// the permission without saying anything. The run records its own outcome
+// precisely so that revocation shows up here instead of as months of silence.
+func cronPulseStep() Step {
+	return Step{
+		Name:  "cron-pulse",
+		About: "плановый разбор доходит до вольта",
+		check: func(env Env) Result {
+			if runtime.GOOS != "darwin" {
+				return skipped("launchd есть только в macOS")
+			}
+			last, outcome := wiki.LastCron(env.Home)
+			switch {
+			case last.IsZero():
+				return drifted("не запускался ещё ни разу")
+			case outcome == wiki.CronDenied:
+				return drifted("macOS не пустил к вольту — выдай Full Disk Access для %s",
+					short(filepath.Join(env.Dotfiles, "bin", "hq")))
+			case time.Since(last) > wiki.CronStale:
+				return drifted("молчит %d ч. — задача в launchd жива?",
+					int(time.Since(last).Hours()))
+			}
+			return ok("последний прогон %s", last.Format("02.01 15:04"))
+		},
+	}
 }
 
 // hookPulseStep reports whether the session hooks are actually firing.

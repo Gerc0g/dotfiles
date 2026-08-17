@@ -111,6 +111,14 @@ func MarkDrained(scope Scope) error {
 // the company/product/repo model, so it is a company-level scope of its own.
 const platformCompany = "_platform"
 
+// Unstamp forgets the last run of a scope, so the interval guard stops holding
+// it back.
+func Unstamp(scope Scope) {
+	if stamp, err := stampPath(scope); err == nil {
+		_ = os.Remove(stamp)
+	}
+}
+
 // ScopeForDir resolves which memory scope a working directory belongs to, so
 // a hook can drain "the repo I just worked in" without being told.
 //
@@ -170,6 +178,17 @@ func AutoDrain(scope Scope, guards DrainGuards, commit bool, out io.Writer) erro
 		return nil
 	}
 
+	release, holder, err := AcquireDrainLock()
+	if err != nil {
+		return err
+	}
+	if release == nil {
+		LogAutosync("drain %s: пропуск, уже идёт разбор (pid %d)", scope, holder)
+		fmt.Fprintf(out, "уже идёт другой разбор (pid %d)\n", holder)
+		return nil
+	}
+	defer release()
+
 	// Stamp before the first pass: a crashed run must not become a retry loop
 	// that spends tokens on every session end.
 	if err := MarkDrained(scope); err != nil {
@@ -182,6 +201,12 @@ func AutoDrain(scope Scope, guards DrainGuards, commit bool, out io.Writer) erro
 	for pass := 1; pass <= maxDrainPasses; pass++ {
 		if err := Sync(scope, SyncOptions{Autonomous: true, Commit: commit}, out); err != nil {
 			LogAutosync("drain %s: ошибка на проходе %d — %v", scope, pass, err)
+			if pass == 1 {
+				// The curator never ran, so the stamp records an attempt that
+				// did not happen — and would block this scope for a day over a
+				// broken PATH or a missing login. Let the next trigger retry.
+				Unstamp(scope)
+			}
 			return err
 		}
 
@@ -247,9 +272,36 @@ func RepoScopes() ([]Scope, error) {
 // spend of a single session ending, and the guards would let that happen every
 // day.
 func SweepDrain(guards DrainGuards, commit bool) error {
-	scopes, err := RepoScopes()
+	best, count, err := PickSweepScope(guards)
+	if err != nil || count == 0 {
+		return err
+	}
+	LogAutosync("sweep: выбран %s (кандидатов %d)", best, count)
+	return SpawnDrain(best, guards, commit)
+}
+
+// SweepDrainInline is the sweep for a scheduled run, which has nothing to
+// return to and should stay alive for as long as the work takes — launchd
+// tracks a job by its process.
+func SweepDrainInline(guards DrainGuards, commit bool, out io.Writer) error {
+	best, count, err := PickSweepScope(guards)
 	if err != nil {
 		return err
+	}
+	if count == 0 {
+		fmt.Fprintln(out, "разбирать нечего")
+		return nil
+	}
+	LogAutosync("sweep: выбран %s (кандидатов %d)", best, count)
+	return AutoDrain(best, guards, commit, out)
+}
+
+// PickSweepScope returns the scope with the largest inbox that passes the
+// guards, or a zero count when none does.
+func PickSweepScope(guards DrainGuards) (Scope, int, error) {
+	scopes, err := RepoScopes()
+	if err != nil {
+		return Scope{}, 0, err
 	}
 
 	var best Scope
@@ -265,9 +317,6 @@ func SweepDrain(guards DrainGuards, commit bool) error {
 	}
 	if bestCount == 0 {
 		LogAutosync("sweep: разбирать нечего")
-		return nil
 	}
-
-	LogAutosync("sweep: выбран %s (кандидатов %d)", best, bestCount)
-	return SpawnDrain(best, guards, commit)
+	return best, bestCount, nil
 }

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.gerc0g.wikipedik-drain</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/_gerc0g/dotfiles/bin/hq</string>
+        <string>wiki</string>
+        <string>cron</string>
+        <string>--commit</string>
+    </array>
+    <!-- launchd hands a job a bare PATH (/usr/bin:/bin:/usr/sbin:/sbin), so the
+         curator's own binary is not on it. Without this the job runs, reads the
+         vault, picks a scope and only then dies on "codex: not found". -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    <key>StartInterval</key>
+    <integer>21600</integer>
+    <key>StandardOutPath</key>
+    <string>/Users/_gerc0g/Library/Logs/wikipedik-drain.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/_gerc0g/Library/Logs/wikipedik-drain.log</string>
+</dict>
+</plist>
