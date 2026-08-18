@@ -1,20 +1,21 @@
 package wiki
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
-	"time"
+
+	"github.com/Gerc0g/dotfiles/core/routine"
 )
 
 // Autosync runs from hooks, where output goes nowhere. Without a trace there
 // is no way to tell "the hook never fired" from "the hook fired and found
 // nothing" — and that distinction is exactly what breaks silently.
 //
-// One line per invocation, capped, so it stays a diagnostic and not a log to
-// maintain.
+// The trace goes into the platform's one journal of background work rather
+// than a file of its own. A log living by itself is a log nobody opens: this
+// one sat unread while the hooks it was recording had been dead for days.
 
-const autosyncLogLimit = 400
+// autosyncSource tags these lines in the shared journal.
+const autosyncSource = "wiki"
 
 // AutosyncLogPath is where the trace lives.
 func AutosyncLogPath() (string, error) {
@@ -22,66 +23,23 @@ func AutosyncLogPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".cache", "wikipedik-autosync.log"), nil
+	return routine.JournalPath(home), nil
 }
 
-// LogAutosync appends one line; failures are ignored on purpose — a hook must
-// never break because its diagnostics could not be written.
+// LogAutosync records one line about wiki background work.
 func LogAutosync(format string, args ...any) {
-	path, err := AutosyncLogPath()
-	if err != nil {
-		return
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return
-	}
-
-	line := fmt.Sprintf("%s %s\n", time.Now().Format("2006-01-02 15:04:05"),
-		fmt.Sprintf(format, args...))
-
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	_, _ = file.WriteString(line)
-	_ = file.Close()
-
-	trimAutosyncLog(path)
+	routine.Log(autosyncSource, format, args...)
 }
 
-// trimAutosyncLog keeps the tail, so the file cannot grow without bound.
-func trimAutosyncLog(path string) {
-	data, err := os.ReadFile(path)
+// LastAutosync returns the most recent wiki line, or empty when there is none.
+func LastAutosync() string {
+	home, err := os.UserHomeDir()
 	if err != nil {
-		return
+		return ""
 	}
-	lines := splitLines(string(data))
-	if len(lines) <= autosyncLogLimit {
-		return
+	lines := routine.Tail(home, autosyncSource, 1)
+	if len(lines) == 0 {
+		return ""
 	}
-	tail := lines[len(lines)-autosyncLogLimit:]
-	_ = os.WriteFile(path, []byte(joinLines(tail)), 0o644)
-}
-
-func splitLines(text string) []string {
-	var out []string
-	start := 0
-	for i, r := range text {
-		if r == '\n' {
-			out = append(out, text[start:i])
-			start = i + 1
-		}
-	}
-	if start < len(text) {
-		out = append(out, text[start:])
-	}
-	return out
-}
-
-func joinLines(lines []string) string {
-	out := ""
-	for _, line := range lines {
-		out += line + "\n"
-	}
-	return out
+	return lines[0]
 }

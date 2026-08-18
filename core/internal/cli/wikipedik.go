@@ -2,8 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/Gerc0g/dotfiles/core/internal/ui"
 	"github.com/Gerc0g/dotfiles/core/wiki"
@@ -170,17 +168,8 @@ func runWikipedikOverview(cmd *cobra.Command) error {
 // lastAutosyncLine reports the most recent hook invocation, or "" when the
 // hooks have never run.
 func lastAutosyncLine() string {
-	path, err := wiki.AutosyncLogPath()
-	if err != nil {
-		return ""
+	if line := wiki.LastAutosync(); line != "" {
+		return line
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "ни разу не запускался"
-	}
-	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-	if len(lines) == 0 || lines[len(lines)-1] == "" {
-		return "ни разу не запускался"
-	}
-	return lines[len(lines)-1]
+	return "ни разу не запускался"
 }
