@@ -336,6 +336,20 @@ func autocommit(ifDue bool, message string, conf syncConfig, out io.Writer) erro
 		return nil
 	}
 
+	// This commits whatever is dirty, so it must not run while a curator is
+	// halfway through rewriting a page: the commit would capture a file in the
+	// middle of being written. One lock, one rule — only one process mutates
+	// the vault at a time.
+	release, holder, err := AcquireDrainLock()
+	if err != nil {
+		return err
+	}
+	if release == nil {
+		fmt.Fprintf(out, "wikipedik-autocommit: пропуск, вольт занят разбором (pid %d)\n", holder)
+		return nil
+	}
+	defer release()
+
 	stamp := os.Getenv("WIKIPEDIK_AUTOCOMMIT_STAMP")
 	if stamp == "" {
 		home, err := os.UserHomeDir()

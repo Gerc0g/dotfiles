@@ -40,21 +40,31 @@ func builtins(dotfiles string) []Routine {
 			Exec:          []string{filepath.Join(dotfiles, "bin", "hq"), "wiki", "cron", "--commit"},
 			MaxRunsPerDay: 4,
 		},
+		{
+			Name:  "vault-sync",
+			About: "закоммитить и запушить вольт: результаты фоновых задач и накопившееся",
+			Kind:  KindInternal,
+			// Background work leaves the vault changed but unrecorded — the
+			// scrubber rewrites session digests and walks away, and scoped
+			// drains commit without ever pushing. Nothing else closes that gap.
+			Schedule: Schedule{Every: 6 * time.Hour},
+			Exec:     []string{filepath.Join(dotfiles, "bin", "hq"), "wiki", "autocommit"},
+		},
 	}
 }
 
 // userRoutine is the on-disk shape of a user-declared routine.
 type userRoutine struct {
-	Name          string    `yaml:"name"`
-	About         string    `yaml:"about"`
-	Every         string    `yaml:"every"`
-	At            string    `yaml:"at"`
-	Prompt        string    `yaml:"prompt"`
-	Dir           string    `yaml:"dir"`
-	Agent         string    `yaml:"agent"`
-	Exec          []string  `yaml:"exec"`
-	MaxRunsPerDay int       `yaml:"max_runs_per_day"`
-	MinInterval   string    `yaml:"min_interval"`
+	Name          string   `yaml:"name"`
+	About         string   `yaml:"about"`
+	Every         string   `yaml:"every"`
+	At            string   `yaml:"at"`
+	Prompt        string   `yaml:"prompt"`
+	Dir           string   `yaml:"dir"`
+	Agent         string   `yaml:"agent"`
+	Exec          []string `yaml:"exec"`
+	MaxRunsPerDay int      `yaml:"max_runs_per_day"`
+	MinInterval   string   `yaml:"min_interval"`
 }
 
 // Load returns every routine: the platform's, then the user's.

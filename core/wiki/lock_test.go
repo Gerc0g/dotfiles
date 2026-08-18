@@ -1,8 +1,10 @@
 package wiki
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -67,4 +69,34 @@ func writeStaleLock(path string) error {
 	}
 	// Above the pid ceiling, so it can never match a live process.
 	return os.WriteFile(path, []byte("4194304"), 0o644)
+}
+
+// Autocommit stages everything dirty, so running it while a curator rewrites a
+// page would capture that page half-written. The lock is what prevents it.
+func TestAutocommitYieldsToARunningDrain(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	vault := vaultEnv(t)
+
+	if err := os.MkdirAll(filepath.Join(vault, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A file that a commit would sweep up if the guard failed.
+	if err := os.WriteFile(filepath.Join(vault, "page.md"), []byte("наполовину написано\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	release, _, err := AcquireDrainLock()
+	if err != nil || release == nil {
+		t.Fatalf("не удалось занять замок: %v", err)
+	}
+	defer release()
+
+	var out bytes.Buffer
+	if err := Autocommit(false, &out); err != nil {
+		t.Fatalf("автокоммит обязан уступить, а не падать: %v", err)
+	}
+	if !strings.Contains(out.String(), "занят разбором") {
+		t.Errorf("автокоммит не объяснил пропуск:\n%s", out.String())
+	}
 }
