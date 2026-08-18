@@ -103,9 +103,10 @@ func newHookCmd() *cobra.Command {
 				if started {
 					return nil
 				}
-			} else {
-				wiki.LogAutosync("hook session-end: скоуп не определён — %v", err)
 			}
+			// A session that ended outside a project repo — in the vault, or
+			// anywhere else — has no scope of its own. That is ordinary, not a
+			// failure: it still gets to lend its moment to the sweep below.
 
 			// The repo just worked in is fine; lend the moment to whichever
 			// repo is most behind. Backlogs collect where sessions do not.
