@@ -22,7 +22,11 @@ build:
 		-ldflags '-X github.com/Gerc0g/dotfiles/core/internal/cli.Version=$(VERSION)' \
 		-o ../bin/hq ./cmd/hq
 	@cd tools/status-tui && go build -o ../../bin/status-tui .
-	@echo 'built bin/hq, bin/status-tui ($(VERSION))'
+	# No version stamp and -trimpath on purpose: the cron launcher holds a
+	# Full Disk Access grant keyed to its contents, so its build output must
+	# stay byte-identical across rebuilds.
+	@cd core && go build -trimpath -o ../bin/hq-cron ./cmd/hq-cron
+	@echo 'built bin/hq, bin/hq-cron, bin/status-tui ($(VERSION))'
 
 lint: shell-check python-check skill-check
 

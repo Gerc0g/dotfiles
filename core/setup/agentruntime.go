@@ -463,7 +463,7 @@ func cronPulseStep() Step {
 				return drifted("не запускался ещё ни разу")
 			case outcome == wiki.CronDenied:
 				return drifted("macOS не пустил к вольту — выдай Full Disk Access для %s",
-					short(filepath.Join(env.Dotfiles, "bin", "hq")))
+					short(filepath.Join(env.Dotfiles, "bin", "hq-cron")))
 			case time.Since(last) > wiki.CronStale:
 				return drifted("молчит %d ч. — задача в launchd жива?",
 					int(time.Since(last).Hours()))

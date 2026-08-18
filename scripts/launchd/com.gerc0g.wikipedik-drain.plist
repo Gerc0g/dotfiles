@@ -6,10 +6,12 @@
     <string>com.gerc0g.wikipedik-drain</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/_gerc0g/dotfiles/bin/hq</string>
-        <string>wiki</string>
-        <string>cron</string>
-        <string>--commit</string>
+        <!-- hq-cron, not hq: Full Disk Access is keyed to the binary's
+             contents, and bin/hq is rebuilt several times a day, which revokes
+             the grant silently. The launcher is built reproducibly, never
+             changes, and stays the parent of the real binary, which inherits
+             its access. -->
+        <string>/Users/_gerc0g/dotfiles/bin/hq-cron</string>
     </array>
     <!-- launchd hands a job a bare PATH (/usr/bin:/bin:/usr/sbin:/sbin), so the
          curator's own binary is not on it. Without this the job runs, reads the
