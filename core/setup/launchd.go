@@ -1,7 +1,14 @@
 package setup
 
+// The bespoke launchd steps that used to live here — one per job, each with its
+// own hand-written plist — are gone. Background work is declared in the routine
+// registry now and materialised by routinesStep.
+//
+// What remains is the migration: the two jobs the platform ran before the
+// registry existed. They keep running under their old labels until they are
+// booted out, so setup removes them once.
+
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,124 +16,51 @@ import (
 	"runtime"
 )
 
-const (
-	scrubLabel = "com.gerc0g.transcript-scrub"
-	scrubPlist = scrubLabel + ".plist"
-
-	drainLabel = "com.gerc0g.wikipedik-drain"
-	drainPlist = drainLabel + ".plist"
-)
-
-// transcriptScrubStep keeps the daily secret-scrubber job installed. It is the
-// one piece of scheduled work that has run without interruption, so the
-// declaration matches reality rather than aspiration.
-func transcriptScrubStep() Step {
-	return launchdJobStep("transcript-scrub",
-		"ежедневная launchd-задача, вычищающая секреты из транскриптов",
-		scrubLabel, scrubPlist)
+// retiredJobs are launchd labels the platform used before routines.
+var retiredJobs = []string{
+	"com.gerc0g.transcript-scrub",
+	"com.gerc0g.wikipedik-drain",
 }
 
-// wikipedikDrainStep schedules the curator. It is the only trigger that does
-// not depend on how the user works: session hooks never fire for someone who
-// stays in one editor session for weeks.
-func wikipedikDrainStep() Step {
-	return launchdJobStep("wikipedik-cron",
-		"плановый разбор инбокса каждые 6 часов",
-		drainLabel, drainPlist)
-}
-
-// launchdJobStep declares one scheduled job: the plist in LaunchAgents matches
-// the repo copy, and launchd actually knows about it.
-//
-// The step skips itself off macOS: the same binary runs on the Ubuntu box,
-// where launchd does not exist.
-func launchdJobStep(name, about, label, plist string) Step {
-	source := func(env Env) string {
-		return filepath.Join(env.Dotfiles, "scripts", "launchd", plist)
-	}
-	target := func(env Env) string {
-		return filepath.Join(env.Home, "Library", "LaunchAgents", plist)
-	}
-
+// retiredJobsStep unregisters and deletes the pre-registry jobs. Without it
+// both the old and the new schedule would fire, and the drain would run twice
+// as often as declared — at twice the cost.
+func retiredJobsStep() Step {
 	return Step{
-		Name:  name,
-		About: about,
+		Name:  "routines-migrated",
+		About: "старые самодельные launchd-задачи сняты",
 		check: func(env Env) Result {
 			if runtime.GOOS != "darwin" {
 				return skipped("launchd есть только в macOS")
 			}
-
-			want, err := os.ReadFile(source(env))
-			if err != nil {
-				return drifted("%s не читается: %v", short(source(env)), err)
+			var left []string
+			for _, label := range retiredJobs {
+				if _, err := os.Stat(retiredPlist(env, label)); err == nil {
+					left = append(left, label)
+				}
 			}
-
-			got, err := os.ReadFile(target(env))
-			if os.IsNotExist(err) {
-				return missing("%s", short(target(env)))
+			if len(left) > 0 {
+				return missing("остались: %v", left)
 			}
-			if err != nil {
-				return drifted("%s: %v", short(target(env)), err)
-			}
-
-			if !bytes.Equal(want, got) {
-				return drifted("%s отличается от копии в репозитории", short(target(env)))
-			}
-
-			// The file matching is not enough: a plist can sit in
-			// LaunchAgents byte-identical to the repo copy while the job is
-			// not registered at all, and then nothing ever runs. Ask launchd.
-			if !agentLoaded(label) {
-				return drifted("%s на месте, но задача не загружена в launchd", short(target(env)))
-			}
-
-			return ok("%s", short(target(env)))
+			return ok("старых задач нет")
 		},
 		apply: func(env Env) error {
 			if runtime.GOOS != "darwin" {
 				return nil
 			}
-
-			body, err := os.ReadFile(source(env))
-			if err != nil {
-				return fmt.Errorf("read %s: %w", source(env), err)
+			domain := fmt.Sprintf("gui/%d", os.Getuid())
+			for _, label := range retiredJobs {
+				_ = exec.Command("launchctl", "bootout", domain+"/"+label).Run()
+				path := retiredPlist(env, label)
+				if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+					return err
+				}
 			}
-
-			if err := ensureDir(filepath.Dir(target(env))); err != nil {
-				return err
-			}
-			if err := ensureDir(filepath.Join(env.Home, "Library", "Logs")); err != nil {
-				return err
-			}
-			if err := os.WriteFile(target(env), body, 0o644); err != nil {
-				return fmt.Errorf("write %s: %w", target(env), err)
-			}
-
-			return reloadAgent(label, target(env))
+			return nil
 		},
 	}
 }
 
-// agentLoaded asks launchd whether the job is registered in the user domain.
-// `launchctl print` exits non-zero for an unknown label, which is exactly the
-// signal we want; its output is irrelevant.
-func agentLoaded(label string) bool {
-	target := fmt.Sprintf("gui/%d/%s", os.Getuid(), label)
-	return exec.Command("launchctl", "print", target).Run() == nil
-}
-
-// reloadAgent unloads any previous copy of the job and loads the current one.
-// Unloading is best-effort: a job that was never loaded makes bootout fail, and
-// that is not an error worth aborting on.
-func reloadAgent(label, plist string) error {
-	domain := fmt.Sprintf("gui/%d", os.Getuid())
-
-	_ = exec.Command("launchctl", "bootout", domain+"/"+label).Run()
-
-	out, err := exec.Command("launchctl", "bootstrap", domain, plist).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("launchctl bootstrap %s: %w: %s", plist, err, bytes.TrimSpace(out))
-	}
-
-	return nil
+func retiredPlist(env Env, label string) string {
+	return filepath.Join(env.Home, "Library", "LaunchAgents", label+".plist")
 }

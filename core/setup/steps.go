@@ -43,8 +43,8 @@ func Plan() []Step {
 		baselineProfilesStep(),
 		configLinksStep(),
 		shellLoaderStep(),
-		transcriptScrubStep(),
-		wikipedikDrainStep(),
+		retiredJobsStep(),
+		routinesStep(),
 		coreBinaryStep(),
 		skillLinksStep(),
 		wikiHooksStep(),
@@ -54,7 +54,7 @@ func Plan() []Step {
 		codexConfigStep(),
 		worktreeMemoryStep(),
 		hookPulseStep(),
-		cronPulseStep(),
+		routinePulseStep(),
 	}
 }
 

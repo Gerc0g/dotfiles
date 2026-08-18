@@ -34,8 +34,7 @@ func fixture(t *testing.T) Env {
 	write("agent-profiles/BASELINE.md", "# baseline\n")
 	write("ghostty/config", "font-size = 14\n")
 	write("tmux/tmux.conf", "set -g mouse on\n")
-	write("scripts/launchd/"+scrubPlist, "<plist/>\n")
-	write("scripts/launchd/"+drainPlist, "<plist/>\n")
+	write("scripts/transcript-scrub.py", "print('x')\n")
 	for _, hooks := range profileHooks {
 		for _, source := range hooks {
 			write("skills-stash/wiki/hooks/"+source, "#!/bin/sh\n")
@@ -77,7 +76,7 @@ func fixture(t *testing.T) Env {
 func applicableSteps() []Step {
 	// The launchd steps register real jobs in the user domain; a test must
 	// not touch the machine it runs on.
-	scheduled := map[string]bool{"transcript-scrub": true, "wikipedik-cron": true}
+	scheduled := map[string]bool{"routines": true, "routines-migrated": true}
 
 	var steps []Step
 	for _, step := range Plan() {
