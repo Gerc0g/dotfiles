@@ -52,6 +52,7 @@ func NewRoot() *cobra.Command {
 		newWikiCmd(),
 		newWikipedikCmd(),
 		newResearchCmd(),
+		newRoutineCmd(),
 		newHookCmd(),
 		newCommandsCmd(),
 		newOnboardCmd(),
