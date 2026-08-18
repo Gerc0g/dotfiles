@@ -237,7 +237,9 @@ docs/platform/local-infra.md, agent-profiles/BASELINE.md.
 
 ## Research-зона WikiPedik: редизайн под обучение (2026-08-14)
 
-Status: in progress — структура согласована, реализация следующая
+Status: DONE 2026-08-17 — зона построена: изолированный профиль codex,
+контракт AGENTS.md, шаблон конспекта, линтер, index/map-candidates, граф
+Obsidian, автокоммиты агентом. Конспектов пока ноль — механика ждёт материала.
 
 Старые зоны `research` и `Personal Brand` снесены под чистую (история в вольте,
 коммит `96355d9`). Каркас `hq wikipedik` (зоны, path, sync, обзор) готов.
