@@ -46,6 +46,7 @@ func Plan() []Step {
 		retiredJobsStep(),
 		routinesStep(),
 		coreBinaryStep(),
+		toolingStep(),
 		skillLinksStep(),
 		wikiHooksStep(),
 		curatorSkillsStep(),

@@ -92,9 +92,10 @@ func TestFreshMachineNeedsEverything(t *testing.T) {
 
 	reports := Check(env, applicableSteps())
 	for _, report := range reports {
-		// skill-links is a health check, not a provisioning step: an empty
-		// machine has no links at all, so having none dangle is correct.
-		if report.Step.Name == "skill-links" {
+		// Health checks look at the machine running the test rather than at
+		// the fixture, so an empty fixture says nothing about them: no links
+		// exist to dangle, and the real PATH still has the real binaries.
+		if report.Step.Name == "skill-links" || report.Step.Name == "tooling" {
 			continue
 		}
 		if report.Result.Status == StatusOK {
