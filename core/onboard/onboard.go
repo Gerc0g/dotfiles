@@ -49,6 +49,15 @@ type CompanyOptions struct {
 	VCS       string
 	Namespace string
 	Email     string
+
+	// SkipExternal omits the effects that reach outside the workspace: the
+	// company SSH identity in ~/.ssh and the 1Password vault.
+	//
+	// It exists so this package can be tested at all. Both effects touch the
+	// real machine and a real 1Password account — a test of company creation
+	// would have created a live vault named after its fixture, which is how
+	// this code stayed untested while creating companies for two months.
+	SkipExternal bool
 }
 
 // vcsHost resolves the vcs[:host] shorthand.
@@ -121,7 +130,7 @@ func Company(opts CompanyOptions, out io.Writer) error {
 	fmt.Fprintf(out, "✓ %s/AGENTS.md\n", dir)
 
 	keyPath := filepath.Join(home, ".ssh", co+"_id_ed25519")
-	if vcs != "local" {
+	if vcs != "local" && !opts.SkipExternal {
 		if err := ensureSSHIdentity(co, vcs, host, sshHost, keyPath, opts.Email, out); err != nil {
 			return err
 		}
@@ -162,7 +171,9 @@ SSH alias: %s
 	}
 	fmt.Fprintf(out, "✓ %s/README.md\n", dir)
 
-	ensureVault(vault, out)
+	if !opts.SkipExternal {
+		ensureVault(vault, out)
+	}
 
 	fmt.Fprintf(out, "\n✅ Компания %q создана: %s\n\nДальше:\n", co, dir)
 	if vcs != "local" {
