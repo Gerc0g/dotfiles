@@ -1,0 +1,281 @@
+package research
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
+)
+
+// A map is the roadmap of an area: what to learn, in what order, and how far
+// along it is. Folders stay flat — an area is a folder, and everything below it
+// is structure inside one document, where a topic may sit in several places at
+// once without lying about where it belongs.
+//
+// Coverage is computed, never written by hand. A hand-kept status is a status
+// that rots: this vault already carried an index that had to be regenerated
+// because the agent forgot it, and a backlog whose entries described problems
+// that no longer existed. Here the only way to mark a topic closed is to
+// actually finish its conspectus.
+
+// Coverage glyphs, in the order a topic travels.
+const (
+	glyphSolid   = "✓"
+	glyphGrowing = "◐"
+	glyphMissing = "·"
+)
+
+const (
+	coverageStart = "<!-- coverage:start -->"
+	coverageEnd   = "<!-- coverage:end -->"
+)
+
+// mapLinkRe finds the first wikilink on a route line.
+var mapLinkRe = regexp.MustCompile(`\[\[([^\]|#]+)`)
+
+// mapGlyphRe matches a glyph the previous refresh left after the bullet.
+var mapGlyphRe = regexp.MustCompile(`^(\s*[-*]\s+)(` + glyphSolid + `|` + glyphGrowing + `|` + glyphMissing + `)\s+`)
+
+// MapsDir is where roadmaps live.
+func MapsDir(root string) string { return filepath.Join(root, "maps") }
+
+// MapTemplate is the frame of a roadmap. Like the topic template it lives in
+// the core, so every map is scannable at a glance instead of being invented
+// again each time.
+func MapTemplate(title, domain string) string {
+	return fmt.Sprintf(`---
+kind: map
+domain: %s
+updated: %s
+---
+
+# %s
+
+## Цель
+
+<!-- Зачем эта область и к чему хочу прийти. Две-три строки. -->
+
+%s
+%s
+
+## Маршрут
+
+<!-- Разделы и подразделы — обычными заголовками и вложенными списками.
+     Каждый пункт со ссылкой [[тема]]; статус проставляется сам по конспекту.
+     Ссылка на ещё не изученное — это нормально, тут она не ошибка. -->
+
+### Раздел
+
+- [[тема]] — чем важна
+
+## Пробелы
+
+<!-- Честно: что не изучал и почему. Растёт по ходу — из «Открытых вопросов»
+     конспектов. -->
+
+## Источники
+
+`, domain, time.Now().Format("2006-01-02"), title, coverageStart, coverageEnd)
+}
+
+// MapFile is one roadmap on disk.
+type MapFile struct {
+	Path string
+	Slug string
+}
+
+// ScanMaps lists the roadmaps of the zone.
+func ScanMaps(root string) []MapFile {
+	entries, err := os.ReadDir(MapsDir(root))
+	if err != nil {
+		return nil
+	}
+	var maps []MapFile
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".md") || strings.HasPrefix(name, "_") {
+			continue
+		}
+		maps = append(maps, MapFile{
+			Path: filepath.Join(MapsDir(root), name),
+			Slug: strings.TrimSuffix(name, ".md"),
+		})
+	}
+	return maps
+}
+
+// Coverage is how far one route has come.
+type Coverage struct {
+	Section string
+	Solid   int
+	Growing int
+	Missing int
+}
+
+// Total is how many topics the section plans.
+func (c Coverage) Total() int { return c.Solid + c.Growing + c.Missing }
+
+// Bar renders progress: full for finished, half for started.
+func (c Coverage) Bar(width int) string {
+	if c.Total() == 0 {
+		return strings.Repeat("░", width)
+	}
+	done := c.Solid * width / c.Total()
+	part := (c.Solid+c.Growing)*width/c.Total() - done
+	return strings.Repeat("▓", done) + strings.Repeat("▒", part) +
+		strings.Repeat("░", width-done-part)
+}
+
+// RefreshMap rewrites the status glyphs and the coverage block of one map, and
+// reports whether anything changed.
+//
+// Only the glyph is touched: the rest of a line is the user's own words about
+// why a topic matters, and regeneration must never eat them.
+func RefreshMap(path string, zone *Zone) (bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	original := string(data)
+
+	lines := strings.Split(original, "\n")
+	var section string
+	var sections []Coverage
+	index := map[string]int{}
+
+	for i, line := range lines {
+		if heading := strings.TrimSpace(line); strings.HasPrefix(heading, "###") {
+			section = strings.TrimSpace(strings.TrimLeft(heading, "# "))
+			continue
+		}
+		match := mapLinkRe.FindStringSubmatch(line)
+		if match == nil || !isListItem(line) {
+			continue
+		}
+
+		glyph := glyphMissing
+		if topic, ok := zone.FindTopic(strings.TrimSpace(match[1])); ok {
+			if topic.Status == "solid" {
+				glyph = glyphSolid
+			} else {
+				glyph = glyphGrowing
+			}
+		}
+		lines[i] = setGlyph(line, glyph)
+
+		name := section
+		if name == "" {
+			name = "Без раздела"
+		}
+		at, ok := index[name]
+		if !ok {
+			at = len(sections)
+			index[name] = at
+			sections = append(sections, Coverage{Section: name})
+		}
+		switch glyph {
+		case glyphSolid:
+			sections[at].Solid++
+		case glyphGrowing:
+			sections[at].Growing++
+		default:
+			sections[at].Missing++
+		}
+	}
+
+	updated := replaceCoverage(strings.Join(lines, "\n"), sections)
+	if updated == original {
+		return false, nil
+	}
+	return true, os.WriteFile(path, []byte(updated), 0o644)
+}
+
+// RefreshMaps refreshes every map and returns how many changed.
+func RefreshMaps(zone *Zone) (int, error) {
+	changed := 0
+	for _, m := range ScanMaps(zone.Root) {
+		did, err := RefreshMap(m.Path, zone)
+		if err != nil {
+			return changed, err
+		}
+		if did {
+			changed++
+		}
+	}
+	return changed, nil
+}
+
+func isListItem(line string) bool {
+	trimmed := strings.TrimLeft(line, " \t")
+	return strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ")
+}
+
+// setGlyph replaces the status marker of a list line, leaving its text alone.
+func setGlyph(line, glyph string) string {
+	if match := mapGlyphRe.FindStringSubmatch(line); match != nil {
+		return match[1] + glyph + " " + line[len(match[0]):]
+	}
+	trimmed := strings.TrimLeft(line, " \t")
+	indent := line[:len(line)-len(trimmed)]
+	bullet := trimmed[:2] // "- " or "* "
+	return indent + bullet + glyph + " " + trimmed[2:]
+}
+
+// replaceCoverage fills the generated block, or leaves the file alone when it
+// carries no markers — a map the user has not opted into keeps its own shape.
+func replaceCoverage(body string, sections []Coverage) string {
+	from := strings.Index(body, coverageStart)
+	to := strings.Index(body, coverageEnd)
+	if from < 0 || to < from {
+		return body
+	}
+	return body[:from+len(coverageStart)] + "\n" + renderCoverage(sections) + body[to:]
+}
+
+func renderCoverage(sections []Coverage) string {
+	var total Coverage
+	for _, s := range sections {
+		total.Solid += s.Solid
+		total.Growing += s.Growing
+		total.Missing += s.Missing
+	}
+	if total.Total() == 0 {
+		return "\nМаршрут пуст: добавь пункты со ссылками на темы.\n\n"
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n**Покрытие:** %s  закрыто %d · в работе %d · не начато %d (всего %d)\n\n",
+		total.Bar(12), total.Solid, total.Growing, total.Missing, total.Total())
+	for _, s := range sections {
+		fmt.Fprintf(&b, "- %s %s %d/%d\n", s.Bar(10), s.Section, s.Solid, s.Total())
+	}
+	b.WriteString("\n")
+	return b.String()
+}
+
+// NewMap creates a roadmap from the template. It refuses to overwrite: a map
+// carries hand-written intent, and regenerating one would erase the thinking
+// that is the whole point of it.
+func NewMap(root, slug, title, domain string) (string, error) {
+	slug = strings.TrimSpace(slug)
+	if slug == "" {
+		return "", fmt.Errorf("нужен slug карты")
+	}
+	if title == "" {
+		title = slug
+	}
+
+	if err := os.MkdirAll(MapsDir(root), 0o755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(MapsDir(root), slug+".md")
+	if _, err := os.Stat(path); err == nil {
+		return "", fmt.Errorf("карта уже есть: %s", path)
+	}
+	if err := os.WriteFile(path, []byte(MapTemplate(title, domain)), 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}

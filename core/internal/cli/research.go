@@ -26,7 +26,7 @@ func newResearchCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		researchNewCmd(), researchListCmd(), researchLintCmd(),
-		researchIndexCmd(), researchMapCandidatesCmd(), researchPathCmd(),
+		researchIndexCmd(), researchMapCmd(), researchMapCandidatesCmd(), researchPathCmd(),
 		researchGraphCmd(),
 	)
 	return cmd
@@ -237,9 +237,54 @@ func researchIndexCmd() *cobra.Command {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), path)
+
+			// Coverage in the roadmaps is derived from the same scan, so it is
+			// refreshed here rather than waiting for someone to remember a
+			// second command.
+			changed, err := research.RefreshMaps(zone)
+			if err != nil {
+				return err
+			}
+			if changed > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "покрытие обновлено в %d карт(ах)\n", changed)
+			}
 			return nil
 		},
 	}
+}
+
+func researchMapCmd() *cobra.Command {
+	var title, domain string
+	cmd := &cobra.Command{
+		Use:   "map <slug>",
+		Short: "Создать карту области: маршрут, пробелы, покрытие",
+		Long: "Карта — это роадмап области: что изучить, в каком порядке и как далеко\n" +
+			"вы продвинулись. Вложенность любая — разделы и подразделы обычными\n" +
+			"заголовками, файловая система тут ни при чём.\n\n" +
+			"Статус каждого пункта и полосы покрытия проставляются сами из статусов\n" +
+			"конспектов: solid — закрыто, growing — в работе, нет файла — не начато.\n" +
+			"Руками их не ставят, иначе карта начнёт врать. Ссылка на неизученное\n" +
+			"здесь не ошибка — линтер карты не проверяет.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			zone, err := research.Scan()
+			if err != nil {
+				return err
+			}
+			path, err := research.NewMap(zone.Root, args[0], title, domain)
+			if err != nil {
+				return err
+			}
+			if _, err := research.RefreshMap(path, zone); err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), path)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&title, "title", "", "русское название области")
+	cmd.Flags().StringVar(&domain, "domain", "", "домен: ml, math, quant, swe")
+	return cmd
 }
 
 func researchMapCandidatesCmd() *cobra.Command {
