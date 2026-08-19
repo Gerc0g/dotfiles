@@ -27,9 +27,11 @@ type Status struct {
 	Detail     string    `json:"detail,omitempty"`
 	DurationMS int64     `json:"duration_ms,omitempty"`
 	Runs       int       `json:"runs,omitempty"`
-	RunsDay    int       `json:"runs_day,omitempty"`
-	DayStamp   string    `json:"day,omitempty"`
-	Disabled   bool      `json:"disabled,omitempty"`
+	// Failures counts consecutive failures, and is what the backoff grows on.
+	Failures int    `json:"failures,omitempty"`
+	RunsDay  int    `json:"runs_day,omitempty"`
+	DayStamp string `json:"day,omitempty"`
+	Disabled bool   `json:"disabled,omitempty"`
 }
 
 // RunsToday is the run count for today, ignoring a counter left from an

@@ -184,3 +184,55 @@ func must(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
+
+// A routine that keeps failing must not keep spending. The first live failure
+// was a codex usage limit with two days left on it, and the sweep burned three
+// of four daily runs re-proving it.
+func TestFailureBacksOffAndKeepsTheReason(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	var out bytes.Buffer
+	// A command whose last line is the reason, like the curator's usage limit.
+	failing := Routine{
+		Name: "limited", Kind: KindAgent,
+		Exec: []string{"sh", "-c", "echo 'ERROR: You have hit your usage limit'; exit 1"},
+	}
+	if err := Run(home, failing, false, &out); err == nil {
+		t.Fatal("падение обязано вернуть ошибку")
+	}
+
+	status := LoadState(home)["limited"]
+	if status.Failures != 1 {
+		t.Errorf("счётчик неудач = %d, want 1", status.Failures)
+	}
+	if !strings.Contains(status.Detail, "usage limit") {
+		t.Errorf("причина потеряна, осталось только %q", status.Detail)
+	}
+
+	// The next attempt has to wait instead of firing on schedule.
+	if d := Allowed(home, failing, false, time.Now()); d.Run {
+		t.Error("после неудачи routine запустилась сразу — так и сгорает бюджет")
+	}
+	if d := Allowed(home, failing, false, time.Now().Add(2*time.Hour)); !d.Run {
+		t.Errorf("через два часа всё ещё держит: %s", d.Reason)
+	}
+
+	// Backoff grows, but never past a day: what blocks a routine usually clears.
+	if backoff(1) >= backoff(3) {
+		t.Error("задержка не растёт с числом неудач")
+	}
+	if backoff(20) != 24*time.Hour {
+		t.Errorf("потолок задержки = %s, want 24h", backoff(20))
+	}
+
+	// Success wipes the slate, or a routine that failed once would be slowed
+	// down forever.
+	ok := Routine{Name: "limited", Kind: KindAgent, Exec: []string{"true"}}
+	if err := Run(home, ok, true, &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := LoadState(home)["limited"]; got.Failures != 0 || got.Detail != "" {
+		t.Errorf("успех не сбросил историю неудач: %+v", got)
+	}
+}
