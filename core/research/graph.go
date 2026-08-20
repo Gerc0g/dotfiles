@@ -31,7 +31,7 @@ var domainColors = []struct {
 	{"path:research/topics/math", "#4EA1F5"},  // синий
 	{"path:research/topics/ml", "#F2A65A"},    // оранжевый
 	{"path:research/topics/quant", "#6FCF97"}, // зелёный
-	{"path:research/topics/swe", "#A78BFA"},   // фиолетовый
+	{"path:research/topics/cs", "#A78BFA"},    // фиолетовый
 	{"path:research/maps", "#FFD166"},         // жёлтый: карты — узлы-хабы
 	{"path:research/sources", "#9CA3AF"},      // серый: источники вторичны
 }

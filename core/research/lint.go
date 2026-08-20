@@ -151,6 +151,12 @@ func lintTopic(zone *Zone, topic Topic) []Finding {
 			"в источниках нет точного места (страница/раздел/лекция/таймкод)")
 	}
 
+	if topic.DeclaredDomain != "" && topic.DeclaredDomain != topic.Domain {
+		add(SeverityError, "domain-mismatch",
+			"в шапке domain: %s, а файл лежит в %s — правит путь, шапку поправь или убери",
+			topic.DeclaredDomain, topic.Domain)
+	}
+
 	// Graph.
 	for _, link := range topic.Links {
 		if !zone.Resolve(link) {

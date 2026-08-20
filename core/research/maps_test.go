@@ -169,3 +169,61 @@ func read(t *testing.T, path string) string {
 	}
 	return string(data)
 }
+
+// The top-level roadmap lists areas, not topics. A link to another map has to
+// carry that area's numbers, or a half-finished area would read as untouched.
+func TestTopMapAggregatesAreaMaps(t *testing.T) {
+	zone := mapZone(t)
+
+	area, err := NewMap(zone.Root, "dl", "Глубокое обучение", "ml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(area, []byte("## Маршрут\n\n### Основы\n\n"+
+		"- [[linear-regression]]\n- [[regularization]]\n- [[transformers]]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	empty, err := NewMap(zone.Root, "rl", "Обучение с подкреплением", "ml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(empty, []byte("## Маршрут\n\n### Основы\n\n- [[q-learning]]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	top, err := NewMap(zone.Root, "roadmap", "Роадмап", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(top, []byte(coverageStart+"\n"+coverageEnd+
+		"\n\n## Маршрут\n\n### Области\n\n- [[dl]] — трансформеры и обучение\n- [[rl]]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := RefreshMap(top, zone); err != nil {
+		t.Fatal(err)
+	}
+	got := read(t, top)
+
+	// dl: one solid, one growing, one missing → under way, scored 1/3.
+	if !strings.Contains(got, glyphPartial+" [[dl]] — трансформеры и обучение · 1/3") {
+		t.Errorf("область не подтянула свои числа:\n%s", got)
+	}
+	// rl: nothing started at all.
+	if !strings.Contains(got, glyphMissing+" [[rl]] · 0/1") {
+		t.Errorf("пустая область показана неверно:\n%s", got)
+	}
+	// The top summary sums the areas, not the two lines.
+	if !strings.Contains(got, "закрыто 1 · в работе 1 · не начато 2 (всего 4)") {
+		t.Errorf("верхняя сводка не сложила области:\n%s", got)
+	}
+
+	// Refreshing again must not stack counts like "· 1/3 · 1/3".
+	if _, err := RefreshMap(top, zone); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(read(t, top), "· 1/3") != 1 {
+		t.Errorf("счётчик области продублировался:\n%s", read(t, top))
+	}
+}

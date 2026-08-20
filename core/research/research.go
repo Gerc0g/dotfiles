@@ -22,10 +22,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Domains are the fixed top-level areas. Sub-topics (RL, NLP) live in maps
-// and tags, never in folders: a folder forces one home per note, while a
-// topic legitimately belongs to several learning routes.
-var Domains = []string{"ml", "math", "quant", "swe"}
+// Domains are where files physically live, and nothing more. They are kept few
+// and coarse on purpose: a folder gives a note exactly one home, so it can only
+// hold areas that do not overlap.
+//
+// The areas a person actually thinks in — DL, NLP, LLM, RL, Evaluation — overlap
+// heavily: attention belongs to DL and NLP and LLM at once, and evaluation cuts
+// across every one of them. Those live in maps, where a topic can sit on several
+// routes without any of them lying.
+var Domains = []string{"ml", "math", "cs", "quant"}
 
 // Frame sections every topic must carry. They serve the machinery — quick
 // recall, the graph, verifiability — which is why they are mandatory while
@@ -73,6 +78,9 @@ type Topic struct {
 	Links []string
 	// Body is the document without frontmatter.
 	Body string
+	// DeclaredDomain is what the frontmatter claimed, kept only so the linter
+	// can report a claim that contradicts the path.
+	DeclaredDomain string
 }
 
 // Doc is a map or source page — lighter than a topic.
@@ -204,9 +212,12 @@ func readTopic(path, domain string) (Topic, error) {
 			return Topic{}, fmt.Errorf("frontmatter %s: %w", path, err)
 		}
 	}
-	if topic.Domain == "" {
-		topic.Domain = domain
-	}
+	// The path is the only truth about where a topic lives: the file is
+	// physically there, while frontmatter is a claim that can drift. A stale
+	// `domain:` used to win here, so the index showed one area and the
+	// filesystem held another, with nothing to notice it.
+	topic.DeclaredDomain = topic.Domain
+	topic.Domain = domain
 
 	topic.Title = slug
 	sections := map[string][]string{}

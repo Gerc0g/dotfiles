@@ -20,6 +20,10 @@ import (
 // that no longer existed. Here the only way to mark a topic closed is to
 // actually finish its conspectus.
 
+// glyphPartial marks a link to another map that is under way: a route whose
+// own coverage is neither empty nor complete.
+const glyphPartial = "◑"
+
 // Coverage glyphs, in the order a topic travels.
 const (
 	glyphSolid   = "✓"
@@ -36,7 +40,10 @@ const (
 var mapLinkRe = regexp.MustCompile(`\[\[([^\]|#]+)`)
 
 // mapGlyphRe matches a glyph the previous refresh left after the bullet.
-var mapGlyphRe = regexp.MustCompile(`^(\s*[-*]\s+)(` + glyphSolid + `|` + glyphGrowing + `|` + glyphMissing + `)\s+`)
+var mapGlyphRe = regexp.MustCompile(`^(\s*[-*]\s+)(` + glyphSolid + `|` + glyphGrowing + `|` + glyphPartial + `|` + glyphMissing + `)\s+`)
+
+// mapCountRe matches the generated area count at the end of a line.
+var mapCountRe = regexp.MustCompile(`\s*·\s*\d+/\d+\s*$`)
 
 // MapsDir is where roadmaps live.
 func MapsDir(root string) string { return filepath.Join(root, "maps") }
@@ -128,6 +135,48 @@ func (c Coverage) Bar(width int) string {
 		strings.Repeat("░", width-done-part)
 }
 
+// MapCoverage is one map's own totals, so a map above it can quote them
+// instead of showing a whole area as untouched.
+func MapCoverage(path string, zone *Zone) Coverage {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return Coverage{}
+	}
+	total := Coverage{Section: mapSlug(path)}
+	for _, line := range strings.Split(string(data), "\n") {
+		match := mapLinkRe.FindStringSubmatch(line)
+		if match == nil || !isListItem(line) {
+			continue
+		}
+		// Only topic links count: a nested map would need its own read, and a
+		// roadmap of roadmaps is two levels, not a recursion.
+		if topic, ok := zone.FindTopic(strings.TrimSpace(match[1])); ok {
+			if topic.Status == "solid" {
+				total.Solid++
+			} else {
+				total.Growing++
+			}
+			continue
+		}
+		if !isMapLink(zone.Root, match[1]) {
+			total.Missing++
+		}
+	}
+	return total
+}
+
+func mapSlug(path string) string {
+	return strings.TrimSuffix(filepath.Base(path), ".md")
+}
+
+// isMapLink reports whether a wikilink points at another map.
+func isMapLink(root, link string) bool {
+	name := strings.TrimSpace(link)
+	name = strings.TrimPrefix(name, "maps/")
+	_, err := os.Stat(filepath.Join(MapsDir(root), name+".md"))
+	return err == nil
+}
+
 // RefreshMap rewrites the status glyphs and the coverage block of one map, and
 // reports whether anything changed.
 //
@@ -155,15 +204,38 @@ func RefreshMap(path string, zone *Zone) (bool, error) {
 			continue
 		}
 
+		link := strings.TrimSpace(match[1])
 		glyph := glyphMissing
-		if topic, ok := zone.FindTopic(strings.TrimSpace(match[1])); ok {
+		var nested *Coverage
+
+		if topic, ok := zone.FindTopic(link); ok {
 			if topic.Status == "solid" {
 				glyph = glyphSolid
 			} else {
 				glyph = glyphGrowing
 			}
+		} else if isMapLink(zone.Root, link) && !samePath(path, zone.Root, link) {
+			// A link to another map stands for a whole area, so it carries that
+			// area's numbers rather than counting as one unstarted item.
+			area := MapCoverage(filepath.Join(MapsDir(zone.Root),
+				strings.TrimPrefix(link, "maps/")+".md"), zone)
+			nested = &area
+			switch {
+			case area.Total() == 0:
+				glyph = glyphMissing
+			case area.Solid == area.Total():
+				glyph = glyphSolid
+			case area.Solid+area.Growing == 0:
+				glyph = glyphMissing
+			default:
+				glyph = glyphPartial
+			}
 		}
+
 		lines[i] = setGlyph(line, glyph)
+		if nested != nil {
+			lines[i] = appendAreaCount(lines[i], *nested)
+		}
 
 		name := section
 		if name == "" {
@@ -174,6 +246,12 @@ func RefreshMap(path string, zone *Zone) (bool, error) {
 			at = len(sections)
 			index[name] = at
 			sections = append(sections, Coverage{Section: name})
+		}
+		if nested != nil {
+			sections[at].Solid += nested.Solid
+			sections[at].Growing += nested.Growing
+			sections[at].Missing += nested.Missing
+			continue
 		}
 		switch glyph {
 		case glyphSolid:
@@ -205,6 +283,18 @@ func RefreshMaps(zone *Zone) (int, error) {
 		}
 	}
 	return changed, nil
+}
+
+// appendAreaCount puts an area's score at the end of the line, replacing the
+// one a previous refresh left there.
+func appendAreaCount(line string, area Coverage) string {
+	line = mapCountRe.ReplaceAllString(line, "")
+	return fmt.Sprintf("%s · %d/%d", strings.TrimRight(line, " "), area.Solid, area.Total())
+}
+
+// samePath guards against a map that links to itself.
+func samePath(path, root, link string) bool {
+	return mapSlug(path) == strings.TrimPrefix(strings.TrimSpace(link), "maps/")
 }
 
 func isListItem(line string) bool {

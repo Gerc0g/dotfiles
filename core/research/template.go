@@ -13,7 +13,6 @@ import (
 // rather than as a file in the vault so nobody edits it by accident and the
 // frame stays predictable for the linter.
 const topicTemplate = `---
-domain: %s
 status: growing
 aliases: [%s]
 topics: []
@@ -74,7 +73,7 @@ func New(domain, slug, title string) (string, error) {
 	}
 
 	content := fmt.Sprintf(topicTemplate,
-		domain, title, time.Now().Format("2006-01-02"), title,
+		title, time.Now().Format("2006-01-02"), title,
 		SectionSummary, SectionLinks, SectionSources)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return "", fmt.Errorf("запись %s: %w", path, err)
