@@ -95,6 +95,21 @@ func researchStatus(cmd *cobra.Command) error {
 	r.Line("  " + r.Muted(fmt.Sprintf("solid %d · growing %d · карт %d · источников %d",
 		solid, len(zone.Topics)-solid, len(zone.Maps), len(zone.Sources))))
 
+	if loose := research.Unmapped(zone); len(loose) > 0 {
+		var names []string
+		for i, topic := range loose {
+			if i == 4 {
+				names = append(names, fmt.Sprintf("и ещё %d", len(loose)-4))
+				break
+			}
+			names = append(names, topic.Slug)
+		}
+		r.Blank()
+		r.Line("  " + r.Drifted(ui.Plural(len(loose), "тема", "темы", "тем")+" вне карт") +
+			"  " + r.Muted(strings.Join(names, ", ")))
+		r.Line("  " + r.Muted("роадмап о них не знает — внести в маршрут или оставить как есть"))
+	}
+
 	errorsN, warnsN := 0, 0
 	for _, finding := range findings {
 		switch finding.Severity {

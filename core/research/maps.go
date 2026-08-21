@@ -373,3 +373,55 @@ func NewMap(root, slug, title, domain string) (string, error) {
 	}
 	return path, nil
 }
+
+// MappedNames collects every topic name the maps plan for.
+func MappedNames(root string) map[string]bool {
+	planned := map[string]bool{}
+	for _, m := range ScanMaps(root) {
+		data, err := os.ReadFile(m.Path)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			if !isListItem(line) {
+				continue
+			}
+			if match := mapLinkRe.FindStringSubmatch(line); match != nil {
+				planned[strings.TrimSpace(match[1])] = true
+			}
+		}
+	}
+	return planned
+}
+
+// Unmapped lists conspectuses no map plans for.
+//
+// The roadmap deliberately does not grow by itself: a plan that swallows every
+// note becomes the index, and coverage stops meaning anything when its
+// denominator grows with every file. So a topic written outside the plan stays
+// outside it — and is reported, so the choice to adopt it is made rather than
+// missed.
+func Unmapped(zone *Zone) []Topic {
+	planned := MappedNames(zone.Root)
+	if len(planned) == 0 {
+		return nil
+	}
+
+	var loose []Topic
+	for _, topic := range zone.Topics {
+		if planned[topic.Ref] || planned[topic.Slug] || planned[topic.Title] {
+			continue
+		}
+		claimed := false
+		for _, alias := range topic.Aliases {
+			if planned[alias] {
+				claimed = true
+				break
+			}
+		}
+		if !claimed {
+			loose = append(loose, topic)
+		}
+	}
+	return loose
+}

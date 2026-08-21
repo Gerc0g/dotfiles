@@ -52,6 +52,19 @@ func SessionContext() string {
 	fmt.Fprintf(&b, "Тем: %d (%s) · solid %d · карт %d · источников %d\n",
 		len(zone.Topics), strings.Join(parts, ", "), solid, len(zone.Maps), len(zone.Sources))
 
+	if loose := Unmapped(zone); len(loose) > 0 {
+		var names []string
+		for i, topic := range loose {
+			if i == 5 {
+				names = append(names, fmt.Sprintf("и ещё %d", len(loose)-5))
+				break
+			}
+			names = append(names, topic.Slug)
+		}
+		fmt.Fprintf(&b, "\nВне карт: %s — спроси, вносить ли в маршрут.\n",
+			strings.Join(names, ", "))
+	}
+
 	if recent := recentTopics(zone, 5); len(recent) > 0 {
 		b.WriteString("\nПоследнее, что менялось: " + strings.Join(recent, ", ") + "\n")
 	}

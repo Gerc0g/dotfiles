@@ -265,3 +265,41 @@ func TestStaleAreaCountIsDropped(t *testing.T) {
 		t.Errorf("счёт удалённой карты остался:\n%s", got)
 	}
 }
+
+// The plan does not swallow every note, so a topic written outside it must be
+// reported — otherwise it silently never reaches the roadmap.
+func TestUnmappedTopicsAreFound(t *testing.T) {
+	zone := mapZone(t) // linear-regression (solid), regularization (growing)
+
+	path, err := NewMap(zone.Root, "dl", "Глубокое обучение", "ml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("## Маршрут\n\n### О\n\n- [[linear-regression]]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	rescanned, err := Scan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	loose := Unmapped(rescanned)
+	if len(loose) != 1 || loose[0].Slug != "regularization" {
+		t.Fatalf("не найдена тема вне карт: %+v", loose)
+	}
+
+	// An alias is enough to claim a topic the map named differently.
+	topic := filepath.Join(zone.Root, "topics", "ml", "regularization.md")
+	body := strings.Replace(read(t, topic), "aliases: []", "aliases: [weight-decay]", 1)
+	if err := os.WriteFile(topic, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("## Маршрут\n\n### О\n\n"+
+		"- [[linear-regression]]\n- [[weight-decay]]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rescanned, _ = Scan()
+	if loose := Unmapped(rescanned); len(loose) != 0 {
+		t.Errorf("алиас не засчитан как план: %+v", loose)
+	}
+}
