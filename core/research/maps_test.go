@@ -227,3 +227,41 @@ func TestTopMapAggregatesAreaMaps(t *testing.T) {
 		t.Errorf("счётчик области продублировался:\n%s", read(t, top))
 	}
 }
+
+// Deleting an area map must take its score with it, or the roadmap keeps
+// quoting numbers from a file that no longer exists.
+func TestStaleAreaCountIsDropped(t *testing.T) {
+	zone := mapZone(t)
+
+	area, err := NewMap(zone.Root, "dl", "Глубокое обучение", "ml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(area, []byte("## Маршрут\n\n### О\n\n- [[linear-regression]]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	top, err := NewMap(zone.Root, "roadmap", "Роадмап", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(top, []byte("## Маршрут\n\n### Области\n\n- [[dl|DL]] — глубокое\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := RefreshMap(top, zone); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(read(t, top), "· 1/1") {
+		t.Fatalf("счёт области не проставился:\n%s", read(t, top))
+	}
+
+	if err := os.Remove(area); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RefreshMap(top, zone); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, top); strings.Contains(got, "· 1/1") {
+		t.Errorf("счёт удалённой карты остался:\n%s", got)
+	}
+}

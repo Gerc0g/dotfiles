@@ -235,6 +235,10 @@ func RefreshMap(path string, zone *Zone) (bool, error) {
 		lines[i] = setGlyph(line, glyph)
 		if nested != nil {
 			lines[i] = appendAreaCount(lines[i], *nested)
+		} else {
+			// A line that used to point at a map keeps its old score otherwise,
+			// and a deleted area would go on reporting numbers it no longer has.
+			lines[i] = mapCountRe.ReplaceAllString(lines[i], "")
 		}
 
 		name := section
