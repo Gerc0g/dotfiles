@@ -425,3 +425,78 @@ func Unmapped(zone *Zone) []Topic {
 	}
 	return loose
 }
+
+// NextItem is one thing to study, with the area it belongs to.
+type NextItem struct {
+	Area  string
+	Link  string
+	Note  string
+	Order int
+}
+
+// Next returns what to study next, in the order the routes are written.
+//
+// A map is a reference to a whole field: four of them here plan 260 topics, and
+// a wall of 260 unstarted items paralyses rather than guides. The route is
+// already ordered by prerequisite, so "next" is simply the first unstarted item
+// — the queue the roadmap could not be.
+func Next(zone *Zone, area string, limit int) []NextItem {
+	var found []NextItem
+	for _, m := range ScanMaps(zone.Root) {
+		if m.Slug == "roadmap" || (area != "" && m.Slug != area) {
+			continue
+		}
+		data, err := os.ReadFile(m.Path)
+		if err != nil {
+			continue
+		}
+
+		order := 0
+		perArea := 0
+		for _, line := range strings.Split(string(data), "\n") {
+			if !isListItem(line) {
+				continue
+			}
+			match := mapLinkRe.FindStringSubmatch(line)
+			if match == nil {
+				continue
+			}
+			order++
+			link := strings.TrimSpace(match[1])
+			if _, done := zone.FindTopic(link); done {
+				continue
+			}
+			if isMapLink(zone.Root, link) {
+				continue
+			}
+
+			found = append(found, NextItem{
+				Area: m.Slug, Link: displayLink(link), Note: itemNote(line), Order: order,
+			})
+			perArea++
+			// Without an area, one line each is enough to choose between them.
+			if area == "" || perArea >= limit {
+				break
+			}
+		}
+	}
+	return found
+}
+
+// displayLink strips the alias part of a wikilink.
+func displayLink(link string) string {
+	if at := strings.Index(link, "|"); at >= 0 {
+		return strings.TrimSpace(link[:at])
+	}
+	return link
+}
+
+// itemNote is the user's words after the link, which say why the item matters.
+func itemNote(line string) string {
+	if at := strings.Index(line, "]]"); at >= 0 {
+		note := strings.TrimSpace(line[at+2:])
+		note = strings.TrimPrefix(note, "—")
+		return strings.TrimSpace(note)
+	}
+	return ""
+}

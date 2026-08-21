@@ -52,6 +52,18 @@ func SessionContext() string {
 	fmt.Fprintf(&b, "Тем: %d (%s) · solid %d · карт %d · источников %d\n",
 		len(zone.Topics), strings.Join(parts, ", "), solid, len(zone.Maps), len(zone.Sources))
 
+	if next := Next(zone, "", 1); len(next) > 0 {
+		b.WriteString("\nСледующее по маршрутам:\n")
+		for _, item := range next {
+			fmt.Fprintf(&b, "- %s (%s)", item.Link, item.Area)
+			if item.Note != "" {
+				fmt.Fprintf(&b, " — %s", item.Note)
+			}
+			b.WriteString("\n")
+		}
+		b.WriteString("Полная очередь области: `hq research next <область>`.\n")
+	}
+
 	if loose := Unmapped(zone); len(loose) > 0 {
 		var names []string
 		for i, topic := range loose {

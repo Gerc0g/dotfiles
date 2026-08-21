@@ -26,7 +26,7 @@ func newResearchCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		researchNewCmd(), researchListCmd(), researchLintCmd(),
-		researchIndexCmd(), researchMapCmd(), researchMapCandidatesCmd(), researchPathCmd(),
+		researchIndexCmd(), researchNextCmd(), researchMapCmd(), researchMapCandidatesCmd(), researchPathCmd(),
 		researchGraphCmd(),
 	)
 	return cmd
@@ -266,6 +266,49 @@ func researchIndexCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func researchNextCmd() *cobra.Command {
+	var limit int
+	cmd := &cobra.Command{
+		Use:   "next [область]",
+		Short: "Что изучать дальше по маршрутам",
+		Long: "Карта — справочник области: в ней сотни пунктов, и смотреть на них\n" +
+			"каждый раз бессмысленно. Маршрут уже упорядочен по предпосылкам, значит\n" +
+			"«дальше» — это первый пункт без конспекта.\n\n" +
+			"Без аргумента показывает по одному пункту из каждой области — чтобы было\n" +
+			"из чего выбрать. С областью — очередь на несколько шагов вперёд.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			zone, err := research.Scan()
+			if err != nil {
+				return err
+			}
+			area := ""
+			if len(args) == 1 {
+				area = args[0]
+			}
+
+			items := research.Next(zone, area, limit)
+			r := ui.New(cmd.OutOrStdout())
+			r.Blank()
+			if len(items) == 0 {
+				r.Line("  " + r.Muted("маршрутов нет или всё пройдено"))
+				r.Blank()
+				return nil
+			}
+			for _, item := range items {
+				r.Line(fmt.Sprintf("  %s  %s", r.Accent(item.Link), r.Muted(item.Area)))
+				if item.Note != "" {
+					r.Line("  " + r.Muted(ui.Truncate(item.Note, r.Width()-4)))
+				}
+			}
+			r.Blank()
+			return nil
+		},
+	}
+	cmd.Flags().IntVarP(&limit, "limit", "n", 5, "сколько шагов показать для области")
+	return cmd
 }
 
 func researchMapCmd() *cobra.Command {
