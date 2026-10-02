@@ -42,11 +42,12 @@ func builtins(dotfiles string) []Routine {
 		},
 		{
 			Name:  "vault-sync",
-			About: "закоммитить и запушить вольт: результаты фоновых задач и накопившееся",
+			About: "сохранить Git-архив вольта: коммит и push без загрузки изменений",
 			Kind:  KindInternal,
 			// Background work leaves the vault changed but unrecorded — the
 			// scrubber rewrites session digests and walks away, and scoped
 			// drains commit without ever pushing. Nothing else closes that gap.
+			// Keep the legacy routine name; Obsidian Sync owns device sync.
 			Schedule: Schedule{Every: 6 * time.Hour},
 			Exec:     []string{filepath.Join(dotfiles, "bin", "hq"), "wiki", "autocommit"},
 		},

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Gerc0g/dotfiles/core/internal/ui"
@@ -8,12 +9,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newManager() (*workspace.Manager, error) {
+func newManager(opts ...workspace.Option) (*workspace.Manager, error) {
 	root, err := worldRoot()
 	if err != nil {
 		return nil, err
 	}
-	return workspace.New(root)
+	return workspace.New(root, opts...)
 }
 
 func newWorkspaceCmd() *cobra.Command {
@@ -34,6 +35,7 @@ func newWorkspaceCmd() *cobra.Command {
 	cmd.AddCommand(
 		wsStartCmd(), wsListCmd(), wsStaleCmd(), wsPathCmd(),
 		wsReadyCmd(), wsRemoveCmd(), wsCleanupCmd(), wsPruneCmd(),
+		wsContextCmd(false), wsContextCmd(true),
 	)
 	return cmd
 }
@@ -61,7 +63,8 @@ func wsPathCmd() *cobra.Command {
 }
 
 func wsStartCmd() *cobra.Command {
-	return &cobra.Command{
+	var requestID string
+	cmd := &cobra.Command{
 		Use:   "start <компания> <продукт> <репозиторий> <задача>",
 		Short: "Создать worktree под задачу",
 		Long: "Печатает путь созданного worktree в stdout, чтобы вызывающая оболочка\n" +
@@ -69,18 +72,27 @@ func wsStartCmd() *cobra.Command {
 			"программа не может.",
 		Args: cobra.ExactArgs(4),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m, err := newManager()
+			m, err := newManager(workspace.WithWarnings(cmd.ErrOrStderr()))
 			if err != nil {
+				if requestID != "" {
+					return fmt.Errorf("HQ_WORKTREE_NOT_CREATED: %w", err)
+				}
 				return err
 			}
-			w, err := m.Start(args[0], args[1], args[2], args[3])
+			w, err := m.StartWithRequestID(args[0], args[1], args[2], args[3], requestID)
 			if err != nil {
+				var notStarted *workspace.CreationNotStartedError
+				if requestID != "" && errors.As(err, &notStarted) {
+					return fmt.Errorf("HQ_WORKTREE_NOT_CREATED: %w", err)
+				}
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), w.Path)
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&requestID, "request-id", "", "Opaque creation request identity for launch reconciliation")
+	return cmd
 }
 
 func wsListCmd() *cobra.Command {

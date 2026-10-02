@@ -1,7 +1,7 @@
 // Package onboard creates companies and products in the workspace.
 //
-// A company is a directory with .company-config, an SSH identity and a
-// 1Password vault; a product is a directory with .product-config and cloned
+// A company is a directory with .company-config and an SSH identity;
+// a product is a directory with .product-config and cloned
 // repositories. AGENTS.md files are rendered from ~/dotfiles/templates with
 // an envsubst-compatible restricted variable list, so the templates stay
 // editable without touching Go.
@@ -51,38 +51,51 @@ type CompanyOptions struct {
 	Email     string
 
 	// SkipExternal omits the effects that reach outside the workspace: the
-	// company SSH identity in ~/.ssh and the 1Password vault.
-	//
-	// It exists so this package can be tested at all. Both effects touch the
-	// real machine and a real 1Password account — a test of company creation
-	// would have created a live vault named after its fixture, which is how
-	// this code stayed untested while creating companies for two months.
+	// company SSH identity in ~/.ssh. Password managers are never invoked.
 	SkipExternal bool
 }
 
 // vcsHost resolves the vcs[:host] shorthand.
 func vcsHost(raw string) (vcs, host string, err error) {
 	vcs, host, found := strings.Cut(raw, ":")
-	if found {
-		return vcs, host, nil
-	}
+	var defaultHost string
 	switch vcs {
 	case "gitlab":
-		return vcs, "gitlab.com", nil
+		defaultHost = "gitlab.com"
 	case "github":
-		return vcs, "github.com", nil
+		defaultHost = "github.com"
 	case "bitbucket":
-		return vcs, "bitbucket.org", nil
+		defaultHost = "bitbucket.org"
 	case "local":
-		return vcs, "local", nil
+		defaultHost = "local"
 	default:
 		return "", "", fmt.Errorf("неизвестный VCS: %s", vcs)
 	}
+	if !found {
+		host = defaultHost
+	}
+	if vcs == "local" && host != "local" {
+		return "", "", fmt.Errorf("local VCS does not accept a remote host")
+	}
+	if err := validateHost(host); err != nil {
+		return "", "", err
+	}
+	return vcs, host, nil
 }
 
-// Company bootstraps a company workspace: AGENTS.md, configs, SSH identity,
-// vault. One SSH key per company, never one global key.
+// Company publishes a complete workspace only after local files and SSH setup
+// succeed. Failed setup leaves no partial company and can be retried; any SSH
+// key or alias already created is preserved and reused.
 func Company(opts CompanyOptions, out io.Writer) error {
+	if err := world.ValidateSegment(opts.Slug); err != nil {
+		return fmt.Errorf("company: %w", err)
+	}
+	if err := validateNamespace(opts.Namespace); err != nil {
+		return err
+	}
+	if err := validateEmail(opts.Email); err != nil {
+		return err
+	}
 	vcs, host, err := vcsHost(opts.VCS)
 	if err != nil {
 		return err
@@ -102,12 +115,17 @@ func Company(opts CompanyOptions, out io.Writer) error {
 	}
 
 	co := opts.Slug
-	dir := filepath.Join(workRoot, co)
-	if _, err := os.Stat(dir); err == nil {
-		return fmt.Errorf("компания %q уже существует: %s", co, dir)
+	dir, err := world.SafePath(workRoot, co)
+	if err != nil {
+		return err
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("создание %s: %w", dir, err)
+	if _, err := os.Lstat(dir); err == nil {
+		return fmt.Errorf("компания %q уже существует: %s", co, dir)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
+		return fmt.Errorf("создание workspace root: %w", err)
 	}
 
 	title := strings.ToUpper(co[:1]) + co[1:]
@@ -115,33 +133,15 @@ func Company(opts CompanyOptions, out io.Writer) error {
 	if vcs != "local" {
 		sshHost = vcs + "-" + co
 	}
-	vault := "Work-" + co
-
 	agents, err := expandTemplate(filepath.Join(tpl, "AGENTS.md.company.tmpl"), map[string]string{
 		"CO": co, "CO_TITLE": title, "VCS": vcs, "HOST": host,
-		"NS": opts.Namespace, "SSH_HOST": sshHost, "VAULT": vault, "EMAIL": opts.Email,
+		"NS": opts.Namespace, "SSH_HOST": sshHost, "EMAIL": opts.Email,
 	})
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(agents), 0o644); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "✓ %s/AGENTS.md\n", dir)
-
-	keyPath := filepath.Join(home, ".ssh", co+"_id_ed25519")
-	if vcs != "local" && !opts.SkipExternal {
-		if err := ensureSSHIdentity(co, vcs, host, sshHost, keyPath, opts.Email, out); err != nil {
-			return err
-		}
-	}
-
 	config := fmt.Sprintf("slug: %s\nvcs: %s\nhost: %s\nnamespace: %s\nssh_host: %s\ngit_email: %s\n",
 		co, vcs, host, opts.Namespace, sshHost, opts.Email)
-	if err := os.WriteFile(filepath.Join(dir, ".company-config"), []byte(config), 0o644); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "✓ %s/.company-config\n", dir)
 
 	envrc := fmt.Sprintf(`# Git identity for %s
 export GIT_AUTHOR_EMAIL="%s"
@@ -150,29 +150,43 @@ export GIT_COMMITTER_EMAIL="%s"
 # Company-wide secrets will be wired here by the redesigned secrets layer
 # (hq secret is a stub for now). Plaintext secrets never enter git.
 `, co, opts.Email, opts.Email)
-	if err := os.WriteFile(filepath.Join(dir, ".envrc"), []byte(envrc), 0o644); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "✓ %s/.envrc (активировать: direnv allow)\n", dir)
-
 	readme := fmt.Sprintf(`# %s
 
 VCS: %s @ %s
 Namespace: %s
 SSH alias: %s
-1Password vault: Work-%s
 
 ## Products
 
 (добавляются через `+"`new-project %s <product> [repos...]`"+`)
-`, title, vcs, host, opts.Namespace, sshHost, co, co)
-	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte(readme), 0o644); err != nil {
+`, title, vcs, host, opts.Namespace, sshHost, co)
+	staged, err := os.MkdirTemp(filepath.Dir(dir), ".hq-company-"+co+"-")
+	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "✓ %s/README.md\n", dir)
-
-	if !opts.SkipExternal {
-		ensureVault(vault, out)
+	defer os.RemoveAll(staged)
+	for name, body := range map[string]string{"AGENTS.md": agents, ".company-config": config, ".envrc": envrc, "README.md": readme} {
+		if err := os.WriteFile(filepath.Join(staged, name), []byte(body), 0o644); err != nil {
+			return fmt.Errorf("stage company %s: %w", co, err)
+		}
+	}
+	keyPath := filepath.Join(home, ".ssh", co+"_id_ed25519")
+	if vcs != "local" && !opts.SkipExternal {
+		if err := ensureSSHIdentity(co, vcs, host, sshHost, keyPath, opts.Email, out); err != nil {
+			return fmt.Errorf("company %q was not published; existing SSH files were preserved; retry the same command: %w", co, err)
+		}
+	}
+	if _, err := world.SafePath(workRoot, co); err != nil {
+		return err
+	}
+	if _, err := os.Lstat(dir); !os.IsNotExist(err) {
+		return fmt.Errorf("company destination became occupied: %s", dir)
+	}
+	if err := os.Rename(staged, dir); err != nil {
+		return fmt.Errorf("publish company %s: %w", co, err)
+	}
+	for _, name := range []string{"AGENTS.md", ".company-config", ".envrc", "README.md"} {
+		fmt.Fprintf(out, "✓ %s\n", filepath.Join(dir, name))
 	}
 
 	fmt.Fprintf(out, "\n✅ Компания %q создана: %s\n\nДальше:\n", co, dir)
@@ -187,7 +201,10 @@ SSH alias: %s
 
 // ensureSSHIdentity generates the company key and the ~/.ssh/config alias.
 func ensureSSHIdentity(co, vcs, host, sshHost, keyPath, email string, out io.Writer) error {
-	if _, err := os.Stat(keyPath); err != nil {
+	if err := os.MkdirAll(filepath.Dir(keyPath), 0o700); err != nil {
+		return fmt.Errorf("create SSH directory: %w", err)
+	}
+	if info, err := os.Lstat(keyPath); os.IsNotExist(err) {
 		comment := email
 		if comment == "" {
 			comment = co + "-machine"
@@ -197,12 +214,19 @@ func ensureSSHIdentity(co, vcs, host, sshHost, keyPath, email string, out io.Wri
 			return fmt.Errorf("ssh-keygen: %w: %s", err, output)
 		}
 		fmt.Fprintf(out, "✓ SSH-ключ создан: %s\n", keyPath)
+	} else if err != nil {
+		return fmt.Errorf("inspect SSH key: %w", err)
+	} else if !info.Mode().IsRegular() {
+		return fmt.Errorf("SSH key is not a regular file: %s", keyPath)
 	} else {
 		fmt.Fprintf(out, "→ SSH-ключ уже есть: %s\n", keyPath)
 	}
 
 	config := filepath.Join(filepath.Dir(keyPath), "config")
-	data, _ := os.ReadFile(config)
+	data, err := os.ReadFile(config)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read SSH config: %w", err)
+	}
 	for _, line := range strings.Split(string(data), "\n") {
 		if strings.TrimSpace(line) == "Host "+sshHost {
 			fmt.Fprintf(out, "→ SSH-алиас %q уже в конфиге\n", sshHost)
@@ -227,27 +251,9 @@ Host %s
 	if _, err := file.WriteString(entry); err != nil {
 		return fmt.Errorf("запись %s: %w", config, err)
 	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("закрытие %s: %w", config, err)
+	}
 	fmt.Fprintf(out, "✓ SSH-алиас %q добавлен в %s\n", sshHost, config)
 	return nil
-}
-
-// ensureVault creates the 1Password vault when the CLI is signed in.
-func ensureVault(vault string, out io.Writer) {
-	if _, err := exec.LookPath("op"); err != nil {
-		fmt.Fprintf(out, "⚠ op CLI не найден — создай vault вручную: op vault create %s\n", vault)
-		return
-	}
-	if err := exec.Command("op", "vault", "list").Run(); err != nil {
-		fmt.Fprintf(out, "⚠ 1Password CLI не залогинен — `secret signin`, затем: op vault create %s\n", vault)
-		return
-	}
-	if exec.Command("op", "vault", "get", vault).Run() == nil {
-		fmt.Fprintf(out, "→ 1Password vault %q уже существует\n", vault)
-		return
-	}
-	if err := exec.Command("op", "vault", "create", vault).Run(); err != nil {
-		fmt.Fprintf(out, "⚠ не удалось создать vault %q: %v\n", vault, err)
-		return
-	}
-	fmt.Fprintf(out, "✓ 1Password vault %q создан\n", vault)
 }

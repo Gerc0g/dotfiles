@@ -3,14 +3,13 @@ package workspace
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/Gerc0g/dotfiles/core/wiki"
 	"github.com/Gerc0g/dotfiles/core/world"
 )
 
@@ -31,6 +30,41 @@ var knowledgeLinks = []string{"knowledge", "product-knowledge", "company-knowled
 
 // Start creates a worktree for one task and returns it.
 func (m *Manager) Start(company, product, repo, task string) (Workspace, error) {
+	return m.StartWithRequestID(company, product, repo, task, "")
+}
+
+// CreationNotStartedError proves that no worktree creation command was issued.
+type CreationNotStartedError struct{ Err error }
+
+func (e *CreationNotStartedError) Error() string { return e.Err.Error() }
+func (e *CreationNotStartedError) Unwrap() error { return e.Err }
+
+// StartWithRequestID persists the caller's opaque identity independently of the task slug.
+func (m *Manager) StartWithRequestID(company, product, repo, task, requestID string) (result Workspace, err error) {
+	creationIssued := false
+	defer func() {
+		if err != nil && !creationIssued {
+			err = &CreationNotStartedError{Err: err}
+		}
+	}()
+	if strings.TrimSpace(requestID) != requestID || strings.ContainsAny(requestID, "\r\n\x00=") {
+		return Workspace{}, fmt.Errorf("invalid workspace request identity")
+	}
+	if requestID != "" {
+		all, listErr := m.List()
+		if listErr != nil {
+			return Workspace{}, listErr
+		}
+		for _, existing := range all {
+			if existing.CreationRequestID != requestID {
+				continue
+			}
+			if existing.Company != company || existing.Product != product || existing.Repo != repo || existing.Task != Slugify(task) {
+				return Workspace{}, fmt.Errorf("workspace request identity belongs to another task")
+			}
+			return existing, nil
+		}
+	}
 	slug := Slugify(task)
 	if slug == "" {
 		return Workspace{}, fmt.Errorf("пустой слаг задачи")
@@ -55,6 +89,7 @@ func (m *Manager) Start(company, product, repo, task string) (Workspace, error) 
 		return Workspace{}, err
 	}
 
+	creationIssued = true
 	if baseRef == orphanRef {
 		if _, err := git(repoDir, "worktree", "add", "--quiet", "--orphan", "-b", branch, wtDir); err != nil {
 			return Workspace{}, err
@@ -74,25 +109,30 @@ func (m *Manager) Start(company, product, repo, task string) (Workspace, error) 
 	if err := ensureExcludes(wtDir); err != nil {
 		return Workspace{}, err
 	}
-	linkKnowledge(repoDir, wtDir)
-	// Best effort: a fresh worktree starts with its binding rules in place,
-	// instead of waiting for someone to run rules-sync by hand.
-	_ = wiki.RulesSyncRepo(company, product, repo, io.Discard)
-
 	w := Workspace{
-		Path:      wtDir,
-		ID:        id,
-		Company:   company,
-		Product:   product,
-		Repo:      repo,
-		Task:      slug,
-		Branch:    branch,
-		BaseRef:   baseRef,
-		State:     StateActive,
-		CreatedAt: m.now().Format("2006-01-02 15:04:05"),
+		Path:              wtDir,
+		ID:                id,
+		Company:           company,
+		Product:           product,
+		Repo:              repo,
+		Task:              slug,
+		CreationRequestID: requestID,
+		Branch:            branch,
+		BaseRef:           baseRef,
+		State:             StateActive,
+		CreatedAt:         m.now().Format("2006-01-02 15:04:05"),
 	}
 	if err := writeMeta(w); err != nil {
 		return Workspace{}, err
+	}
+	issues, err := m.RepairContext(w)
+	for _, issue := range issues {
+		if m.warnings != nil {
+			fmt.Fprintf(m.warnings, "context %s: %s: %s\n", issue.Severity, issue.Path, issue.Message)
+		}
+	}
+	if err != nil {
+		return w, fmt.Errorf("worktree создан в %s; контекст требует исправления: %w", w.Path, err)
 	}
 
 	m.syncProjects()
@@ -216,35 +256,53 @@ func ensureExcludes(wtDir string) error {
 // linkKnowledge mirrors the vault symlinks from the main checkout. They are
 // untracked by design, so a fresh worktree starts without them and the memory
 // write path would silently go dark.
-func linkKnowledge(repoDir, wtDir string) {
-	for _, name := range knowledgeLinks {
-		target, err := os.Readlink(filepath.Join(repoDir, "docs", name))
-		if err != nil {
-			continue
-		}
-		if info, err := os.Stat(target); err != nil || !info.IsDir() {
-			continue
-		}
-		_ = os.MkdirAll(filepath.Join(wtDir, "docs"), 0o755)
-		link := filepath.Join(wtDir, "docs", name)
-		_ = os.Remove(link)
-		_ = os.Symlink(target, link)
-	}
+func linkKnowledge(repoDir, wtDir string) error {
+	_, err := inspectKnowledge(repoDir, wtDir, true)
+	return err
+}
 
+func inspectKnowledge(repoDir, wtDir string, repair bool) ([]ContextIssue, error) {
+	var sources []string
+	for _, name := range knowledgeLinks {
+		sources = append(sources, filepath.Join(repoDir, "docs", name))
+	}
 	rules, _ := filepath.Glob(filepath.Join(repoDir, ".claude", "rules", "wiki-*"))
-	for _, rule := range rules {
-		target, err := os.Readlink(rule)
+	sources = append(sources, rules...)
+	var issues []ContextIssue
+	var failures []error
+	for _, source := range sources {
+		target, err := resolvedLinkTarget(source)
 		if err != nil {
 			continue
 		}
-		if info, err := os.Stat(target); err != nil || info.IsDir() {
+		if _, err := os.Stat(target); err != nil {
+			issues = append(issues, ContextIssue{Path: source, Severity: "warning", Message: "источник WikiPedik недоступен: " + err.Error()})
 			continue
 		}
-		_ = os.MkdirAll(filepath.Join(wtDir, ".claude", "rules"), 0o755)
-		link := filepath.Join(wtDir, ".claude", "rules", filepath.Base(rule))
-		_ = os.Remove(link)
-		_ = os.Symlink(target, link)
+		rel, err := filepath.Rel(repoDir, source)
+		if err != nil {
+			return issues, err
+		}
+		link := filepath.Join(wtDir, rel)
+		if contextLinkMatches(link, target) {
+			continue
+		}
+		_, statErr := os.Lstat(link)
+		if os.IsNotExist(statErr) && !repair {
+			issues = append(issues, ContextIssue{Path: link, Severity: "warning", Message: "WikiPedik ссылка отсутствует; выполните hq workspace context-repair"})
+			continue
+		}
+		if repair {
+			err = ensureContextLink(target, link)
+		} else {
+			err = fmt.Errorf("путь контекста занят; файл сохранён: %s", link)
+		}
+		if err != nil {
+			issues = append(issues, ContextIssue{Path: link, Severity: "error", Message: err.Error()})
+			failures = append(failures, err)
+		}
 	}
+	return issues, errors.Join(failures...)
 }
 
 // seedOrphan copies the checkout contents into an orphan worktree, which git

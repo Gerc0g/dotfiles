@@ -37,8 +37,12 @@ func entryTitles(page string) []string {
 	if err != nil {
 		return nil
 	}
+	return entryTitlesContent(string(data))
+}
+
+func entryTitlesContent(content string) []string {
 	var titles []string
-	for _, line := range strings.Split(string(data), "\n") {
+	for _, line := range strings.Split(content, "\n") {
 		switch {
 		case strings.HasPrefix(line, "## ["):
 			// inbox-style heading: "## [date] capture | title"
@@ -132,6 +136,50 @@ func ruleLines(repoMem string) []string {
 
 // BuildHot renders the hot.md content for one repo memory directory.
 func BuildHot(repoMem, repo string) string {
+	return buildHot(repo, ruleLines(repoMem), entryTitles(filepath.Join(repoMem, "lessons.md")), entryTitles(filepath.Join(repoMem, "gotchas.md")), entryTitles(filepath.Join(repoMem, "open-questions.md")))
+}
+
+// BuildHotFromPages renders safely-read scoped memory using the same hot-context formatter.
+func BuildHotFromPages(repo string, pages map[string]string) string {
+	var rules []string
+	names := make([]string, 0, len(pages))
+	for name := range pages {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if !strings.HasPrefix(name, "rules/") && !strings.HasPrefix(name, "product-rules/") {
+			continue
+		}
+		content := pages[name]
+		if !hasPathsFrontmatter(content) {
+			continue
+		}
+		label := "rules"
+		target := name
+		if strings.HasPrefix(name, "product-rules/") {
+			label = "product rules"
+			target = "product/rules/" + strings.TrimPrefix(name, "product-rules/")
+		}
+		title := strings.TrimSuffix(filepath.Base(name), ".md")
+		for _, line := range strings.Split(content, "\n") {
+			if strings.HasPrefix(line, "# ") {
+				title = strings.TrimSpace(line[2:])
+				break
+			}
+			if strings.HasPrefix(line, "description:") {
+				title = strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "description:")), "\"")
+			}
+		}
+		rules = append(rules, fmt.Sprintf("- [%s] %s → %s", label, title, target))
+	}
+	if len(rules) > rulesLimit {
+		rules = rules[:rulesLimit]
+	}
+	return buildHot(repo, rules, entryTitlesContent(pages["lessons.md"]), entryTitlesContent(pages["gotchas.md"]), entryTitlesContent(pages["open-questions.md"]))
+}
+
+func buildHot(repo string, rules, lessons, gotchas, questions []string) string {
 	lines := []string{
 		"# " + repo + " hot context",
 		"",
@@ -139,15 +187,15 @@ func BuildHot(repoMem, repo string) string {
 		"",
 	}
 
-	if rules := ruleLines(repoMem); len(rules) > 0 {
+	if len(rules) > 0 {
 		lines = append(lines, "## Binding rules", "")
 		lines = append(lines, rules...)
 		lines = append(lines, "")
 	}
 
-	lines = append(lines, hotSection("Fresh Lessons", "lessons.md", entryTitles(filepath.Join(repoMem, "lessons.md")), lessonsLimit)...)
-	lines = append(lines, hotSection("Critical Gotchas", "gotchas.md", entryTitles(filepath.Join(repoMem, "gotchas.md")), gotchasLimit)...)
-	lines = append(lines, hotSection("Open Questions", "open-questions.md", entryTitles(filepath.Join(repoMem, "open-questions.md")), questionsLimit)...)
+	lines = append(lines, hotSection("Fresh Lessons", "lessons.md", lessons, lessonsLimit)...)
+	lines = append(lines, hotSection("Critical Gotchas", "gotchas.md", gotchas, gotchasLimit)...)
+	lines = append(lines, hotSection("Open Questions", "open-questions.md", questions, questionsLimit)...)
 
 	lines = append(lines,
 		"## Memory pages (read on demand)",

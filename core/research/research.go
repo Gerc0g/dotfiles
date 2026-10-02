@@ -198,6 +198,11 @@ func readTopic(path, domain string) (Topic, error) {
 		return Topic{}, fmt.Errorf("чтение %s: %w", path, err)
 	}
 
+	return ParseTopicContent(path, domain, string(data))
+}
+
+// ParseTopicContent reuses the canonical frontmatter and link parser for securely read notes.
+func ParseTopicContent(path, domain, content string) (Topic, error) {
 	slug := strings.TrimSuffix(filepath.Base(path), ".md")
 	topic := Topic{
 		Path: path,
@@ -205,7 +210,7 @@ func readTopic(path, domain string) (Topic, error) {
 		Ref:  domain + "/" + slug,
 	}
 
-	front, body := splitFrontmatter(string(data))
+	front, body := splitFrontmatter(content)
 	topic.Body = body
 	if front != "" {
 		if err := yaml.Unmarshal([]byte(front), &topic.Meta); err != nil {

@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -360,5 +361,78 @@ func TestFindRejectsUnmanagedPath(t *testing.T) {
 
 	if _, err := m.Find("acme", "product", "repo", "nope"); err == nil {
 		t.Error("Find принял несуществующий воркспейс")
+	}
+}
+
+func TestStartRequestIdentitySurvivesMetadataAndDoesNotCreateTwice(t *testing.T) {
+	m, _ := newFixture(t)
+	w, err := m.StartWithRequestID("acme", "product", "repo", "Fix bug!", "launch-123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w.CreationRequestID != "launch-123" || w.Task != "fix-bug" {
+		t.Fatalf("unexpected identity: %+v", w)
+	}
+	all, err := m.List()
+	if err != nil || len(all) != 1 || all[0].CreationRequestID != "launch-123" {
+		t.Fatalf("identity not persisted: %+v (%v)", all, err)
+	}
+	again, err := m.StartWithRequestID("acme", "product", "repo", "Fix bug!", "launch-123")
+	if err != nil || again.Path != w.Path {
+		t.Fatalf("request repeated: %+v (%v)", again, err)
+	}
+	all, _ = m.List()
+	if len(all) != 1 {
+		t.Fatalf("created %d worktrees", len(all))
+	}
+}
+
+func TestStartRequestFailureSeparatesPreEffectAndCreatedContextFailure(t *testing.T) {
+	m, repo := newFixture(t)
+	_, err := m.StartWithRequestID("acme", "product", "missing", "Fix bug", "pre-effect")
+	var notStarted *CreationNotStartedError
+	if !errors.As(err, &notStarted) {
+		t.Fatalf("pre-effect failure lost proof: %v", err)
+	}
+	seedParentContext(t, repo)
+	first, err := m.Start("acme", "product", "repo", "first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeContextFixture(t, filepath.Join(first.Path, "..", "AGENTS.md"), "custom parent instructions\n")
+	created, err := m.StartWithRequestID("acme", "product", "repo", "Fix bug", "post-effect")
+	if err == nil || created.Path == "" || errors.As(err, &notStarted) {
+		t.Fatalf("created failure misclassified: %+v (%v)", created, err)
+	}
+	found, err := m.Find("acme", "product", "repo", created.ID)
+	if err != nil || found.CreationRequestID != "post-effect" {
+		t.Fatalf("created request cannot be reconciled: %+v (%v)", found, err)
+	}
+}
+
+func TestStartSupportsRussianTaskNamesInRealGitWorktrees(t *testing.T) {
+	m, _ := newFixture(t)
+	w, err := m.StartWithRequestID("acme", "product", "repo", "Исправить создание чата", "russian-task")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w.Task != "исправить-создание-чата" || !strings.HasPrefix(w.Branch, "agent/исправить-создание-чата-") {
+		t.Fatalf("task was lost: %+v", w)
+	}
+	if got := currentBranch(w.Path); got != w.Branch {
+		t.Fatalf("git did not create expected branch: %q", got)
+	}
+}
+
+func TestStartRejectsRequestIdentityChangedByMetadataTrimming(t *testing.T) {
+	m, _ := newFixture(t)
+	_, err := m.StartWithRequestID("acme", "product", "repo", "Fix bug", " launch-123 ")
+	var notStarted *CreationNotStartedError
+	if !errors.As(err, &notStarted) {
+		t.Fatalf("ambiguous identity issued creation: %v", err)
+	}
+	all, listErr := m.List()
+	if listErr != nil || len(all) != 0 {
+		t.Fatalf("created worktrees: %+v (%v)", all, listErr)
 	}
 }

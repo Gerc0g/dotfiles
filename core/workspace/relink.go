@@ -70,8 +70,10 @@ func (m *Manager) RelinkMemory() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	for _, gap := range gaps {
-		linkKnowledge(gap.RepoDir, gap.Worktree)
+	for i, gap := range gaps {
+		if err := linkKnowledge(gap.RepoDir, gap.Worktree); err != nil {
+			return i, err
+		}
 	}
 	return len(gaps), nil
 }

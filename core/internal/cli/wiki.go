@@ -228,10 +228,11 @@ func wikiAutocommitCmd() *cobra.Command {
 	var ifDue bool
 	cmd := &cobra.Command{
 		Use:   "autocommit",
-		Short: "Catch-all коммит вольта + best-effort pull/push",
+		Short: "Catch-all коммит вольта + push в Git-архив",
 		Long: "Сметает всё грязное в один коммит (с secret-scan диффа), затем\n" +
-			"pull --rebase и push, если есть remote. Сетевые проблемы только\n" +
-			"предупреждают.",
+			"push, если есть remote. Не загружает изменения из Git: устройства\n" +
+			"синхронизирует Obsidian Sync. Ошибка архива возвращает ненулевой код,\n" +
+			"локальные файлы и коммиты сохраняются.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return wiki.Autocommit(ifDue, cmd.OutOrStdout())

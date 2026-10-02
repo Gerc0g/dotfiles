@@ -34,6 +34,10 @@ func (c Config) Len() int {
 	return len(c.values)
 }
 
+// ReadConfig uses the workspace marker format for targeted readers such as
+// entity cards, without introducing another config parser outside world.
+func ReadConfig(path string) (Config, error) { return readConfig(path) }
+
 // readConfig parses a marker file. A missing file is not an error: the caller
 // has already decided the directory qualifies, and an empty config is valid.
 func readConfig(path string) (Config, error) {

@@ -1,15 +1,20 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os/user"
+	"strconv"
 
+	"github.com/Gerc0g/dotfiles/core/serversetup"
 	"github.com/Gerc0g/dotfiles/core/setup"
 	"github.com/spf13/cobra"
 )
 
 func newSetupCmd() *cobra.Command {
 	var dryRun bool
+	var mode, bundle, privateURL, daemonUser string
 
 	cmd := &cobra.Command{
 		Use:   "setup",
@@ -24,6 +29,36 @@ func newSetupCmd() *cobra.Command {
 			"состояние разошлось.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if mode != "workstation" && mode != "server" {
+				return errors.New("--mode must be workstation or server")
+			}
+			if mode == "server" {
+				if bundle == "" || privateURL == "" {
+					return errors.New("server setup requires --bundle and --private-url")
+				}
+				account, err := user.Lookup(daemonUser)
+				if err != nil {
+					return fmt.Errorf("daemon user %q must already exist: %w", daemonUser, err)
+				}
+				uid, err := strconv.Atoi(account.Uid)
+				if err != nil {
+					return err
+				}
+				gid, err := strconv.Atoi(account.Gid)
+				if err != nil {
+					return err
+				}
+				report, err := serversetup.Run(serversetup.Options{Bundle: bundle, PrivateURL: privateURL, User: daemonUser, UID: uid, GID: gid}, dryRun)
+				if err != nil {
+					return err
+				}
+				encoder := json.NewEncoder(cmd.OutOrStdout())
+				encoder.SetIndent("", "  ")
+				return encoder.Encode(report)
+			}
+			if bundle != "" || privateURL != "" || cmd.Flags().Changed("user") {
+				return errors.New("--bundle, --private-url and --user require --mode server")
+			}
 			env, err := newEnv()
 			if err != nil {
 				return err
@@ -62,6 +97,10 @@ func newSetupCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "показать изменения, ничего не применять")
+	cmd.Flags().StringVar(&mode, "mode", "workstation", "режим: workstation или server")
+	cmd.Flags().StringVar(&bundle, "bundle", "", "каталог проверенного серверного релиза с manifest.json")
+	cmd.Flags().StringVar(&privateURL, "private-url", "", "существующий приватный HTTPS-адрес сервера")
+	cmd.Flags().StringVar(&daemonUser, "user", "agent", "существующий непривилегированный пользователь сервера")
 
 	return cmd
 }

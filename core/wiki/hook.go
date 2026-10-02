@@ -235,7 +235,7 @@ Current WikiPedik scope: %s
 - English Personal Brand output should preserve the Russian source and usually be a separate copy with filename suffix `+"` - EN.md`"+`.
 - Закончил логическое изменение — сразу коммить сам: `+"`hq wikipedik sync \"<что сделал по смыслу>\"`"+` (коммитит вольт и пушит). Не жди конца сессии, не пиши «не забудь закоммитить» — коммит твой.
 - Current Git boundary: `+"`%s`"+` is the vault Git repository. Project memory lives in `+"`%s/dev`"+`, research in `+"`%s/research`"+`, and Personal Brand in `+"`%s/Personal Brand`"+`.
-- Сырой `+"`git commit`"+`/`+"`git push`"+` не используй: коммит вольта идёт через `+"`hq wikipedik`"+` — там секрет-скан диффа и pull --rebase перед пушем.
+- Сырой `+"`git commit`"+`/`+"`git push`"+` не используй: коммит вольта идёт через `+"`hq wikipedik`"+` — там секрет-скан диффа и только push в Git-архив. Устройства синхронизирует Obsidian Sync; pull/rebase в рабочем вольте не выполняй.
 - Commit messages: English Conventional Commit type/scope, Russian description/body, for example `+"`docs(brand): обновить трекер личного бренда`"+`.
 `, scope, vaultRoot, vaultRoot, vaultRoot, vaultRoot)
 }

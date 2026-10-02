@@ -128,11 +128,7 @@ func CountStatus(dir, wanted string) int {
 		if err != nil {
 			return nil
 		}
-		for _, match := range statusLineRe.FindAllStringSubmatch(string(data), -1) {
-			if match[1] == wanted {
-				count++
-			}
-		}
+		count += CountStatusText(string(data), wanted)
 		return nil
 	})
 	return count
@@ -158,4 +154,15 @@ func HotStamps(dir string) []string {
 		return nil
 	})
 	return out
+}
+
+// CountStatusText counts candidate lifecycle markers in an already scoped inbox.
+func CountStatusText(content, wanted string) int {
+	count := 0
+	for _, match := range statusLineRe.FindAllStringSubmatch(content, -1) {
+		if match[1] == wanted {
+			count++
+		}
+	}
+	return count
 }

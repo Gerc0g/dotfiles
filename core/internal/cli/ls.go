@@ -1,10 +1,14 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
 	"github.com/Gerc0g/dotfiles/core/internal/ui"
+	"github.com/Gerc0g/dotfiles/core/knowledge"
+	"github.com/Gerc0g/dotfiles/core/runner"
+	"github.com/Gerc0g/dotfiles/core/workspace"
 	"github.com/Gerc0g/dotfiles/core/world"
 	"github.com/spf13/cobra"
 )
@@ -12,6 +16,7 @@ import (
 type lsOptions struct {
 	flat  bool
 	paths bool
+	json  bool
 }
 
 func newLsCmd() *cobra.Command {
@@ -33,6 +38,9 @@ func newLsCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&opts.flat, "flat", false, "по строке на репозиторий, без дерева")
 	cmd.Flags().BoolVar(&opts.paths, "paths", false, "абсолютные пути вместо имён")
+	cmd.Flags().BoolVar(&opts.json, "json", false, "JSON-каталог компаний, продуктов, репозиториев и управляемых worktree")
+	cmd.MarkFlagsMutuallyExclusive("json", "flat")
+	cmd.MarkFlagsMutuallyExclusive("json", "paths")
 
 	return cmd
 }
@@ -58,6 +66,9 @@ func runLs(cmd *cobra.Command, args []string, opts lsOptions) error {
 	out := cmd.OutOrStdout()
 
 	// Machine modes stay unstyled: these exist to be piped.
+	if opts.json {
+		return printCatalog(out, tree, company, product)
+	}
 	if opts.flat || opts.paths {
 		printFlat(out, tree, company, product, opts.paths)
 		return nil
@@ -65,6 +76,95 @@ func runLs(cmd *cobra.Command, args []string, opts lsOptions) error {
 
 	printTree(out, tree, company, product)
 	return nil
+}
+
+// Catalog DTOs keep the versioned CLI contract separate from domain structs,
+// including private config values that must never leak into the JSON output.
+type lsCatalog struct {
+	Version   int                `json:"version"`
+	Root      string             `json:"root"`
+	Companies []lsCatalogCompany `json:"companies"`
+	Research  *lsCatalogResearch `json:"research,omitempty"`
+	Ordinary  *lsCatalogResearch `json:"ordinary,omitempty"`
+}
+
+type lsCatalogResearch struct {
+	Path string `json:"path"`
+}
+
+type lsCatalogCompany struct {
+	Slug     string             `json:"slug"`
+	Path     string             `json:"path"`
+	Products []lsCatalogProduct `json:"products"`
+}
+
+type lsCatalogProduct struct {
+	Slug  string          `json:"slug"`
+	Path  string          `json:"path"`
+	Repos []lsCatalogRepo `json:"repos"`
+}
+
+type lsCatalogRepo struct {
+	Name      string               `json:"name"`
+	Path      string               `json:"path"`
+	Worktrees []lsCatalogWorkspace `json:"worktrees"`
+}
+
+type lsCatalogWorkspace struct {
+	ID                string          `json:"id"`
+	Path              string          `json:"path"`
+	Branch            string          `json:"branch"`
+	State             workspace.State `json:"state"`
+	Task              string          `json:"task"`
+	CreationRequestID string          `json:"creationRequestId,omitempty"`
+}
+
+func printCatalog(out io.Writer, tree *world.Tree, company, product string) error {
+	manager, err := workspace.New(tree.RootPath())
+	if err != nil {
+		return err
+	}
+	worktrees, err := manager.List()
+	if err != nil {
+		return err
+	}
+	byRepo := make(map[string][]lsCatalogWorkspace)
+	for _, w := range worktrees {
+		ref := (world.Repo{Company: w.Company, Product: w.Product, Slug: w.Repo}).Ref()
+		byRepo[ref] = append(byRepo[ref], lsCatalogWorkspace{
+			ID: w.ID, Path: w.Path, Branch: w.Branch, State: w.State, Task: w.Task, CreationRequestID: w.CreationRequestID,
+		})
+	}
+
+	catalog := lsCatalog{Version: 1, Root: tree.RootPath(), Companies: []lsCatalogCompany{}}
+	if directory, err := knowledge.ResearchDirectory(); err == nil {
+		catalog.Research = &lsCatalogResearch{Path: directory}
+	}
+	if directory, err := runner.OrdinaryDirectory(); err == nil {
+		catalog.Ordinary = &lsCatalogResearch{Path: directory}
+	}
+	for _, c := range tree.Companies() {
+		if company != "" && c.Slug != company {
+			continue
+		}
+		entry := lsCatalogCompany{Slug: c.Slug, Path: c.Path, Products: []lsCatalogProduct{}}
+		for _, p := range tree.Products(c.Slug) {
+			if product != "" && p.Slug != product {
+				continue
+			}
+			group := lsCatalogProduct{Slug: p.Slug, Path: p.Path, Repos: []lsCatalogRepo{}}
+			for _, repo := range tree.Repos(c.Slug, p.Slug) {
+				children := byRepo[repo.Ref()]
+				if children == nil {
+					children = []lsCatalogWorkspace{}
+				}
+				group.Repos = append(group.Repos, lsCatalogRepo{Name: repo.Slug, Path: repo.Path, Worktrees: children})
+			}
+			entry.Products = append(entry.Products, group)
+		}
+		catalog.Companies = append(catalog.Companies, entry)
+	}
+	return json.NewEncoder(out).Encode(catalog)
 }
 
 func printFlat(out io.Writer, tree *world.Tree, company, product string, paths bool) {

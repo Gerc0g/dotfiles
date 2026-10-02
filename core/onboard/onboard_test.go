@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -19,15 +20,16 @@ func sandbox(t *testing.T) string {
 	root := t.TempDir()
 	t.Setenv(world.RootEnv, root)
 	t.Setenv(editor.ProjectsFileEnv, filepath.Join(t.TempDir(), "projects.json"))
+	fakeHome(t)
 	return root
 }
 
 func TestVCSHostResolvesShorthand(t *testing.T) {
 	cases := map[string][2]string{
-		"github":            {"github", "github.com"},
-		"gitlab":            {"gitlab", "gitlab.com"},
-		"bitbucket":         {"bitbucket", "bitbucket.org"},
-		"local":             {"local", "local"},
+		"github":             {"github", "github.com"},
+		"gitlab":             {"gitlab", "gitlab.com"},
+		"bitbucket":          {"bitbucket", "bitbucket.org"},
+		"local":              {"local", "local"},
 		"gitlab:git.acme.io": {"gitlab", "git.acme.io"},
 	}
 	for raw, want := range cases {
@@ -102,8 +104,7 @@ func TestCompanyCreatesWorkspaceAndRefusesDuplicate(t *testing.T) {
 	}
 }
 
-// SkipExternal is what keeps a test off the real machine; if it ever stops
-// working, tests start creating 1Password vaults and SSH keys for real. The
+// SkipExternal keeps SSH setup off the real machine. The
 // home directory here is a fresh one, so anything written outside the
 // workspace shows up as a directory that should not exist.
 func TestCompanySkipExternalTouchesNothingOutside(t *testing.T) {
@@ -134,11 +135,8 @@ func TestCompanySkipExternalTouchesNothingOutside(t *testing.T) {
 // templates so rendering still exercises what ships.
 func fakeHome(t *testing.T) string {
 	t.Helper()
-	real, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	source := filepath.Join(real, "dotfiles", "templates")
+	_, file, _, _ := runtime.Caller(0)
+	source := filepath.Join(filepath.Dir(file), "..", "..", "templates")
 	entries, err := os.ReadDir(source)
 	if err != nil {
 		t.Skipf("шаблоны платформы недоступны: %v", err)

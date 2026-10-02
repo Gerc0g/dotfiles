@@ -14,6 +14,7 @@ package workspace
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -42,18 +43,19 @@ const (
 
 // Workspace is one managed worktree.
 type Workspace struct {
-	Path      string
-	ID        string
-	Company   string
-	Product   string
-	Repo      string
-	Task      string
-	Branch    string
-	BaseRef   string
-	State     State
-	ReviewURL string
-	CreatedAt string
-	PushedAt  string
+	Path              string
+	ID                string
+	Company           string
+	Product           string
+	Repo              string
+	Task              string
+	CreationRequestID string
+	Branch            string
+	BaseRef           string
+	State             State
+	ReviewURL         string
+	CreatedAt         string
+	PushedAt          string
 	// Finish bookkeeping. The bash finisher used to write these keys past the
 	// core, and every core rewrite silently dropped them.
 	PushedBranch         string
@@ -77,6 +79,7 @@ type Manager struct {
 	// It is a field rather than a direct call so tests do not rewrite the real
 	// VS Code configuration of whoever runs them.
 	syncProjects func()
+	warnings     io.Writer
 }
 
 // Option customises a Manager.
@@ -97,6 +100,11 @@ func WithProjectSync(fn func()) Option {
 	return func(m *Manager) { m.syncProjects = fn }
 }
 
+// WithWarnings selects where non-blocking context warnings are reported.
+func WithWarnings(out io.Writer) Option {
+	return func(m *Manager) { m.warnings = out }
+}
+
 // New builds a Manager for a workspace root.
 func New(root string, opts ...Option) (*Manager, error) {
 	if root == "" {
@@ -113,6 +121,7 @@ func New(root string, opts ...Option) (*Manager, error) {
 		worktrees: filepath.Join(root, ".worktrees"),
 		vault:     filepath.Join(home, "Desktop", "WikiPedik", "dev", "20-projects"),
 		now:       time.Now,
+		warnings:  os.Stderr,
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -217,6 +226,8 @@ func readMeta(path string) (Workspace, error) {
 			w.Repo = value
 		case "task":
 			w.Task = value
+		case "creation_request_id":
+			w.CreationRequestID = value
 		case "branch":
 			w.Branch = value
 		case "base_ref":
@@ -263,6 +274,7 @@ func writeMeta(w Workspace) error {
 	write("product", w.Product)
 	write("repo", w.Repo)
 	write("task", w.Task)
+	write("creation_request_id", w.CreationRequestID)
 	write("branch", w.Branch)
 	write("base_ref", w.BaseRef)
 	write("cleanup_state", string(w.State))
@@ -281,7 +293,7 @@ func writeMeta(w Workspace) error {
 	return nil
 }
 
-var slugUnsafe = regexp.MustCompile(`[^a-z0-9._-]+`)
+var slugUnsafe = regexp.MustCompile(`[^\p{L}\p{N}._-]+`)
 var slugDashes = regexp.MustCompile(`-{2,}`)
 
 // Slugify turns free text into a branch-safe slug.

@@ -296,8 +296,8 @@ func VaultCommitMessage(description string) string {
 }
 
 // Autocommit sweeps everything dirty in the vault into one commit with the
-// given message (empty falls back to the generic one), then best-effort
-// pull --rebase + push.
+// given message (empty falls back to the generic one), then pushes an archive
+// copy. Obsidian Sync owns synchronization between devices.
 //
 // The whole vault is committed on purpose: an agent that just wrote a
 // conspectus should leave nothing behind, and the vault used to accumulate
@@ -311,7 +311,7 @@ type SyncOption func(*syncConfig)
 
 type syncConfig struct{ push bool }
 
-// WithPush controls the network half of the sync. Commits happen after every
+// WithPush controls the archive upload. Commits happen after every
 // edit and must stay fast; pushing is left to the end of a turn or session.
 func WithPush(push bool) SyncOption {
 	return func(c *syncConfig) { c.push = push }
@@ -405,28 +405,26 @@ func autocommit(ifDue bool, message string, conf syncConfig, out io.Writer) erro
 	return PushVault(root, out)
 }
 
-// PushVault syncs the vault with its remote: pull --rebase, then push. It is
-// separate from committing because per-step commits stay local, and the push
+// PushVault pushes the vault to its archive remote without importing changes.
+// Obsidian Sync owns synchronization; Git must never change vault contents.
+// It is separate from committing because per-step commits stay local, and the push
 // at the end of a turn has to happen even when there is nothing new to commit
 // — otherwise those local commits never leave the machine.
 //
-// Best-effort and guarded: any network or conflict issue warns and never
-// breaks the caller.
+// Failures are returned so scheduled archive jobs report a failed backup.
+// Local files and commits are preserved, including when the remote diverges.
 func PushVault(root string, out io.Writer) error {
-	remotes, _ := gitOut(root, "remote")
+	remotes, err := gitOut(root, "remote")
+	if err != nil {
+		return err
+	}
 	if remotes == "" {
 		return nil
 	}
-	if _, err := gitOut(root, "pull", "--rebase", "--quiet"); err != nil {
-		_, _ = gitOut(root, "rebase", "--abort")
-		fmt.Fprintln(out, "⚠ pull --rebase не прошёл (конфликт/сеть?) — синк отложен, разреши вручную")
-		return nil
-	}
 	if _, err := gitOut(root, "push", "--quiet"); err != nil {
-		fmt.Fprintln(out, "⚠ push не прошёл (сеть/доступ?) — изменения сохранены локально")
-		return nil
+		return fmt.Errorf("архив WikiPedik не отправлен; файлы и коммиты сохранены локально. Проверь сеть, доступ и upstream; при расхождении истории проверь архив в отдельном клоне, не выполняй pull/rebase или force-push в рабочем вольте. Синхронизацией устройств управляет Obsidian Sync: %w", err)
 	}
-	fmt.Fprintln(out, "wikipedik-autocommit: синхронизировано (pull+push)")
+	fmt.Fprintln(out, "wikipedik-autocommit: архив отправлен (push-only)")
 	return nil
 }
 

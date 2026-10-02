@@ -8,16 +8,27 @@ import (
 func newOnboardCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "onboard",
-		Short: "Создание компаний и продуктов",
+		Short: "Создание компаний, продуктов и репозиториев",
 		Long: "Компания — каталог с .company-config, SSH-идентичностью (один ключ на\n" +
-			"компанию) и vault в 1Password. Продукт — каталог с .product-config и\n" +
+			"компанию). Продукт — каталог с .product-config и\n" +
 			"клонами репозиториев. AGENTS.md рендерятся из ~/dotfiles/templates.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	}
 
-	cmd.AddCommand(onboardCompanyCmd(), onboardProductCmd())
+	cmd.AddCommand(onboardCompanyCmd(), onboardProductCmd(), onboardRepoCmd())
 	return cmd
+}
+
+func onboardRepoCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "repo <company> <product> <repo...>",
+		Short: "Добавить репозитории без перезаписи контекста продукта",
+		Args:  cobra.MinimumNArgs(3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return onboard.Repositories(onboard.ProductOptions{Company: args[0], Product: args[1], Repos: args[2:]}, cmd.OutOrStdout())
+		},
+	}
 }
 
 func onboardCompanyCmd() *cobra.Command {

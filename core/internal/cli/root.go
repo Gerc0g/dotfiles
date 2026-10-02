@@ -39,6 +39,10 @@ func NewRoot() *cobra.Command {
 	root.AddCommand(
 		newLsCmd(),
 		newCtxCmd(),
+		newEntityCmd(),
+		newControlCmd(),
+		newKnowledgeCmd(),
+		newRunnerCmd(),
 		newSetupCmd(),
 		newDoctorCmd(),
 		newServerCmd(),
