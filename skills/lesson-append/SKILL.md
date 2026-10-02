@@ -34,6 +34,17 @@ Also invoke explicitly when the user says: "запиши урок", "save this l
 
 ## What it does
 
+In an HQ server task, run `hq ctx --plain` to resolve the bound repository.
+Memory is mounted read-only. Submit the capture through
+`hq runner broker memory.capture <json>` with exactly `title` and `body`.
+Build JSON with a serializer and pass it as one argument; do not interpolate
+note text into shell syntax. Put the evidence, root cause, reusable rule and
+citations below in `body`. The broker appends only to the bound repo inbox and
+returns `status: candidate`; it cannot select another company or curate notes.
+For a company/product context task with no bound repo, report the missing repo
+target rather than creating or guessing one. The direct-file flow below applies
+only to workstations.
+
 1. Resolve target file:
    - `cwd` must be inside a repo under `~/Desktop/Prokectfiles/<co>/<prod>/<repo>/`
    - target file is `docs/knowledge/_inbox.md`

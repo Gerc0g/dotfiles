@@ -22,7 +22,6 @@ Rule: read child files only when task requires.
 - **VCS:** ${VCS} at `${HOST}`
 - **SSH alias:** `${SSH_HOST}`
 - **Default namespace:** `${NS}`
-- **1Password vault:** `${VAULT}`
 - **Git identity:** `${EMAIL}`
 - **Network:** <!-- TODO --> TODO (VPN required? other constraints?)
 
@@ -58,12 +57,11 @@ Document **only differences** from baseline here. Empty if defaults apply.
 
 ## Secrets
 
-- All secrets live in `${VAULT}` vault, with scoped item names:
-  `_company__<VAR>`, `<product>__<VAR>`, or `<product>__<repo>__<VAR>`.
-- The secrets layer is being redesigned (`hq secret` is a stub); adding and
-  wiring secrets into `.envrc` will return with it. No plaintext secrets in
-  git meanwhile.
-- Reference for 1Password, direnv, `.envrc`, env vars:
+- Company creation does not provision a secrets backend. Choose and document
+  the backend explicitly when this company needs one.
+- The secrets layer is being redesigned (`hq secret` is a stub). No plaintext
+  secrets in git; existing credentials and backends remain unchanged.
+- Reference for secrets, direnv, `.envrc`, env vars:
   `~/dotfiles/docs/platform/secrets-env.md`.
 - PII / sensitive data: <!-- TODO --> TODO (none / GDPR / HIPAA / SOC2 / other)
 

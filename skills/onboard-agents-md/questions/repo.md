@@ -1,152 +1,78 @@
 # Repo-level questions
 
-Walkthrough для repo AGENTS.md. **Главная разница с company/product**: большая
-часть наполнения должна делаться **автоматически из кода**, не вопросами user'у.
+Derive verifiable facts first, then ask for human knowledge. Work from the
+canonical repo card and its checkout; `.git` may be a file in a worktree.
+Auto-filling prose does not confirm onboarding items.
 
-Стратегия: **сначала auto-fill** из манифеста и кода, **потом** только спросить
-у пользователя то, что код не покажет (non-obvious patterns, history-specific
-quirks).
+Honor any item focus from the HQ task. A Git repo with no commits/source is a
+valid onboarding target: document what is absent, ask about intended purpose,
+and distinguish future choices from implemented facts. Missing design docs,
+manifests, Makefile or tests do not require generating them to proceed.
 
----
+## Read the sources
 
-## Step 1. Auto-fill из кода
+Read only relevant files that exist:
 
-Read следующие файлы (если есть):
+- README, package manifests and lockfiles;
+- Makefile and declared package scripts;
+- existing `docs/design.md`, entry points, representative modules and tests;
+- Dockerfile and CI definitions for supporting evidence;
+- tracked env examples and variable names in config code.
 
-- `README.md` — описание репо
-- `pyproject.toml` / `package.json` / `go.mod` / `Cargo.toml` — manifest
-- `Makefile` / scripts in `package.json` / `pyproject.toml` `[project.scripts]`
-- `Dockerfile` / `docker-compose.yml`
-- `.env.example` / `.env.template`
-- `.gitlab-ci.yml` / `.github/workflows/*.yml`
-- Entry points: `src/main.py`, `cmd/server/main.go`, `src/index.ts`, etc.
-- `tests/` или `test/` структура
+Do not read/print real secrets or use `.env*` values as documentation input.
+Do not run install, bootstrap, infrastructure or migration commands merely to
+fill the card. Current source outranks stale design docs; record discrepancies.
 
-Из них заполнить sections:
+## Fill existing sections
 
-### Stack
-- Language version (из manifest)
-- Framework (из dependencies)
-- Top 3-5 key deps (только важные, не все)
-- Database (из docker-compose / env vars / config)
-- Runtime (uvicorn / gunicorn / node / go / etc.)
+| Exact template heading | Evidence to use |
+|---|---|
+| `## What this repo does` | README and entry points; one factual sentence |
+| `## Stack` | Manifest/runtime versions, framework, important deps, DB |
+| `## Commands` | Actual Make targets first, then existing package scripts |
+| `## Key files` | Real entry/config/handler/test paths, about 5–10 files |
+| `## Local dev` | Required variable names, actual ports, applicable dev-stack services |
+| `## Env contract` | Existing rules and documented variable names, no values |
+| `## Non-obvious patterns` | Source-backed conventions and the user's knowledge |
+| `## Boundaries` | Existing explicit rules and human decisions |
 
-### Commands
-Реальные команды (не угадывая):
-- Treat `Makefile` as the canonical executable interface when present.
-- Install — из manifest: `uv sync` / `npm install` / `go mod download`
-- Dev (hot reload) — из package.json scripts / Makefile / pyproject scripts
-- Build, Test, Lint, Format, Typecheck — то же
-- Full verify — собрать lint + test + typecheck в одну команду
-- If `Makefile` is absent but the repo has runnable code, propose/add a minimal one with stable targets:
-  `install`, `dev`, `test`, `test-one`, `lint`, `format`, `typecheck`, `verify`.
-- `verify` must be local and non-destructive: no migrations, deploys, broad cleanup, or external state mutation.
-- If no automated tests exist yet, make `test` explicit instead of ambiguous (docs/smoke check or clear "no automated tests configured" message).
+- Replace only resolved placeholders. Leave `TODO: <specific missing fact>`
+  where evidence is unavailable; do not substitute “not found” to hide a gap.
+- Do not invent a combined verify command. Document the actual target/script
+  and its scope. If it has not been run, do not claim validation passed.
+- If Makefile or a useful target is absent, propose a separate change. Only
+  implement it when the user has authorized that work; card filling alone is
+  not authorization. Preserve `## Testing contract`.
+- A `DATABASE_URL` reference alone does not prove which DB is used. If the
+  shared infra is appropriate, suggest `dev-stack connect` and `dev-stack doctor`.
+  Do not execute connect here: it writes `.envrc` and may create a database.
+- Do not add a Conventions snippet section: the current template has
+  `## Non-obvious patterns`. Preserve existing useful custom content.
 
-### Key files / entry points
-- Entry point: actual path найденный в коде
-- API routes: scan `**/*router*.py`, `**/*routes*.ts`, `**/*handler*.go`
-- Config: scan `config.py`, `settings.py`, `.env*`, `<repo>/config/`
-- Models / schemas: scan `models/`, `schemas/`, `types/`
-- Tests: scan `tests/`, `test/`, `__tests__/`, `*_test.go`
+Save factual edits using the SKILL.md protocol. For a full-document payload,
+start with the current card content and apply exact scoped replacements; never
+regenerate the file from a template.
 
-### Local development
-- Required env vars: из `.env.example` + grep `os.environ`/`process.env`/`os.Getenv`
-- dev-stack DB: если в коде есть `DATABASE_URL` → подсказать `dev-stack db-create <name>`
-- Redis: если в коде `redis://localhost`
-- Port: из uvicorn / express / Gin config
+## Ask only unresolved questions
 
-### Conventions
-- Один представительный snippet 3-10 строк — пройтись по `git log --oneline -20`,
-  найти recent commit "fix" → посмотреть pattern. Или взять представительный
-  endpoint / handler.
+1. **Purpose:** show the factual role sentence for review when not already
+   supplied by the user.
+2. **Commands / stack / key files:** show the evidence-backed draft. Ask for
+   human review of the whole backend `commands` item, not only one command.
+3. **Environment:** clarify missing requirements in `Local dev` and `Env
+   contract`; obtain review of the complete `environment` item.
+4. **Non-obvious patterns:** «Какие правила здесь неочевидны из обычного чтения
+   кода? Есть подтверждённые исключения или исторические причины?»
+5. **Boundaries:** «Какие особые области требуют согласования сверх уже
+   записанных правил? Если таких нет, можно явно это зафиксировать».
 
-Apply: заменить ALL `<TODO: ...>` маркеры в этих секциях актуальными данными.
+Items 4–5 belong to the same backend `boundaries` item; do not confirm it while
+part of that content remains unknown. A “не знаю” answer leaves a TODO. An
+explicit “дополнительных ограничений нет” records an actual human decision.
 
-**Не выдумывать.** Если данные не нашлись в коде — оставить `not found in repo`.
+## Finish
 
----
-
-## Step 2. Ask user only what code doesn't show
-
-После auto-fill — show diff пользователю:
-> "Auto-filled sections: Stack / Commands / Key files / Local dev / Conventions snippet.  
-> Осталось 3-4 вопроса на то что код не покажет:"
-
-### Q1. Non-obvious patterns
-
-**Section:** `## Conventions (only non-obvious)` → bullets ниже snippet'а
-
-Ask:
-> "Есть ли counterintuitive patterns в этом репо? Примеры:  
-> - `All API methods return Result<T>, NEVER throw`  
-> - `Migrations are handwritten, NEVER alembic --autogenerate`  
-> - `Use lib/http apiClient, never raw fetch/requests`  
-> Расскажи знаешь ли что-то такое для этого репо."
-
-Если "не знаю" — оставить TODO, потом сам допишешь когда узнаешь.
-
-### Q2. Repo-specific dangerous areas
-
-**Section:** `## Boundaries` → `⚠️ Ask first: Touch <TODO: ...>`
-
-Ask:
-> "Есть ли особо опасные места в этом репо помимо migrations / .env*? Что нужно ask first?  
-> Примеры: `kafka topic schemas`, `payment_processing/*`, `feature_flags/*`  
-> Или 'none' если ничего особого."
-
----
-
-## Step 3. Final cleanup
-
-1. Remove bottom HTML comment block with codex bootstrap prompt:
-   ```bash
-   sed -i '' '/^<!--$/,/^-->$/d' AGENTS.md
-   ```
-   (но только если этот блок уже не нужен — после первого fill его удаляют)
-
-2. `grep -n TODO AGENTS.md` — final count
-3. Если осталось > 0 → list, ask "оставить как есть или продолжить?"
-
----
-
-## Alternative: full codex bootstrap (one-shot)
-
-Вместо пошагового — можно делегировать codex'у полный auto-fill через bootstrap
-prompt который лежит в конце сгенерированного repo AGENTS.md:
-
-> "Read AGENTS.md and the rest of this repo: README.md, the package manifest
-> (pyproject.toml / package.json / go.mod / Cargo.toml), Dockerfile if any,
-> Makefile or scripts, entry points (main.py / cmd/main.go / src/index.ts),
-> tests/ structure, .env.example, .gitlab-ci.yml or .github/workflows/.
->
-> Fill out AGENTS.md sections marked <TODO>:
-> - Stack: real versions from manifest
-> - Commands: exact commands; prefer Makefile targets as canonical, then pyproject/package scripts
-> - Testing contract: keep Makefile + AGENTS in sync; update Makefile when tests/runners/gates change
-> - Key files: real paths
-> - Local development: env vars from .env.example / .envrc / config, ports
-> - Conventions: ONE representative 3-10 line snippet from THIS repo
-> - Non-obvious patterns: only counterintuitive things (look at recent git log for "fix" commits)
-> - Boundaries: any repo-specific danger zones
->
-> Rules:
-> - Real values only. NO "TBD" if data is in repo.
-> - If not found, write 'not found in repo'.
-> - Keep it concise: context for sessions, not docs for humans.
-> - Telegraph style. Commands and tables.
-> - Don't modify: top comment block, Definition of Done structure, Lessons section.
->
-> Show me the diff before saving."
-
-После этого — Q1 и Q2 выше для human-knowledge только.
-
----
-
-## Final step
-
-1. `git diff AGENTS.md` summary
-2. `grep -c TODO AGENTS.md` — should be 0
-3. Suggested commit (в repo's git):
-   > `docs(agents): заполнить repo AGENTS.md (auto + manual)`
-4. NEVER auto-commit.
+Re-read the HQ card and report saved changes, backend status, and pending
+missing/review items. Do not delete HTML comments broadly, look for an embedded
+Codex bootstrap prompt, or launch another agent: the template contains no such
+prompt and this workflow does not require one. No automatic commit follows.

@@ -1,6 +1,6 @@
 ---
 name: skill-maintainer
-description: "Create, update, split, install, validate, debug, or improve Codex/Claude skills in this dotfiles architecture. Use whenever the user wants to make a new skill, modify an existing skill, adapt a skill from another source, fix SKILL.md YAML/frontmatter/loading issues, or decide where a skill should live across daily/setup/wiki agent profiles."
+description: "Create, update, split, install, validate, debug, or improve Codex/Claude skills in this dotfiles architecture. Use whenever the user wants to make a new skill, modify an existing skill, adapt a skill from another source, fix SKILL.md YAML/frontmatter/loading issues, or manage skill installation in the standard Claude/Codex profiles."
 ---
 
 # Skill Maintainer
@@ -16,8 +16,6 @@ symlink.
 
 - Do not create reusable skills directly in `~/.codex/skills` or
   `~/.claude/skills`.
-- Do not create reusable skills directly in `~/.codex/skills`,
-  `~/.claude/skills`, or `~/.codex/skills`.
 - Create or edit source skills in `~/dotfiles/skills/<skill-name>/SKILL.md`.
 - Runtime profile directories should contain symlinks to dotfiles skills.
 - Install and validate with `agent-skill install` and `agent-skill doctor`.
@@ -120,11 +118,9 @@ Prefer the lowest complexity that keeps the workflow reliable.
    - What output should it produce?
    - What files, commands, or tools does it need?
    - What should it never do?
-2. Decide the target:
-   - Daily worker skill: useful during normal repo work.
-   - Setup skill: useful for onboarding, analysis, template generation, or
-     platform maintenance.
-   - Wiki curator skill: useful only inside WikiPedik curator flows.
+2. Define the workflow scope and trigger: normal development, onboarding,
+   analysis, or wiki curation. These are task categories, not separate runtime
+   profiles. Every repo-owned skill is installed into both standard profiles.
 3. Create or edit the source:
 
    ```bash
@@ -146,35 +142,26 @@ Prefer the lowest complexity that keeps the workflow reliable.
    agent-skill doctor
    ```
 
-6. Verify the runtime prompt if the profile matters:
+6. When runtime loading needs verification, inspect the normal Codex prompt:
 
    ```bash
-   CODEX_HOME=~/.codex codex debug prompt-input smoke | rg '<skill-name>'
-   CODEX_HOME=~/.codex codex debug prompt-input smoke | rg '<skill-name>'
-   CODEX_HOME=~/.codex codex debug prompt-input smoke | rg '<skill-name>'
+   codex debug prompt-input smoke | rg '<skill-name>'
    ```
 
 ## Local Profile Rules
 
-This platform intentionally separates runtime profiles:
+There is one standard profile per provider: `~/.claude` and `~/.codex`.
+`hq skill install` (also exposed as `agent-skill install`) links every repo-owned
+skill into both profiles. `core/skill` owns this installation contract.
 
-- Daily: `~/.codex`, `~/.claude`
-  - normal development;
-  - worker memory skills;
-  - no setup-only analysis skills.
-- Setup: `~/.codex`, `~/.claude`
-  - onboarding and context generation;
-  - product/repo analysis;
-  - AGENTS.md generation.
-- Wiki curator: `~/.codex`
-  - WikiPedik curation and synthesis.
+Do not create setup/daily/wiki profiles or change `CODEX_HOME` /
+`CLAUDE_CONFIG_DIR` just to run an onboarding or analysis skill. Skills are
+selected by task instructions and their triggers. Keep task-specific scope in
+the skill, not in a separate login/profile directory.
 
-`skill-maintainer` is universal and should be installed everywhere. Most
-skills are setup-only unless the user explicitly says they should be daily or
-wiki skills.
-
-If adding a new profile target, update `scripts/agent-skill.sh`,
-`bootstrap.sh`, and docs together.
+When the user explicitly requests a new installation target, update the owning
+`core/skill` configuration and relevant bootstrap/docs together. Environment
+overrides used for tests or an explicitly selected runtime remain supported.
 
 ## Quality Bar
 
@@ -187,8 +174,8 @@ Before reporting done:
 - Scripts are executable if the skill depends on them.
 - References are linked from `SKILL.md`.
 - `agent-skill doctor` passes.
-- For Codex, `codex debug prompt-input` confirms the skill appears in the
-  intended profile and does not leak into unintended profiles.
+- When runtime loading was checked, report which actual profile and skill were
+  observed; do not claim loading from static frontmatter validation alone.
 
 ## Evaluation
 

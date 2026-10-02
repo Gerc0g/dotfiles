@@ -2,20 +2,26 @@
 
 Detailed checklist for what to analyze and what to write in `docs/ARCHITECTURE.md`.
 
+Follow SKILL.md for the canonical HQ product scope and write authorization.
+Examples below illustrate structure only; service names, ports, infrastructure,
+deployment and ADR rationale must come from the actual registered repos.
+
 ---
 
 ## Phase 1: Inventory
 
-For each repo (subdirectory) in cwd:
+Read the resolved product card and use its registered repo `children`:
 
-```bash
-# List repos
-for d in */; do
-  [ -d "$d/.git" ] || [ -f "$d/pyproject.toml" ] || [ -f "$d/package.json" ] || [ -f "$d/go.mod" ] && echo "$d"
-done
+```text
+hq entity show <company/product> --json
 ```
 
-For each detected repo, collect (read but don't edit):
+Read each child's card to resolve its canonical path. A `.git` file is a valid
+worktree marker; a manifest or arbitrary child directory is not registration.
+Record unavailable or empty repos as coverage limits without provisioning them.
+If no code exists, describe that fact instead of inventing service architecture.
+
+For each registered repo, collect available evidence (read but don't edit):
 - `README.md` (top 50 lines)
 - `pyproject.toml` / `package.json` / `go.mod` / `Cargo.toml` (full)
 - `Dockerfile` (full)
@@ -64,6 +70,8 @@ auth: JWT bearer + Redis blacklist
 ## Phase 3: Build communication graph
 
 Cross-reference per-repo `external_calls` with sibling repos' declared ports.
+Matching ports are a clue, not proof of communication; verify configuration,
+call sites and receiving routes before adding an asserted edge.
 
 Output: communication table.
 
@@ -174,7 +182,7 @@ Each ADR file structure (Michael Nygard format):
 # 0001. Message bus via NATS
 
 ## Status
-Accepted (2024-12)
+Draft
 
 ## Context
 We need async work distribution from cortex to multiple agent workers.
@@ -190,17 +198,19 @@ Use NATS via synapse service as central message broker.
 - Lock-in to NATS-specific patterns
 
 ## Status history
-- 2024-12 Accepted
+- <date> Draft proposal
 ```
 
-If real decision context is unknown — write ADR with `Context: TODO confirm with team`
-to mark for human follow-up.
+Keep candidates in the report unless ADR files are explicitly authorized. Use
+unused numbering when writing, retain Draft status, and mark unknown historical
+context as TODO. Do not claim the example options were actually considered.
 
 ---
 
 ## Phase 9: Output
 
-Write all of above to `docs/ARCHITECTURE.md` in this structure:
+Draft supported findings for `docs/ARCHITECTURE.md` under the canonical product
+path in this structure. Persist only within the write scope defined in SKILL.md:
 
 ```markdown
 # Architecture — ${PROD}
@@ -242,7 +252,7 @@ Then propose ADR files separately (Phase 8 output).
 
 - **Code analysis is heuristic.** Pattern detection works for common frameworks
   but may miss non-standard usage. Mark uncertainty explicitly.
-- **External services beyond cwd** may be invisible. If repo calls `https://api.external.com`,
+- **External services outside the product** may be invisible. If repo calls `https://api.external.com`,
   note it but ask user to confirm what service that is.
 - **Async patterns** harder than sync to trace. Ask user for clarification on
   ambiguous flows.

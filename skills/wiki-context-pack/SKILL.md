@@ -9,7 +9,14 @@ Worker-side read-only skill. It gathers a small, relevant memory slice from Wiki
 
 ## Scope Resolution
 
-Run from a repo under:
+In an HQ server task, resolve the bound scope with `hq ctx --plain`. Use the
+company-memory mount and paths given by the task's managed instructions; the
+same relative repo/product/company read order below applies. This mount is
+read-only. A missing workstation symlink is not permission to run bootstrap or
+scan the host home. Research tasks have no company memory; read only their
+research workspace and state that project memory is unavailable there.
+
+On a workstation, run from a repo under:
 
 ```text
 ~/Desktop/Prokectfiles/<co>/<prod>/<repo>
@@ -75,4 +82,3 @@ Scope: <co>/<prod>/<repo>
 - Do not read another company namespace.
 - Do not full-scan the vault unless the user explicitly asks.
 - Do not treat wiki memory as canonical architecture.
-

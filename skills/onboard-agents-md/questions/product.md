@@ -1,157 +1,73 @@
 # Product-level questions
 
-Walkthrough TODOs in `~/Desktop/Prokectfiles/<co>/<prod>/AGENTS.md`.
+Use `hq entity show <company/product> --json` and the current AGENTS.md. The
+headings below match `templates/AGENTS.md.product.tmpl`. First collect facts from
+the card and available repo sources; architecture docs are optional evidence.
+Then ask one unresolved question at a time within any requested item focus.
+Save through HQ and retain unknowns as TODO.
 
-ONE question per message. Apply Edit immediately.
+## Purpose and status
 
----
+**Section:** `## What this is`.
 
-## Q1. What this product does
+Ask separately when needed:
 
-**Section:** `## What this is (one line)`
+1. «Что делает продукт, для кого и какую задачу решает — одной строкой?»
+2. «Какой подтверждённый статус: production, staging, experimental или legacy?»
 
-Ask:
-> "Что делает product `${PROD}` одной строкой? (что строит / для кого / какая ценность)"
+Do not infer deployment status from recent commits, repository activity, or a
+default. The backend `purpose` item covers both purpose and the Status line.
 
-Apply: replace `<TODO: one sentence...>` with answer.
+## Repositories and roles
 
-## Q2. Status
+**Section:** `## Repos and roles`.
 
-Ask:
-> "Текущий статус продукта?  
-> 1. production — живой продукт с users  
-> 2. staging — почти production, последние проверки  
-> 3. experimental — POC, может быть выкинут  
-> 4. legacy — поддерживается но не развивается"
+Read the card's `children` and available `<repo>/docs/design.md` / manifests.
+Only registered Git repositories belong in the table; arbitrary directories
+are not repositories. Git worktrees may carry a `.git` file.
 
-Apply: replace `Status: <TODO: ...>` line.
+Draft `Repo | Role | Stack hint` rows from evidence. Ask about unclear roles:
+«Правильно ли описана роль этого репозитория? Что нужно уточнить?»
 
----
+Source-derived rows remain unconfirmed until the user reviews the whole
+`repositories` item. A currently empty product may be documented as having no
+registered repos after checking the card; this factual edit still awaits human
+review. Do not invent future repositories or run provisioning to fill the table.
 
-## Q3. Repos and roles
+## Data flow and contracts
 
-**Section:** `## Repos and roles` (таблица)
+**Sections:** `## Data flow (only if non-obvious)`, `## Cross-repo conventions`.
 
-Read the directory listing first:
-```bash
-ls -d */ | grep -v AGENTS.md
-```
+Use existing `docs/ARCHITECTURE.md` as evidence, then ask unresolved questions:
 
-Затем для каждого репо:
-> "Репо `${REPO}` — что делает (одна строка) и tech stack hint?  
-> Пример: `API gateway, request validation, rate limit | FastAPI`"
+1. «Как данные и запросы проходят между репозиториями? Есть нетривиальные связи?»
+2. «Где общие схемы/DTO и какие потребители меняются вместе с API?»
 
-Apply: построчно заполнить таблицу `| ${REPO} | <role> | <stack hint> |`.
+Record a short flow and actual schema/consumer locations. If the user confirms
+independent repos or no special flow, say so in the existing section; removal
+of this optional section is also supported. Missing evidence is not proof that
+there are no dependencies.
 
----
+Keep the existing testing and env contract. For an applicable repo, the current
+infra recommendation is `dev-stack connect`, followed by `dev-stack doctor`;
+this walkthrough documents the recommendation and does not execute it.
 
-## Q4. Data flow
+The `contracts` item covers all relevant data-flow and conventions content.
 
-**Section:** `## Data flow (only if non-obvious)`
+## Boundaries
 
-Ask:
-> "Data flow между репами этого product — есть нетривиальный? Например один отправляет события, другой потребляет, третий хранит state?  
-> 1. Yes — описать (попроси нарисовать 2-5 строк ASCII или текст)  
-> 2. No — репы независимые / простой monorepo"
+**Section:** `## Boundaries (product-specific)`.
 
-Если 2 — удалить всю секцию + комментарий.
+Ask: «Какие области и операции требуют отдельного согласования: общие схемы,
+миграции, конфиги, изменения сразу в нескольких репозиториях?»
 
-Если 1 — попросить:
-> "Опиши flow словами или ASCII. Например:  
-> `client → barrier (gateway) → cortex (router) ─┬→ nerve (events)`  
-> `                                              ├→ vox (voice)`  
-> `                                              └→ cerebellum (state)`"
+Use the user's current authorization and concrete project rules. Do not create
+new blanket approval requirements or erase existing ones. Unknown restrictions
+remain TODO. Confirm the whole `boundaries` item only when reviewed.
 
-Apply: replace placeholder text with answer.
+## Finish
 
----
-
-## Q5. Local development
-
-**Section:** `## Local development`
-
-Ask 4 подряд:
-
-### Q5.1 Setup steps (numbered)
-> "Какие шаги от cold до running product? (e.g. `dev-stack up` → `db-create` → `cd repoA && uv run uvicorn` → `cd repoB && pnpm dev`)"
-
-### Q5.2 Critical repos
-> "Какие репы критичные для dev session (без них ничего не работает)?"
-
-### Q5.3 Mockable repos
-> "Какие репы можно НЕ запускать или замокать?"
-
-### Q5.4 Health check
-> "Как проверить что product healthy? (curl endpoint / port check / specific log line)"
-
-Apply: заменить 4 TODO bullets + setup steps numbered list.
-
----
-
-## Q6. Cross-repo conventions
-
-**Section:** `## Cross-repo conventions`
-
-### Q6.1 Shared schemas location
-> "Где живут shared schemas / DTOs / proto-файлы?  
-> 1. Отдельный repo (назови какой)  
-> 2. Inline в каждом репо — duplicated  
-> 3. None — все API изолированы"
-
-### Q6.2 Consumer repos
-> "Когда меняешь API в одном репе — какие repos нужно обновлять синхронно? Перечисли relationships."
-
-Apply: заменить TODO bullets.
-
----
-
-## Q7. Procedural workflows
-
-**Section:** `## Procedural workflows`
-
-Ask:
-> "Есть ли повторяющиеся multi-step операции в этом product, которые стоит документировать?  
-> 1. Adding new service / module / component  
-> 2. Rolling out cross-repo contract change  
-> 3. Specific deployment workflow  
-> 4. Другие — опиши  
-> 5. Нет, не нужно — удалить секцию"
-
-Если есть — попросить пошагово (1-N steps) для каждого workflow. Apply: заполнить subsections.
-
----
-
-## Q8. Boundaries
-
-**Section:** `## Boundaries (product-specific)`
-
-### Q8.1 Don't touch
-> "Что в этом product нельзя трогать без explicit approval? (e.g. shared schemas dir, migrations, infra configs)"
-
-### Q8.2 Ask first
-> "Операции которые spanning multiple repos и требуют ask? (e.g. version bump shared deps, breaking change в shared DTO)"
-
-Apply: заменить TODO bullets.
-
----
-
-## Q9. References
-
-**Section:** `## References`
-
-3 подряд:
-> "Product Confluence/Notion page URL? (или `none`)"
-> "Architecture diagram path? (или `none`)"
-> "Production incident runbook URL? (или `none`)"
-
-Apply: заменить 3 TODO bullets.
-
----
-
-## Final step
-
-1. `grep -n TODO AGENTS.md` — count remaining
-2. `git diff AGENTS.md` (если product dir в git repo) — preview
-3. Suggested commit (если в git):
-   > `chore(${CO}/${PROD}): заполнить product AGENTS.md`
-4. NEVER auto-commit.
+Report the reloaded card's status, unresolved/review items, and the scoped
+document changes. The template has no Local development, Procedural workflows,
+or References sections: do not invent those sections during placeholder fill.
+Do not change the automatic `coordinates` item, force completion, or commit.

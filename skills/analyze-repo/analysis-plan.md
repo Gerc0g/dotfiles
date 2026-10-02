@@ -3,6 +3,11 @@
 Detailed checklist for `analyze-repo` skill — what to read, what to derive,
 what to write in `docs/design.md`.
 
+Follow SKILL.md for canonical HQ scope, checkout selection and write authority.
+Paths below are relative to the resolved checkout. Examples illustrate output
+shape, not facts about the inspected repo. Skip absent source/history/tests and
+describe the evidence gap; an empty repo does not need invented architecture.
+
 ---
 
 ## Phase 1: Inventory
@@ -163,10 +168,10 @@ grep -rn "# IMPORTANT\|# WARNING\|# NOTE\|# HACK\|# TODO" src/
 - linter ignore comments — what's being suppressed and why
 - `# type: ignore` clusters
 
-For each, write 1 sentence: "X is done THIS way because Y".
-
-Aim for 5-15 non-obvious patterns. If <5 found — repo is straightforward, no
-counter-intuitive things, write `(nothing non-obvious found — codebase is conventional)`.
+For each supported pattern, describe the behavior and source evidence. Include
+a reason only when it is documented or clearly identified as an inference.
+Do not invent findings to reach a quota or infer simplicity from finding fewer
+than five patterns. If none were found, state what was inspected.
 
 ---
 
@@ -264,7 +269,7 @@ ADR file format (Michael Nygard):
 # 0001. <slug>
 
 ## Status
-Accepted (date)
+Draft
 
 ## Context
 <problem statement, options considered>
@@ -277,23 +282,20 @@ Accepted (date)
 - <negative outcomes / trade-offs>
 ```
 
-Mark each ADR as "draft" until user reviews and approves.
+Propose candidates in the report first. Create ADR files only within explicit
+write authorization, using available numbering; a draft is not an accepted
+decision. Preserve the status of existing historical ADRs.
 
 ---
 
 ## Phase 11: Optional AGENTS.md update
 
-Suggest top 3-5 non-obvious patterns from Phase 6 для embedding в repo
-AGENTS.md `## Non-obvious patterns` section.
-
-Format for user:
-> "Found 12 non-obvious patterns. Top 3-5 для AGENTS.md (показываются в каждой сессии):
-> 1. ...
-> 2. ...
-> ...
-> Apply to AGENTS.md? (y/n/edit selection)"
-
-Only edit AGENTS.md with explicit user approval.
+Suggest the most useful supported patterns for `## Non-obvious patterns`.
+If that bounded edit is already authorized, reload the canonical HQ card and
+save with its current revision through `hq entity update`. Otherwise show the
+proposal without editing. Do not directly overwrite the file or confirm the
+inferences as human decisions. The full protocol is in
+[onboard-agents-md](../onboard-agents-md/SKILL.md).
 
 ---
 
@@ -315,5 +317,7 @@ If draft fails any of above — re-analyze that area, ask user clarifying questi
   not derivable from code reading.
 - **Tests are signals, not truth.** Tests may pass while production fails — note
   test coverage gaps.
-- **Branch history may differ from main.** Analyze main/dev unless user specifies.
+- **Branch history may differ.** Record the branch/HEAD of the resolved checkout.
+  Do not switch to main/dev automatically or mix worktree facts into canonical
+  documentation without an explicit request for that scope.
 - **Don't fabricate confidence.** "Looks like X" beats "is X" when uncertain.

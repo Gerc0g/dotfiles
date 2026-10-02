@@ -1,6 +1,6 @@
 ---
 name: analyze-product
-description: "Deep architectural analysis of a multi-repo product. Reads all repos in product dir, identifies services + roles + inter-service communication + data flow, writes draft to docs/ARCHITECTURE.md and proposed docs/adr/. Use when: user just onboarded new product, after major refactor, periodic architecture re-sync. Triggers: \"analyze product\", \"анализ архитектуры\", \"deep dive продукта\", \"проанализируй продукт\"."
+description: "Deep architectural analysis of a registered HQ product when the user asks for analyze product, анализ архитектуры, deep dive продукта, or проанализируй продукт. Read registered repos, derive roles and data flow, and draft ARCHITECTURE.md within authorized write scope. Separate from basic onboarding; ADR creation is optional."
 ---
 
 # Analyze Product Architecture
@@ -10,18 +10,28 @@ repos in the product directory.
 
 ## When to trigger
 
-- User just ran `new-project` and wants architecture doc generated automatically
+- User explicitly wants architecture analysis after creating a product
 - User says "analyze this product" / "проанализируй продукт"
 - After major refactor — re-sync ARCHITECTURE.md with reality
 - Periodic (quarterly) review
 
-## Prerequisites
+## Resolve the analysis scope
 
-cwd must be a **product directory** with subdirectories = repos. Detect via:
-- `.product-config` exists in cwd
-- OR cwd contains multiple subdirs each with `.git/`
+Use the explicit HQ task scope when supplied; otherwise use `hq ctx --plain`
+to identify the requested product. Read `hq entity show <company/product>
+--json` and use the card's canonical `path` and registered repo `children`.
+Check that any task cwd belongs to that canonical product on the selected
+machine. A company/product directory does not need to be a Git repository.
 
-If not detected — STOP, ask user to `cd ~/Desktop/Prokectfiles/<co>/<prod>`.
+Do not infer a product from a directory shape or collect every child with a
+manifest. `.git` may be a file or directory. Resolve child paths through their
+HQ cards; do not substitute a worktree or another similarly named repo.
+If the target is unavailable, report the concrete gap without provisioning it.
+
+This is an optional deep-analysis workflow, not a prerequisite for filling an
+entity card. Empty products and repositories have no architecture to derive:
+report what exists and what is still a plan. Use `onboard-agents-md` for guided
+context filling without source or existing architecture docs.
 
 ## Workflow
 
@@ -29,7 +39,9 @@ Read `analysis-plan.md` for detailed checklist of WHAT to analyze and HOW.
 
 High-level flow:
 
-1. **Scan repos in cwd.** List subdirs that look like repos (have `.git` or manifest).
+1. **Inventory registered repo children.** Record each inspected path and
+   branch/HEAD when available. Preserve dirty files and note unavailable repos;
+   do not change branches or hide gaps in product coverage.
 
 2. **Per repo — quick fingerprint:**
    - Read `README.md` (first 50 lines)
@@ -50,7 +62,8 @@ High-level flow:
 5. **Identify deployment topology.** From `Dockerfile`, `.gitlab-ci.yml`,
    `.github/workflows/`, `k8s/`, `infrastructure/`.
 
-6. **Draft `docs/ARCHITECTURE.md`** (in cwd). Structure:
+6. **Draft `docs/ARCHITECTURE.md`** in the canonical product path. Read existing
+   documentation first and preserve relevant human-authored content. Structure:
    - Overview (1-2 paragraphs)
    - Services (один subsection per repo)
    - Inter-service communication (table + per-pair details)
@@ -62,41 +75,51 @@ High-level flow:
 
 7. **Identify candidate ADRs.** If finding non-trivial design decisions (e.g.
    "uses NATS for async work" / "state in single service" / "no monorepo") —
-   suggest creating `docs/adr/0001-<slug>.md` files.
+   list candidate topics. Creating files is a separate optional scope; do not
+   turn observed implementation into an accepted historical decision.
 
-8. **Show draft to user. Don't auto-save.** Ask:
-   - "Save docs/ARCHITECTURE.md as-is? (y/n/edit)"
-   - "Create N ADR files for identified decisions? (y/n/list)"
+8. **Deliver within the requested write scope.** If saving
+   `docs/ARCHITECTURE.md` was explicitly authorized, save the bounded update and
+   report the changes without another approval round. For read-only analysis,
+   show the concrete draft; ask only before a newly requested write. Create
+   ADRs only if authorized, using unused numbers and Draft status.
 
-9. **Apply with user approval.** Write files, suggest commit message.
+9. **Keep onboarding separate.** Architecture analysis does not confirm entity
+   items. If a bounded AGENTS.md update was also requested, use the current HQ
+   document revision and the save protocol in
+   [onboard-agents-md](../onboard-agents-md/SKILL.md). Do not directly replace the
+   file or mark source-derived content human-confirmed.
 
 ## Rules
 
 - READ-ONLY by default. Do NOT modify source code.
-- Write only to `./docs/` directory in product cwd.
+- Write only authorized docs in the canonical product path and any separately
+  authorized AGENTS.md edit through HQ. Re-read before saving when another
+  writer may have changed the document; preserve unrelated edits.
 - Never `git commit` without explicit user ask.
 - Be honest about limits: if external services can't be inferred from code,
   list them as "TODO confirm with user".
-- Pair every "could be X or Y" with "ask user to confirm".
+- Label uncertain conclusions; ask focused questions when they materially
+  change the result. Do not require confirmation of every observed fact.
 - Telegraph style in draft. No prose paragraphs without commands/facts.
 
 ## Output structure
 
 ```
-~/Desktop/Prokectfiles/<co>/<prod>/
-├── AGENTS.md                ← unchanged
-├── docs/                    ← NEW (created by this skill)
+<canonical-product-path>/
+├── AGENTS.md                ← unchanged unless a bounded HQ edit was requested
+├── docs/                    ← existing or created within authorized scope
 │   ├── ARCHITECTURE.md      ← main output
 │   └── adr/
-│       ├── 0001-<topic>.md  ← optional, with user approval
+│       ├── <next-number>-<topic>.md  ← only if separately authorized
 │       └── ...
 └── <repos>/                 ← unchanged
 ```
 
 ## After completion
 
-1. `grep -nE 'docs/(ARCHITECTURE|adr)' ../<co>/<prod>/AGENTS.md` —
-   confirm product AGENTS.md уже ссылается (через Context hierarchy table).
+1. Read the canonical product AGENTS.md to check its architecture references;
+   report missing references without changing context outside the write scope.
 2. Suggested commit (если product dir в git):
    > `docs(${prod}): generate ARCHITECTURE.md + ADRs from code analysis`
 3. NEVER auto-commit.

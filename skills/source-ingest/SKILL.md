@@ -1,6 +1,6 @@
 ---
 name: source-ingest
-description: Ingest an external source, URL, file, or pasted note into WikiPedik source notes. Use for curator-side raw source capture, not repo memory curation.
+description: "Ingest an external source, URL, file, or pasted note into WikiPedik source notes. Use for curator-side raw source capture, not repo memory curation."
 ---
 
 # source-ingest
@@ -9,7 +9,13 @@ Curator-side skill. Adds external reference material to WikiPedik without mixing
 
 ## Target
 
-Default target:
+In an HQ server Research task, use `sources/<source-slug>.md` under the
+current research workspace. Resolve the scope with `hq ctx --plain` when
+available. Do not use the workstation paths below inside a container, follow
+symlinks outside the workspace, or request company credentials. Company/project
+association is a reference for later owner review, never a cross-scope write.
+
+Workstation default target:
 
 ```text
 ~/Desktop/WikiPedik/dev/10-wiki/sources/<source-slug>.md
@@ -69,4 +75,3 @@ scope: general|<co>/<prod>
 - Do not ingest secrets, credentials, raw production logs, or customer-identifying data.
 - Do not write `lessons.md`, `gotchas.md`, or `_inbox.md`; use `inbox-drain` / `lesson-append` for project memory.
 - Do not create canonical docs or ADRs from this skill.
-
