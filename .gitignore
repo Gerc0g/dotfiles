@@ -4,12 +4,10 @@
 *credentials*
 *secret*
 !shell/50-secrets.zsh
-!docs/platform/secrets-env.md
 !core/secret/
 !core/secret/**
 !core/internal/cli/secret.go
 shell/local.zsh
-docs/private/
 
 # Generated local artifacts
 .DS_Store
@@ -27,13 +25,7 @@ tools/status-tui/status-tui
 # server-only shell env (not synced to Mac)
 shell/*.local.zsh
 
-# AI-generated session docs and personal agent config (local only, not published)
+# Documentation and AI session docs stay local; repo is code and functionality only
+docs/
+/README.md
 .codex-config-full.toml
-docs/research/
-docs/BACKLOG.md
-docs/platform/hq-server-delivery.md
-docs/platform/hq-server-product.md
-docs/wiki-integration-design.md
-docs/wikipedik-cheatsheet.md
-docs/wikipedik-memory-research.md
-docs/wikipedik-roadmap.md
