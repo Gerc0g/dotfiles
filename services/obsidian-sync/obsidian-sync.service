@@ -1,0 +1,21 @@
+[Unit]
+Description=WikiPedik continuous Obsidian Sync
+Documentation=https://obsidian.md/help/sync/headless
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/ob sync --path %h/Desktop/WikiPedik --continuous
+Restart=on-failure
+RestartSec=15
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=%h/Desktop/WikiPedik %h/.config/obsidian-headless
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

@@ -12,6 +12,21 @@
 
 set -e
 
+if [[ ${1:-} == --mode ]]; then
+  if [[ $# -lt 2 ]]; then echo 'Missing --mode value' >&2; exit 2; fi
+  bootstrap_mode=${2:-}
+  shift 2
+  case "$bootstrap_mode" in
+    server) exec bash "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/services/hq-server/bootstrap.sh" "$@" ;;
+    workstation) ;;
+    *) echo 'Mode must be workstation or server' >&2; exit 2 ;;
+  esac
+fi
+if [[ $(uname -s) != Darwin ]]; then
+  echo 'Use --mode server for Linux; workstation bootstrap requires macOS.' >&2
+  exit 2
+fi
+
 cd ~/dotfiles
 
 echo "=== Personal Platform Bootstrap ==="

@@ -1,0 +1,8 @@
+FROM docker.io/library/node:22.16.0-bookworm-slim
+ARG CODEX_VERSION=0.157.1
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl python3 make g++ ripgrep procps && rm -rf /var/lib/apt/lists/* \
+    && npm install --global @openai/codex@${CODEX_VERSION} && npm cache clean --force
+RUN mkdir -p /home/codex /run && chmod 1777 /home/codex
+ENV HOME=/home/codex CODEX_HOME=/home/codex
+ENTRYPOINT []
+CMD ["codex", "app-server", "--listen", "stdio://"]
