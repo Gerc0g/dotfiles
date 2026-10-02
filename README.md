@@ -152,8 +152,8 @@ Current repo-owned skills:
 
 - `analyze-repo` — generate repo-level design docs from source code;
 - `analyze-product` — generate multi-repo product architecture docs;
-- `fill-agents-md` — condense design docs into short `AGENTS.md`;
-- `onboard-agents-md` — interactively fill TODOs in generated `AGENTS.md`;
+- `fill-agents-md` — condense existing design docs into `AGENTS.md` through HQ;
+- `onboard-agents-md` — fill entity context from facts, then human answers and review;
 - `skill-maintainer` — universal skill for creating/updating skills in this
   dotfiles architecture.
 
@@ -166,13 +166,14 @@ agent-skill install
 agent-skill doctor
 ```
 
-Default isolation:
+Installation model:
 
-- new repo-owned skills are setup-only;
-- `skill-maintainer` is universal and installed into daily/setup/wiki;
-- `agent-skill doctor` verifies frontmatter, symlinks, and isolation.
+- every repo-owned skill is linked into both standard Claude/Codex profiles;
+- onboarding, analysis and wiki curation are task workflows, not separate profiles;
+- `agent-skill doctor` verifies frontmatter and installed symlinks.
 
-Do not write reusable skills directly into `~/.codex-*` or `~/.claude-*`.
+Do not write reusable skills directly into the runtime profile directories or
+switch agent homes just to run a setup task.
 
 ## WikiPedik Memory
 
@@ -306,7 +307,7 @@ Canonical: `services/dev-stack/README.md`.
 
 ## Claude LSP Baseline
 
-Claude daily/setup profiles include:
+The standard Claude profile includes:
 
 - Python: `pyright-lsp@claude-plugins-official`;
 - TypeScript/JavaScript: `vtsls@claude-code-lsps`;
@@ -326,7 +327,7 @@ globally by default.
 - `shell/` — zsh commands loaded from `_loader.zsh`;
 - `scripts/` — bootstrap and command helpers;
 - `templates/` — company/product/repo `AGENTS.md` templates;
-- `skills/` — repo-owned setup/universal skills;
+- `skills/` — repo-owned skills installed into both standard agent profiles;
 - `skills-stash/wiki/` — WikiPedik worker/curator skills, hooks, runtime scripts;
 - `services/` — local dev stack;
 - `tmux/`, `ghostty/` — terminal environment config;

@@ -18,6 +18,7 @@ logs/
 *.bak
 .zshrc-*.txt
 __pycache__/
+output/
 
 # Locally built binaries; sources stay tracked
 bin/
@@ -25,3 +26,14 @@ tools/status-tui/status-tui
 
 # server-only shell env (not synced to Mac)
 shell/*.local.zsh
+
+# AI-generated session docs and personal agent config (local only, not published)
+.codex-config-full.toml
+docs/research/
+docs/BACKLOG.md
+docs/platform/hq-server-delivery.md
+docs/platform/hq-server-product.md
+docs/wiki-integration-design.md
+docs/wikipedik-cheatsheet.md
+docs/wikipedik-memory-research.md
+docs/wikipedik-roadmap.md
